@@ -1,0 +1,41 @@
+# =============================================================================
+# Contrato do ai-structuring-service (RNF02).
+# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
+# Mudanca aqui exige PR revisado antes de qualquer implementacao.
+# =============================================================================
+openapi: 3.1.0
+
+info:
+  title: ai-structuring-service
+  version: 1.0.0
+  description: |
+    Estruturacao do curso por LLM.
+    Requisitos atendidos: RF11, RF12, RNF03, RNF04.
+  contact:
+    name: Projeto Integrador de Extensao IV - Equipe 6
+
+servers:
+  - url: http://localhost:8003
+    description: Desenvolvimento local
+  - url: http://ai-structuring-service:8003
+    description: Rede interna do Docker Compose
+
+tags:
+  - name: health
+    description: Liveness e readiness
+
+security:
+  - bearerAuth: []
+
+paths: {}
+# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token emitido pelo gateway-service (RF16).
+  schemas: {}
+  # TODO(Fase 2): referenciar ../schemas/*.json

@@ -1,0 +1,34 @@
+name: Tarefa
+description: Trabalho de apoio sem requisito direto (infra, documentacao, estudo)
+title: "[TAREFA] "
+labels: ["tarefa"]
+body:
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+    validations:
+      required: true
+  - type: dropdown
+    id: frente
+    attributes:
+      label: Frente responsavel
+      options:
+        - Gerencia
+        - Documentacao
+        - Backend
+        - IA
+        - Frontend
+    validations:
+      required: true
+  - type: input
+    id: entrega
+    attributes:
+      label: Entrega parcial relacionada
+      placeholder: 2a parcial - 15/09
+  - type: textarea
+    id: aceite
+    attributes:
+      label: Criterios de conclusao
+      value: |
+        - [ ]

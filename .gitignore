@@ -1,0 +1,55 @@
+# ---------- Segredos (RNF11: nenhuma chave versionada) ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# ---------- Node / Frontend ----------
+node_modules/
+.pnpm-store/
+web/dist/
+web/.vite/
+*.local
+
+# ---------- Banco / Infra ----------
+*.sqlite3
+*.db
+pgdata/
+docker-compose.override.yml
+
+# ---------- Ferramentas locais de desenvolvimento ----------
+CLAUDE.md
+.claude/
+.cursor/
+.aider*
+.github/copilot-instructions.md
+
+# ---------- Editores e SO ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---------- Artefatos locais ----------
+logs/
+*.log
+tmp/
+scratch/
