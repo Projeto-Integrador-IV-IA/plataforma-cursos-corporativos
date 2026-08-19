@@ -1,0 +1,99 @@
+# =============================================================================
+# Orquestracao local dos microsservicos (RNF01).
+# Uso: cp .env.example .env  &&  docker compose up -d
+# ATENCAO: os servicos ainda nao possuem implementacao - somente `db` sobe hoje.
+# =============================================================================
+name: cursos-corporativos
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cursos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pipeline-service:
+    build:
+      context: ./services/pipeline-service
+      dockerfile: Dockerfile
+    container_name: cursos-pipeline
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    ports:
+      - "${PIPELINE_PORT:-8001}:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./services/pipeline-service:/app
+      - ./packages/contracts:/contracts:ro
+
+  ingestion-service:
+    build:
+      context: ./services/ingestion-service
+      dockerfile: Dockerfile
+    container_name: cursos-ingestion
+    env_file: .env
+    environment:
+      PIPELINE_SERVICE_URL: http://pipeline-service:8001
+      AI_STRUCTURING_SERVICE_URL: http://ai-structuring-service:8003
+    ports:
+      - "${INGESTION_PORT:-8002}:8002"
+    depends_on:
+      - pipeline-service
+    volumes:
+      - ./services/ingestion-service:/app
+      - ./packages/contracts:/contracts:ro
+
+  ai-structuring-service:
+    build:
+      context: ./services/ai-structuring-service
+      dockerfile: Dockerfile
+    container_name: cursos-ai
+    env_file: .env
+    environment:
+      PIPELINE_SERVICE_URL: http://pipeline-service:8001
+    ports:
+      - "${AI_STRUCTURING_PORT:-8003}:8003"
+    depends_on:
+      - pipeline-service
+    volumes:
+      - ./services/ai-structuring-service:/app
+      - ./packages/contracts:/contracts:ro
+
+  gateway-service:
+    build:
+      context: ./services/gateway-service
+      dockerfile: Dockerfile
+    container_name: cursos-gateway
+    env_file: .env
+    environment:
+      PIPELINE_SERVICE_URL: http://pipeline-service:8001
+      INGESTION_SERVICE_URL: http://ingestion-service:8002
+      AI_STRUCTURING_SERVICE_URL: http://ai-structuring-service:8003
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    depends_on:
+      - pipeline-service
+      - ingestion-service
+      - ai-structuring-service
+    volumes:
+      - ./services/gateway-service:/app
+      - ./packages/contracts:/contracts:ro
+
+volumes:
+  pgdata:

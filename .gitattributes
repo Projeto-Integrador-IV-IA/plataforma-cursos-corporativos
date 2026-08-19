@@ -1,0 +1,23 @@
+# Normaliza a quebra de linha no repositorio.
+# O time desenvolve em Windows e os servicos rodam em Linux nos containers:
+# arquivo com CRLF quebra script e entrypoint dentro da imagem.
+# Isto vale para todos, independentemente da config global de cada um.
+
+* text=auto eol=lf
+
+# Binarios: nao tocar
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary
+
+# Arquivos que exigem LF mesmo em Windows
+*.sh        text eol=lf
+Makefile    text eol=lf
+Dockerfile  text eol=lf
+*.py        text eol=lf
+*.sql       text eol=lf

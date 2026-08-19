@@ -1,0 +1,25 @@
+# Donos por area. Substitua os placeholders pelos usuarios reais do GitHub.
+# Todo PR requer aprovacao do dono da area tocada (RNF14).
+
+# Fallback
+*                                   @gerencia
+
+# Backend
+/services/pipeline-service/         @backend-1 @backend-2
+/services/ingestion-service/        @backend-1 @backend-2
+/services/gateway-service/          @backend-1 @backend-2
+/infra/db/                          @backend-1 @backend-2
+
+# IA
+/services/ai-structuring-service/   @ia
+/docs/04-ia/                        @ia
+
+# Frontend
+/web/                               @frontend-1 @frontend-2
+
+# Contratos de API: mudanca quebra todos os servicos - revisao dupla
+/packages/contracts/                @backend-1 @ia @frontend-1
+
+# Documentacao e processo
+/docs/                              @documentacao @gerencia
+/.github/                           @gerencia

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://projeto-integrador-iv/schemas/structured-course.schema.json",
+  "title": "StructuredCourse",
+  "description": "Saida canonica da estruturacao por IA (RF11, RF12). Formato fixo e versionado: e contra este schema que a resposta do LLM e validada (RNF03) e sobre ele que as metricas de qualidade sao calculadas (RNF04). ESTADO: esqueleto - campos definidos na PoC da Fase 2.",
+  "type": "object",
+  "x-estado": "esqueleto",
+  "x-requisitos": ["RF11", "RF12", "RNF03", "RNF04"],
+  "x-campos-extraidos-previstos": [
+    "tema",
+    "nicho",
+    "publico_alvo",
+    "numero_participantes",
+    "carga_horaria",
+    "formato"
+  ],
+  "x-campos-gerados-previstos": [
+    "objetivos_aprendizagem",
+    "ementa"
+  ],
+  "x-metadados-previstos": [
+    "campos_ausentes",
+    "observacoes",
+    "versao_prompt",
+    "modelo",
+    "gerado_em"
+  ],
+  "x-regra": "Campo sem base no texto de entrada e reportado em campos_ausentes, nunca inferido (RF14).",
+  "properties": {},
+  "required": []
+}

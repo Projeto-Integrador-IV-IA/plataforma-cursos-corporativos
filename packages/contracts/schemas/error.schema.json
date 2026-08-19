@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://projeto-integrador-iv/schemas/error.schema.json",
+  "title": "Error",
+  "description": "Formato unico de erro de toda a plataforma, para que o frontend trate qualquer microsservico da mesma forma (RNF02). Mensagens nao expoem detalhe interno de infraestrutura (RNF10).",
+  "type": "object",
+  "properties": {
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Codigo estavel e legivel por maquina. Ex.: DEMAND_NOT_FOUND, INVALID_STAGE_TRANSITION, LLM_UNAVAILABLE."
+        },
+        "message": {
+          "type": "string",
+          "description": "Mensagem em portugues, exibivel ao operador."
+        },
+        "details": {
+          "type": "object",
+          "description": "Contexto adicional, opcional. Ex.: campo invalido, etapa de origem e destino.",
+          "additionalProperties": true
+        },
+        "request_id": {
+          "type": "string",
+          "description": "Correlacao da requisicao entre servicos, para rastreio no log (RNF09)."
+        }
+      },
+      "required": ["code", "message"]
+    }
+  },
+  "required": ["error"]
+}

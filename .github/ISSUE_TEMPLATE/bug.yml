@@ -1,0 +1,44 @@
+name: Defeito
+description: Comportamento incorreto em algo ja implementado
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Comportamento esperado
+    validations:
+      required: true
+  - type: textarea
+    id: atual
+    attributes:
+      label: Comportamento observado
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Passos para reproduzir
+      value: |
+        1.
+        2.
+    validations:
+      required: true
+  - type: dropdown
+    id: servico
+    attributes:
+      label: Microsservico
+      options:
+        - gateway-service
+        - ingestion-service
+        - ai-structuring-service
+        - pipeline-service
+        - web
+        - desconhecido
+    validations:
+      required: true
+  - type: input
+    id: requisito
+    attributes:
+      label: Requisito impactado
+      placeholder: RF07

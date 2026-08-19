@@ -1,0 +1,59 @@
+name: Requisito (RF/RNF)
+description: Card de implementacao vinculado a um requisito do MVP
+title: "[RFxx] "
+labels: ["requisito"]
+body:
+  - type: input
+    id: requisito
+    attributes:
+      label: ID do requisito
+      description: Conforme docs/01-requisitos/. Ex.- RF05, RNF03
+      placeholder: RF05
+    validations:
+      required: true
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Descricao do requisito
+      description: Copie o texto do requisito da especificacao.
+    validations:
+      required: true
+  - type: dropdown
+    id: servico
+    attributes:
+      label: Microsservico
+      options:
+        - gateway-service
+        - ingestion-service
+        - ai-structuring-service
+        - pipeline-service
+        - web
+        - contracts
+        - documentacao
+    validations:
+      required: true
+  - type: dropdown
+    id: prioridade
+    attributes:
+      label: Prioridade
+      options:
+        - Essencial
+        - Alta
+        - Media
+    validations:
+      required: true
+  - type: textarea
+    id: aceite
+    attributes:
+      label: Criterios de aceite
+      description: O que precisa ser verdade para considerar concluido.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependencias
+      description: Outros cards ou decisoes que bloqueiam este.
