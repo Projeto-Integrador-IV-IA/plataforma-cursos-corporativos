@@ -7,5 +7,9 @@ abre a v2 em vez de alterar a v1 em uso.
 TODO(scaffolding): montar o APIRouter e incluir os routers de routes/.
 """
 
-# TODO: from fastapi import APIRouter
-# TODO: api_router = APIRouter(prefix="/api/v1")
+from fastapi import APIRouter
+
+from app.api.v1.routes.clients import router as clients_router
+
+api_router = APIRouter(prefix="/api/v1")
+api_router.include_router(clients_router)

@@ -6,4 +6,8 @@ metadata completo ao gerar migrations automaticamente.
 TODO(scaffolding): definir ``Base`` e importar os modelos.
 """
 
-# TODO: class Base(DeclarativeBase): ...
+from sqlalchemy.orm import DeclarativeBase
+
+
+class Base(DeclarativeBase):
+    pass

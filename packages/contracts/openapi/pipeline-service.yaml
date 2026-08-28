@@ -23,12 +23,40 @@ servers:
 tags:
   - name: health
     description: Liveness e readiness
+  - name: clients
+    description: Cadastro de empresas clientes
 
 security:
   - bearerAuth: []
 
-paths: {}
-# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+paths:
+  /api/v1/clients:
+    post:
+      tags: [clients]
+      summary: Cadastra uma empresa cliente
+      operationId: createClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCreate'
+      responses:
+        '201':
+          description: Cliente cadastrado
+          headers:
+            Location:
+              description: Caminho do cliente criado
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRead'
+        '409':
+          description: CNPJ ja cadastrado
+        '422':
+          description: Dados de entrada invalidos
 
 components:
   securitySchemes:
@@ -37,5 +65,25 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
-  schemas: {}
-  # TODO(Fase 2): referenciar ../schemas/*.json
+  schemas:
+    ClientCreate:
+      type: object
+      required: [nome]
+      properties:
+        nome: {type: string, minLength: 1}
+        cnpj: {type: [string, 'null'], pattern: '^([0-9]{14}|[0-9]{2}\\.[0-9]{3}\\.[0-9]{3}/[0-9]{4}-[0-9]{2})$'}
+        segmento: {type: [string, 'null']}
+        contato_nome: {type: [string, 'null']}
+        contato_email: {type: [string, 'null'], format: email}
+        contato_telefone: {type: [string, 'null']}
+        observacoes: {type: [string, 'null']}
+    ClientRead:
+      allOf:
+        - $ref: '#/components/schemas/ClientCreate'
+        - type: object
+          required: [id, ativo, created_at, updated_at]
+          properties:
+            id: {type: string, format: uuid}
+            ativo: {type: boolean}
+            created_at: {type: string, format: date-time}
+            updated_at: {type: string, format: date-time}

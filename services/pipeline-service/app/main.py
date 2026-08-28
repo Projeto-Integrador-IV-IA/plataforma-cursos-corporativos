@@ -13,6 +13,15 @@ TODO(scaffolding): implementar a fabrica create_app() e expor app.
     Ate la este servico nao sobe - ver README na raiz do repositorio.
 """
 
-# TODO: from fastapi import FastAPI
-# TODO: def create_app() -> FastAPI: ...
-# TODO: app = create_app()
+from fastapi import FastAPI
+
+from app.api.v1.router import api_router
+
+
+def create_app() -> FastAPI:
+    application = FastAPI(title="pipeline-service", version="1.0.0")
+    application.include_router(api_router)
+    return application
+
+
+app = create_app()
