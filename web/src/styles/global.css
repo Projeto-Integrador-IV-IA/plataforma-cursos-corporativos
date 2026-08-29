@@ -1,4 +1,132 @@
 /*
- * Estilos globais e tokens de design.
+ * Estilos globais.
+ *
+ * Escopo desta entrega (RNF01): apenas o suficiente para o layout base ficar
+ * legivel e navegavel. Os tokens abaixo sao neutros e provisorios.
+ *
  * TODO(scaffolding): definir paleta, tipografia e espacamentos na Fase 3.
  */
+
+:root {
+  --cor-fundo: #f6f7f9;
+  --cor-superficie: #ffffff;
+  --cor-borda: #d9dde3;
+  --cor-texto: #1c2430;
+  --cor-texto-suave: #5b6675;
+  --cor-destaque: #1f4f8f;
+  --espaco: 1rem;
+  --raio: 6px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.layout__header {
+  display: flex;
+  align-items: center;
+  padding: var(--espaco);
+  background: var(--cor-superficie);
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.layout__brand {
+  font-weight: 600;
+}
+
+.layout__body {
+  display: flex;
+  flex: 1;
+}
+
+.layout__sidebar {
+  width: 13rem;
+  padding: var(--espaco);
+  background: var(--cor-superficie);
+  border-right: 1px solid var(--cor-borda);
+}
+
+.layout__content {
+  flex: 1;
+  padding: calc(var(--espaco) * 1.5);
+}
+
+.nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav__link {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--raio);
+  color: var(--cor-texto);
+  text-decoration: none;
+}
+
+.nav__link:hover {
+  background: var(--cor-fundo);
+}
+
+.nav__link--active {
+  background: var(--cor-destaque);
+  color: var(--cor-superficie);
+}
+
+.page {
+  max-width: 60rem;
+}
+
+.page__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.page__title {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.page__requirements {
+  display: flex;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+.tag {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  font-size: 0.75rem;
+  color: var(--cor-texto-suave);
+}
+
+.page__description {
+  color: var(--cor-texto-suave);
+}
+
+.page__pending {
+  padding: var(--espaco);
+  border: 1px dashed var(--cor-borda);
+  border-radius: var(--raio);
+  color: var(--cor-texto-suave);
+}

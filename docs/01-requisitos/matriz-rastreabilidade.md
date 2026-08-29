@@ -40,7 +40,7 @@ mostra, em uma tela, onde o MVP está.
 
 | ID | Requisito (resumo) | Prioridade | Card | Fase | Status | Evidência |
 |---|---|---|---|---|---|---|
-| RNF01 | Arquitetura em microsserviços | Essencial | | 2 | 🟡 | Estrutura criada; [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md) |
+| RNF01 | Arquitetura em microsserviços | Essencial | | 2 | 🟡 | Estrutura criada; [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md). Frontend: [`web/src/app/routes.tsx`](../../web/src/app/routes.tsx), teste em [`web/src/app/routes.test.tsx`](../../web/src/app/routes.test.tsx) |
 | RNF02 | Contratos de API versionados | Alta | | 2 | 🟡 | Esqueleto em `packages/contracts` |
 | RNF03 | Prompts com schema de saída definido | Essencial | | 2 | ⬜ | |
 | RNF04 | Métricas de qualidade da estruturação | Alta | | 3 | ⬜ | |
