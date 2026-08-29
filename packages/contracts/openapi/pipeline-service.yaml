@@ -24,13 +24,61 @@ tags:
   - name: health
     description: Liveness e readiness
   - name: clients
-    description: Cadastro de empresas clientes
+    description: Cadastro e consulta de empresas clientes
 
 security:
   - bearerAuth: []
 
 paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Verifica se o processo esta em execucao
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Processo em execucao
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /ready:
+    get:
+      tags: [health]
+      summary: Verifica se o servico esta pronto para receber trafego
+      operationId: readiness
+      security: []
+      responses:
+        '200':
+          description: Servico pronto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailableError'
   /api/v1/clients:
+    get:
+      tags: [clients]
+      summary: Lista empresas clientes
+      operationId: listClients
+      parameters:
+        - name: page
+          in: query
+          schema: {type: integer, minimum: 1, default: 1}
+        - name: size
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: Pagina de clientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientPage'
+        '422':
+          $ref: '#/components/responses/ValidationError'
     post:
       tags: [clients]
       summary: Cadastra uma empresa cliente
@@ -54,9 +102,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClientRead'
         '409':
-          description: CNPJ ja cadastrado
+          $ref: '#/components/responses/ConflictError'
         '422':
-          description: Dados de entrada invalidos
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/clients/{client_id}:
+    get:
+      tags: [clients]
+      summary: Consulta uma empresa cliente
+      operationId: getClient
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRead'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
 components:
   securitySchemes:
@@ -65,25 +134,72 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
+  responses:
+    ConflictError:
+      description: Conflito com um registro existente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFoundError:
+      description: Recurso nao encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailableError:
+      description: Servico temporariamente indisponivel
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Dados de entrada invalidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
+    Error:
+      $ref: '../schemas/error.schema.json'
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, ready]
     ClientCreate:
       type: object
-      required: [nome]
+      required: [name]
       properties:
-        nome: {type: string, minLength: 1}
-        cnpj: {type: [string, 'null'], pattern: '^([0-9]{14}|[0-9]{2}\\.[0-9]{3}\\.[0-9]{3}/[0-9]{4}-[0-9]{2})$'}
-        segmento: {type: [string, 'null']}
-        contato_nome: {type: [string, 'null']}
-        contato_email: {type: [string, 'null'], format: email}
-        contato_telefone: {type: [string, 'null']}
-        observacoes: {type: [string, 'null']}
+        name: {type: string, minLength: 1}
+        cnpj:
+          type: [string, 'null']
+          pattern: '^(?:[0-9]{14}|[0-9]{2}\.[0-9]{3}\.[0-9]{3}/[0-9]{4}-[0-9]{2})$'
+        segment: {type: [string, 'null']}
+        contact_name: {type: [string, 'null']}
+        contact_email: {type: [string, 'null'], format: email}
+        contact_phone: {type: [string, 'null']}
+        notes: {type: [string, 'null']}
     ClientRead:
       allOf:
         - $ref: '#/components/schemas/ClientCreate'
         - type: object
-          required: [id, ativo, created_at, updated_at]
+          required: [id, active, created_at, updated_at]
           properties:
             id: {type: string, format: uuid}
-            ativo: {type: boolean}
+            active: {type: boolean}
             created_at: {type: string, format: date-time}
             updated_at: {type: string, format: date-time}
+    ClientPage:
+      type: object
+      required: [items, total, page, size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientRead'
+        total: {type: integer, minimum: 0}
+        page: {type: integer, minimum: 1}
+        size: {type: integer, minimum: 1}

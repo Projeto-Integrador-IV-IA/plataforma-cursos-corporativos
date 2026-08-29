@@ -33,14 +33,14 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 | Campo | Tipo | Nulo | Descrição |
 |---|---|---|---|
 | `id` | uuid PK | não | |
-| `nome` | text | não | Razão social ou nome corporativo. |
+| `name` | text | não | Razão social ou nome corporativo. |
 | `cnpj` | text | sim | Opcional; único quando informado. |
-| `segmento` | text | sim | Setor/nicho de atuação — insumo da estruturação (RF11). |
-| `contato_nome` | text | sim | Contato principal. |
-| `contato_email` | text | sim | |
-| `contato_telefone` | text | sim | |
-| `observacoes` | text | sim | Notas livres do operador. |
-| `ativo` | boolean | não | Desativação lógica. |
+| `segment` | text | sim | Setor/nicho de atuação — insumo da estruturação (RF11). |
+| `contact_name` | text | sim | Contato principal. |
+| `contact_email` | text | sim | |
+| `contact_phone` | text | sim | |
+| `notes` | text | sim | Notas livres do operador. |
+| `active` | boolean | não | Desativação lógica. |
 | `created_at` / `updated_at` | timestamptz | não | |
 
 ---

@@ -18,7 +18,7 @@ mostra, em uma tela, onde o MVP está.
 
 | ID | Requisito (resumo) | Prioridade | Serviço | Card | Fase | Status | Evidência |
 |---|---|---|---|---|---|---|---|
-| RF01 | Cadastrar/editar/consultar clientes | Essencial | pipeline | | 3 | ⬜ | |
+| RF01 | Cadastrar/editar/consultar clientes | Essencial | pipeline | | 3 | 🟡 | RF01.1: `POST/GET /api/v1/clients`; `tests/unit/test_clients.py` |
 | RF02 | Cadastrar demandas vinculadas a cliente | Essencial | pipeline | | 3 | ⬜ | |
 | RF03 | Listar e filtrar por status, cliente e período | Alta | pipeline + web | | 3 | ⬜ | |
 | RF04 | Detalhe da negociação com histórico e artefatos | Essencial | pipeline + web | | 3 | ⬜ | |

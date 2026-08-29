@@ -20,14 +20,14 @@ def upgrade() -> None:
     op.create_table(
         "clients",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("nome", sa.Text(), nullable=False),
+        sa.Column("name", sa.Text(), nullable=False),
         sa.Column("cnpj", sa.Text(), nullable=True),
-        sa.Column("segmento", sa.Text(), nullable=True),
-        sa.Column("contato_nome", sa.Text(), nullable=True),
-        sa.Column("contato_email", sa.Text(), nullable=True),
-        sa.Column("contato_telefone", sa.Text(), nullable=True),
-        sa.Column("observacoes", sa.Text(), nullable=True),
-        sa.Column("ativo", sa.Boolean(), server_default=sa.true(), nullable=False),
+        sa.Column("segment", sa.Text(), nullable=True),
+        sa.Column("contact_name", sa.Text(), nullable=True),
+        sa.Column("contact_email", sa.Text(), nullable=True),
+        sa.Column("contact_phone", sa.Text(), nullable=True),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.Column("active", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),

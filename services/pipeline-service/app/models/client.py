@@ -23,17 +23,15 @@ from app.db.base import Base
 class Client(Base):
     __tablename__ = "clients"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    nome: Mapped[str] = mapped_column(Text, nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
     cnpj: Mapped[str | None] = mapped_column(Text, unique=True)
-    segmento: Mapped[str | None] = mapped_column(Text)
-    contato_nome: Mapped[str | None] = mapped_column(Text)
-    contato_email: Mapped[str | None] = mapped_column(Text)
-    contato_telefone: Mapped[str | None] = mapped_column(Text)
-    observacoes: Mapped[str | None] = mapped_column(Text)
-    ativo: Mapped[bool] = mapped_column(
+    segment: Mapped[str | None] = mapped_column(Text)
+    contact_name: Mapped[str | None] = mapped_column(Text)
+    contact_email: Mapped[str | None] = mapped_column(Text)
+    contact_phone: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
     created_at: Mapped[datetime] = mapped_column(

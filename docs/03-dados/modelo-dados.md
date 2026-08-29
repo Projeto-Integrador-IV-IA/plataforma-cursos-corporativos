@@ -23,12 +23,16 @@ erDiagram
 
     CLIENTS {
         uuid id PK
-        text nome
+        text name
         text cnpj
-        text segmento
-        text contato_nome
-        text contato_email
+        text segment
+        text contact_name
+        text contact_email
+        text contact_phone
+        text notes
+        boolean active
         timestamptz created_at
+        timestamptz updated_at
     }
 
     DEMANDS {
@@ -172,7 +176,7 @@ Demanda com status diferente de `ABERTA` não muda de etapa.
 | `stage_transitions` | `(demand_id, occurred_at)` | Histórico cronológico de RF04 e RF07 |
 | `artifact_versions` | `(artifact_id, numero)` único | Garante numeração sequencial sem lacuna (RF08) |
 | `raw_inputs` | `(demand_id, created_at)` | Recuperação do bruto |
-| `clients` | `nome` com `unaccent` | Busca de cliente sem acento (RF03) |
+| `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) |
 
 ## Questões que afetam este modelo
 
