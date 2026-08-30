@@ -6,7 +6,7 @@ SERVICES := gateway-service ingestion-service ai-structuring-service pipeline-se
 
 .DEFAULT_GOAL := help
 .PHONY: help setup install install-py install-web dev up down logs db-up db-shell \
-        migrate migration test test-py test-web lint fmt check clean
+        migrate migration test test-py test-web lint fmt security check clean
 
 help: ## Lista os comandos disponiveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -63,7 +63,14 @@ fmt: ## Formata o codigo
 	ruff format services
 	cd web && npm run format
 
-check: lint test ## Portao de qualidade local (rode antes de abrir PR)
+security: ## Reprova arquivos sensiveis ou credenciais aparentes versionadas
+	@proibidos=$$(git ls-files | grep -E '(^|/)\.env($$|\.)|\.(pem|key|p12|pfx)$$' | grep -vE '(^|/)\.env\.example$$' || true); \
+	 test -z "$$proibidos" || { echo "Arquivos sensiveis versionados:"; echo "$$proibidos"; exit 1; }
+	@padrao='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[a-z][a-z0-9+.-]*://[^[:space:]/]+:[^@[:space:]]+@)'; \
+	 if git grep -nEI "$$padrao" -- ':!*.example' ':!.github/workflows/*' ':!Makefile' ':!web/package-lock.json'; then exit 1; fi; \
+	 if git log --all -G"$$padrao" --format='%H' -- . ':(exclude)*.example' ':(exclude).github/workflows/**' ':(exclude)Makefile' ':(exclude)web/package-lock.json' | grep -q .; then exit 1; fi
+
+check: security lint test ## Portao de qualidade local (rode antes de abrir PR)
 
 clean: ## Remove artefatos de build e caches
 	find . -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true

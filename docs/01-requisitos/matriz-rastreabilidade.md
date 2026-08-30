@@ -50,7 +50,7 @@ mostra, em uma tela, onde o MVP está.
 | RNF08 | Integridade referencial no banco | Essencial | | 2 | ⬜ | |
 | RNF09 | Trilha de auditoria íntegra | Essencial | | 3 | ⬜ | |
 | RNF10 | Controle de acesso | Essencial | | 3 | ⬜ | |
-| RNF11 | Segredos fora do código | Essencial | | 1 | ✅ | `.env.example` + job de segurança na CI |
+| RNF11 | Segredos fora do código | Essencial | | 1 | ✅ | `Settings` por ambiente + `SecretStr` + hash bcrypt + scanner na CI |
 | RNF12 | Operação em camada gratuita | Alta | | 3 | ⬜ | |
 | RNF13 | Serviços desacoplados | Alta | | 2 | 🟡 | [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md) |
 | RNF14 | Fluxo Card → PR → Merge no GitHub | Alta | | 1 | ✅ | [CONTRIBUTING.md](../../CONTRIBUTING.md), templates, CI |

@@ -86,18 +86,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Bloquear .env versionado
+      - name: Bloquear arquivos de ambiente e chaves privadas
         run: |
-          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
-            echo "::error::arquivo .env versionado - remova do controle de versao (RNF11)"
+          proibidos=$(git ls-files | grep -E '(^|/)\.env($|\.)|\.(pem|key|p12|pfx)$' | grep -vE '(^|/)\.env\.example$' || true)
+          if [ -n "$proibidos" ]; then
+            echo "::error::arquivo sensivel versionado (RNF11)"
+            echo "$proibidos"
             exit 1
           fi
 
-      - name: Procurar chaves aparentes no diff
+      - name: Procurar credenciais aparentes no codigo versionado
         run: |
-          padrao='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
-          if git grep -nEI "$padrao" -- ':!*.example' ':!.github/workflows/*' ; then
+          padrao='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[a-z][a-z0-9+.-]*://[^[:space:]/]+:[^@[:space:]]+@)'
+          if git grep -nEI "$padrao" -- ':!*.example' ':!.github/workflows/*' ':!Makefile' ':!web/package-lock.json'; then
             echo "::error::possivel segredo commitado (RNF11)"
+            exit 1
+          fi
+          if git log --all -G"$padrao" --format='%H' -- . \
+            ':(exclude)*.example' \
+            ':(exclude).github/workflows/**' \
+            ':(exclude)Makefile' \
+            ':(exclude)web/package-lock.json' | grep -q .; then
+            echo "::error::possivel segredo encontrado no historico Git (RNF11)"
             exit 1
           fi
           echo "nenhum segredo aparente encontrado"

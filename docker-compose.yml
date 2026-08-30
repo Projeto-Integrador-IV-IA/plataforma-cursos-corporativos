@@ -15,7 +15,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/db/init:/docker-entrypoint-initdb.d:ro
@@ -31,10 +31,8 @@ services:
       dockerfile: Dockerfile
     container_name: cursos-pipeline
     env_file: .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     ports:
-      - "${PIPELINE_PORT:-8001}:8001"
+      - "${PIPELINE_PORT}:${PIPELINE_PORT}"
     depends_on:
       db:
         condition: service_healthy
@@ -48,11 +46,8 @@ services:
       dockerfile: Dockerfile
     container_name: cursos-ingestion
     env_file: .env
-    environment:
-      PIPELINE_SERVICE_URL: http://pipeline-service:8001
-      AI_STRUCTURING_SERVICE_URL: http://ai-structuring-service:8003
     ports:
-      - "${INGESTION_PORT:-8002}:8002"
+      - "${INGESTION_PORT}:${INGESTION_PORT}"
     depends_on:
       - pipeline-service
     volumes:
@@ -65,10 +60,8 @@ services:
       dockerfile: Dockerfile
     container_name: cursos-ai
     env_file: .env
-    environment:
-      PIPELINE_SERVICE_URL: http://pipeline-service:8001
     ports:
-      - "${AI_STRUCTURING_PORT:-8003}:8003"
+      - "${AI_STRUCTURING_PORT}:${AI_STRUCTURING_PORT}"
     depends_on:
       - pipeline-service
     volumes:
@@ -81,12 +74,8 @@ services:
       dockerfile: Dockerfile
     container_name: cursos-gateway
     env_file: .env
-    environment:
-      PIPELINE_SERVICE_URL: http://pipeline-service:8001
-      INGESTION_SERVICE_URL: http://ingestion-service:8002
-      AI_STRUCTURING_SERVICE_URL: http://ai-structuring-service:8003
     ports:
-      - "${GATEWAY_PORT:-8000}:8000"
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
     depends_on:
       - pipeline-service
       - ingestion-service

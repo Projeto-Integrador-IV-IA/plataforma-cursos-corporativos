@@ -20,9 +20,9 @@ app/
 ## Executar
 
 ```bash
-cp ../../.env.example ../../.env
+# Exporte no shell as variaveis de .env.example e preencha os campos vazios.
 pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port "$GATEWAY_PORT"
 ```
 
 > Estado: **scaffolding**. Os modulos ainda nao possuem implementacao.

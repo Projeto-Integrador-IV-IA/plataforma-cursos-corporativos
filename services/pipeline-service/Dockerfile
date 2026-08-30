@@ -10,7 +10,5 @@ RUN pip install --upgrade pip && pip install -e .
 
 COPY app ./app
 
-EXPOSE 8001
-
 # TODO: implementar app/main.py antes de subir este container.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port \"$PIPELINE_PORT\""]
