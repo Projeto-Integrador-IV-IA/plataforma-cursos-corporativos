@@ -1,9 +1,7 @@
-"""Base declarativa do SQLAlchemy e registro de modelos.
+"""Base declarativa compartilhada pelos modelos do pipeline-service."""
 
-Importa todos os modelos de ``app.models`` para que o Alembic enxergue o
-metadata completo ao gerar migrations automaticamente.
+from sqlalchemy.orm import DeclarativeBase
 
-TODO(scaffolding): definir ``Base`` e importar os modelos.
-"""
 
-# TODO: class Base(DeclarativeBase): ...
+class Base(DeclarativeBase):
+    """Agrupa o metadata usado pelos modelos e pelo Alembic."""
