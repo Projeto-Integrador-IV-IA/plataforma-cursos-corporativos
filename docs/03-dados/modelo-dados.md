@@ -1,11 +1,13 @@
 # Modelo de dados
 
-Atende **RNF14 do Documento Consolidado de Requisitos v1.0** (integridade referencial entre
-cliente, demanda, etapa, fonte e artefato). Esse requisito correspondia ao RNF08 na versão inicial
-dos requisitos mantida neste repositório.
+Atende **RNF08** (integridade referencial entre cliente, demanda, etapa, fonte e artefato) e
+**RNF09** (nenhuma transição ou versão pode ser perdida). O Documento Consolidado de Requisitos
+v1.0 numera o RNF08 como RNF14 — enquanto esse documento não estiver versionado aqui, o ID válido
+é o da [matriz de rastreabilidade](../01-requisitos/matriz-rastreabilidade.md).
 
-> **Estado:** implementado pela migration
+> **Estado:** integridade referencial (RNF08) implementada pela migration
 > [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py).
+> As garantias de append-only do RNF09 (`REVOKE UPDATE, DELETE`) ainda estão pendentes.
 > O schema real é criado exclusivamente por migrations do Alembic — ver
 > [ADR-0004](../02-arquitetura/decisoes/ADR-0004-banco-unico-com-dono.md).
 
@@ -181,7 +183,7 @@ Demanda com status diferente de `ABERTA` não muda de etapa.
 | `stage_transitions` | `(demand_id, occurred_at)` | Histórico cronológico de RF04 e RF07 |
 | `artifact_versions` | `(artifact_id, number)` único | Garante numeração sequencial sem lacuna (RF08) |
 | `raw_inputs` | `(demand_id, created_at)` | Recuperação do bruto |
-| `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) |
+| `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) — **pendente** |
 
 ## Questões que afetam este modelo
 

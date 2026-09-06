@@ -1,4 +1,8 @@
-"""Provas executaveis da integridade referencial exigida pelo RNF14."""
+"""Provas executaveis da integridade referencial exigida pelo RNF08.
+
+Rodam em SQLite com ``PRAGMA foreign_keys=ON``. A migration tambem precisa ser
+exercitada em PostgreSQL antes de a Fase 3 fechar - ver RNF08 na matriz.
+"""
 
 import importlib
 from collections.abc import Iterator
@@ -167,6 +171,26 @@ def test_artifact_version_cannot_reference_missing_artifact(database: Connection
         VALUES (:id, :parent_id, 1, '{}', 'IA')
         """,
         {"id": RAW_INPUT_ID, "parent_id": ARTIFACT_ID},
+    )
+
+
+def test_human_version_cannot_be_anonymous(database: Connection) -> None:
+    insert_user(database)
+    insert_client(database)
+    insert_demand(database)
+    database.execute(
+        sa.text("INSERT INTO artifacts (id, demand_id, type) VALUES (:id, :demand_id, 'EMENTA')"),
+        {"id": ARTIFACT_ID, "demand_id": DEMAND_ID},
+    )
+    database.commit()
+
+    assert_rejected(
+        database,
+        """
+        INSERT INTO artifact_versions (id, artifact_id, number, content, origin)
+        VALUES (:id, :artifact_id, 1, '{}', 'HUMANO')
+        """,
+        {"id": RAW_INPUT_ID, "artifact_id": ARTIFACT_ID},
     )
 
 

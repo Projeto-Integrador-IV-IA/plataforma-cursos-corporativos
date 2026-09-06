@@ -2,10 +2,10 @@
 
 Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dados.md).
 
-> **Estado:** tipos e restrições de integridade implementados pela migration
-> [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py)
-> (RNF14 do Documento Consolidado de Requisitos v1.0). Toda alteração aqui exige migration
-> correspondente.
+> **Estado:** tipos e restrições de integridade referencial (RNF08) implementados pela migration
+> [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py).
+> As linhas marcadas como **pendente** abaixo ainda não têm migration. Toda alteração aqui exige
+> migration correspondente.
 
 **Convenções gerais**
 
@@ -119,7 +119,7 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 | `content` | jsonb | não | Conteúdo da versão. Para curso estruturado, valida contra o JSON Schema (RNF03). |
 | `origin` | text | não | `IA` ou `HUMANO`. Distingue o gerado do revisado (RF14) — base da métrica de correção (RNF04). |
 | `ai_metadata` | jsonb | sim | Modelo, versão de prompt, tokens de entrada e saída, latência. Preenchido quando `origin = IA`. |
-| `author_id` | uuid FK → `users.id` | sim | Nulo quando gerado pela IA sem intervenção. |
+| `author_id` | uuid FK → `users.id` | sim | Nulo apenas quando `origin = IA`; o `CHECK` exige autor quando `origin = HUMANO`. |
 | `created_at` | timestamptz | não | |
 
 ### Estrutura de `ai_metadata`
@@ -144,9 +144,10 @@ ser recalculadas depois.
 
 | Restrição | Requisito |
 |---|---|
-| `REVOKE UPDATE, DELETE` em `stage_transitions` e `artifact_versions` para o usuário da aplicação | RNF09 |
+| `REVOKE UPDATE, DELETE` em `stage_transitions` e `artifact_versions` para o usuário da aplicação | RNF09 — **pendente** |
 | `UNIQUE (artifact_id, number)` | RF08 — numeração sem lacuna nem duplicata |
-| `NOT NULL` em `demands.client_id` | RNF14 — demanda órfã não existe |
-| `FOREIGN KEY (raw_input_id, demand_id)` em `artifacts` | RNF14 — artefato não referencia fonte de outra demanda |
+| `NOT NULL` em `demands.client_id` | RNF08 — demanda órfã não existe |
+| `FOREIGN KEY (raw_input_id, demand_id)` em `artifacts` | RNF08 — artefato não referencia fonte de outra demanda |
+| `CHECK (origin = 'IA' OR author_id IS NOT NULL)` em `artifact_versions` | RF14 — versão revisada por humano tem autor |
 | `CHECK` nos campos de enum (`current_stage`, `status`, `type`, `origin`) | Vocabulário fechado é contrato |
 | `NOT NULL` em `raw_inputs.original_content` | RNF05 — o bruto sempre existe |

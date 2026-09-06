@@ -1,9 +1,11 @@
-"""Cria o schema relacional com integridade referencial estrita (RNF14).
+"""Cria o schema relacional com integridade referencial estrita (RNF08).
 
 Revision ID: 20260902_1200
 Revises:
 
-Rastreabilidade: RNF14 - Documento Consolidado de Requisitos v1.0.
+Rastreabilidade: RNF08 - integridade referencial entre cliente, demanda, etapa,
+fonte e artefato. O Documento Consolidado de Requisitos v1.0 numera esse mesmo
+requisito como RNF14; o ID valido aqui e o da matriz versionada no repositorio.
 """
 
 from collections.abc import Sequence
@@ -298,6 +300,10 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("number > 0", name="ck_artifact_versions_number_positive"),
         sa.CheckConstraint(
+            "origin = 'IA' OR author_id IS NOT NULL",
+            name="ck_artifact_versions_human_requires_author",
+        ),
+        sa.CheckConstraint(
             f"origin IN ({quoted_values(ARTIFACT_ORIGINS)})",
             name="ck_artifact_versions_origin",
         ),
@@ -334,6 +340,18 @@ def upgrade() -> None:
         ["demand_id", "occurred_at"],
     )
     op.create_index("ix_artifacts_demand_id", "artifacts", ["demand_id"])
+
+    # Sem indice na coluna filha, cada DELETE no lado pai obriga o Postgres a
+    # varrer a tabela inteira para validar o ON DELETE RESTRICT.
+    op.create_index("ix_demands_owner_id", "demands", ["owner_id"])
+    op.create_index("ix_raw_inputs_author_id", "raw_inputs", ["author_id"])
+    op.create_index("ix_stage_transitions_author_id", "stage_transitions", ["author_id"])
+    op.create_index("ix_artifact_versions_author_id", "artifact_versions", ["author_id"])
+    op.create_index(
+        "ix_artifacts_raw_input_demand",
+        "artifacts",
+        ["raw_input_id", "demand_id"],
+    )
 
 
 def downgrade() -> None:
