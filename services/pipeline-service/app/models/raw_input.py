@@ -8,14 +8,13 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.domain.enums import RawInputSource, sql_enum_values
 from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
     from app.models.artifact import Artifact
     from app.models.demand import Demand
     from app.models.user import User
-
-RAW_INPUT_SOURCES = ("EMAIL", "TRANSCRICAO", "MENSAGENS", "ANOTACAO", "OUTRO")
 
 
 class RawInput(Base):
@@ -24,8 +23,8 @@ class RawInput(Base):
     __tablename__ = "raw_inputs"
     __table_args__ = (
         sa.CheckConstraint(
-            "source IN ('EMAIL', 'TRANSCRICAO', 'MENSAGENS', 'ANOTACAO', 'OUTRO')",
-            name="ck_raw_inputs_source",
+            f"source IN ({sql_enum_values(RawInputSource)})",
+            name="source",
         ),
         sa.UniqueConstraint("id", "demand_id", name="uq_raw_inputs_id_demand_id"),
         sa.Index("ix_raw_inputs_demand_created_at", "demand_id", "created_at"),

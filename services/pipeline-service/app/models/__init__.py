@@ -1,4 +1,4 @@
-"""Modelos ORM do dominio relacional exigido pelo RNF14 consolidado."""
+"""Modelos ORM do dominio relacional exigido pelo RNF08."""
 
 from app.models.artifact import Artifact, ArtifactVersion
 from app.models.client import Client

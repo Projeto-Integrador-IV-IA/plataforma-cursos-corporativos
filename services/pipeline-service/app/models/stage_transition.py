@@ -8,13 +8,12 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.domain.enums import PipelineStage, sql_enum_values
 from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
     from app.models.demand import Demand
     from app.models.user import User
-
-PIPELINE_STAGE_SQL = "'CAPTACAO', 'ESTRUTURACAO', 'PRODUTO', 'PROPOSTA', 'ACOMPANHAMENTO'"
 
 
 class StageTransition(Base):
@@ -23,16 +22,16 @@ class StageTransition(Base):
     __tablename__ = "stage_transitions"
     __table_args__ = (
         sa.CheckConstraint(
-            f"from_stage IS NULL OR from_stage IN ({PIPELINE_STAGE_SQL})",
-            name="ck_stage_transitions_from_stage",
+            f"from_stage IS NULL OR from_stage IN ({sql_enum_values(PipelineStage)})",
+            name="from_stage",
         ),
         sa.CheckConstraint(
-            f"to_stage IN ({PIPELINE_STAGE_SQL})",
-            name="ck_stage_transitions_to_stage",
+            f"to_stage IN ({sql_enum_values(PipelineStage)})",
+            name="to_stage",
         ),
         sa.CheckConstraint(
             "from_stage IS NULL OR from_stage <> to_stage",
-            name="ck_stage_transitions_distinct_stages",
+            name="distinct_stages",
         ),
         sa.Index(
             "ix_stage_transitions_demand_occurred_at",

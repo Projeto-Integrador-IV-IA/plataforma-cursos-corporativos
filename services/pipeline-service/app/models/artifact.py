@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.domain.enums import ArtifactOrigin, ArtifactType, sql_enum_values
 from app.models._types import JSON_TYPE, UUID_TYPE
 
 if TYPE_CHECKING:
@@ -22,8 +23,8 @@ class Artifact(Base):
     __tablename__ = "artifacts"
     __table_args__ = (
         sa.CheckConstraint(
-            "type IN ('DEMANDA_BRUTA', 'REQUISITOS_EXTRAIDOS', 'EMENTA', 'PROPOSTA', 'OUTRO')",
-            name="ck_artifacts_type",
+            f"type IN ({sql_enum_values(ArtifactType)})",
+            name="type",
         ),
         sa.ForeignKeyConstraint(
             ["raw_input_id", "demand_id"],
@@ -77,14 +78,14 @@ class ArtifactVersion(Base):
 
     __tablename__ = "artifact_versions"
     __table_args__ = (
-        sa.CheckConstraint("number > 0", name="ck_artifact_versions_number_positive"),
+        sa.CheckConstraint("number > 0", name="number_positive"),
         sa.CheckConstraint(
-            "origin = 'IA' OR author_id IS NOT NULL",
-            name="ck_artifact_versions_human_requires_author",
+            f"origin = '{ArtifactOrigin.IA.value}' OR author_id IS NOT NULL",
+            name="human_requires_author",
         ),
         sa.CheckConstraint(
-            "origin IN ('IA', 'HUMANO')",
-            name="ck_artifact_versions_origin",
+            f"origin IN ({sql_enum_values(ArtifactOrigin)})",
+            name="origin",
         ),
         sa.UniqueConstraint(
             "artifact_id",

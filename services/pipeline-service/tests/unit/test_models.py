@@ -1,10 +1,20 @@
-"""Contrato RNF14 entre os modelos ORM e o dicionario de dados."""
+"""Contrato RNF08 entre os modelos ORM e o dicionario de dados."""
+
+import importlib
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401 - popula Base.metadata
 from app.db.base import Base
+from app.domain.enums import (
+    ArtifactOrigin,
+    ArtifactType,
+    DemandStatus,
+    PipelineStage,
+    RawInputSource,
+    enum_values,
+)
 from app.models import (
     Artifact,
     ArtifactVersion,
@@ -128,6 +138,18 @@ def test_all_relationship_mappers_can_be_configured() -> None:
     sa.orm.configure_mappers()
 
     assert {mapper.local_table.name for mapper in Base.registry.mappers} == set(EXPECTED_COLUMNS)
+
+
+def test_closed_vocabularies_match_initial_migration() -> None:
+    migration = importlib.import_module(
+        "app.db.migrations.versions.20260902_1200_enforce_referential_integrity"
+    )
+
+    assert enum_values(PipelineStage) == migration.PIPELINE_STAGES
+    assert enum_values(DemandStatus) == migration.DEMAND_STATUSES
+    assert enum_values(RawInputSource) == migration.RAW_INPUT_SOURCES
+    assert enum_values(ArtifactType) == migration.ARTIFACT_TYPES
+    assert enum_values(ArtifactOrigin) == migration.ARTIFACT_ORIGINS
 
 
 def test_complete_domain_chain_can_be_persisted_through_orm() -> None:

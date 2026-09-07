@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.domain.enums import DemandStatus, PipelineStage, sql_enum_values
 from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
@@ -17,19 +18,6 @@ if TYPE_CHECKING:
     from app.models.stage_transition import StageTransition
     from app.models.user import User
 
-PIPELINE_STAGES = (
-    "CAPTACAO",
-    "ESTRUTURACAO",
-    "PRODUTO",
-    "PROPOSTA",
-    "ACOMPANHAMENTO",
-)
-DEMAND_STATUSES = ("ABERTA", "GANHA", "PERDIDA", "CANCELADA")
-
-
-def _quoted_values(values: tuple[str, ...]) -> str:
-    return ", ".join(f"'{value}'" for value in values)
-
 
 class Demand(Base):
     """Negociacao obrigatoriamente pertencente a um cliente."""
@@ -37,12 +25,12 @@ class Demand(Base):
     __tablename__ = "demands"
     __table_args__ = (
         sa.CheckConstraint(
-            f"current_stage IN ({_quoted_values(PIPELINE_STAGES)})",
-            name="ck_demands_current_stage",
+            f"current_stage IN ({sql_enum_values(PipelineStage)})",
+            name="current_stage",
         ),
         sa.CheckConstraint(
-            f"status IN ({_quoted_values(DEMAND_STATUSES)})",
-            name="ck_demands_status",
+            f"status IN ({sql_enum_values(DemandStatus)})",
+            name="status",
         ),
         sa.Index("ix_demands_client_status_created_at", "client_id", "status", "created_at"),
         sa.Index("ix_demands_current_stage", "current_stage"),
@@ -69,14 +57,14 @@ class Demand(Base):
     current_stage: Mapped[str] = mapped_column(
         sa.Text,
         nullable=False,
-        default="CAPTACAO",
-        server_default=sa.text("'CAPTACAO'"),
+        default=PipelineStage.CAPTACAO.value,
+        server_default=sa.text(f"'{PipelineStage.CAPTACAO.value}'"),
     )
     status: Mapped[str] = mapped_column(
         sa.Text,
         nullable=False,
-        default="ABERTA",
-        server_default=sa.text("'ABERTA'"),
+        default=DemandStatus.ABERTA.value,
+        server_default=sa.text(f"'{DemandStatus.ABERTA.value}'"),
     )
     owner_id: Mapped[UUID | None] = mapped_column(
         UUID_TYPE,

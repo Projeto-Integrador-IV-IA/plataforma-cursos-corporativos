@@ -22,7 +22,7 @@ class User(Base):
 
     __tablename__ = "users"
     __table_args__ = (
-        sa.CheckConstraint("role IN ('OPERADOR')", name="ck_users_role"),
+        sa.CheckConstraint("role IN ('OPERADOR')", name="role"),
         sa.UniqueConstraint("email", name="uq_users_email"),
     )
 

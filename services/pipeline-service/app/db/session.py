@@ -1,4 +1,12 @@
-"""Engine e ciclo transacional das sessoes do pipeline-service."""
+"""Engine e ciclo transacional das sessoes do pipeline-service.
+
+Contrato desta camada:
+    - engine unico criado a partir de ``DATABASE_URL`` (RNF11);
+    - uma sessao por requisicao, com commit no sucesso e rollback na excecao;
+    - pool dimensionado para o alvo de latencia do CRM (RNF07: <= 500 ms);
+    - acesso ao banco exclusivo do pipeline-service, preservando o isolamento
+      entre microsservicos (RNF01, RNF13).
+"""
 
 from collections.abc import Iterator
 from functools import lru_cache
@@ -19,6 +27,7 @@ def get_engine() -> Engine:
     options: dict[str, object] = {"pool_pre_ping": True}
 
     if url.get_backend_name() != "sqlite":
+        # Limites explicitos evitam conexoes sem controle e sustentam o alvo do RNF07.
         options.update(pool_size=5, max_overflow=10, pool_timeout=30)
 
     return sa.create_engine(url, **options)

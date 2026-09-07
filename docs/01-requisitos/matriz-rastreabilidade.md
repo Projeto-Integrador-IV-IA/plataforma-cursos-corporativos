@@ -47,7 +47,7 @@ mostra, em uma tela, onde o MVP está.
 | RNF05 | Falha/timeout do LLM sem perda da demanda | Essencial | | 3 | ⬜ | |
 | RNF06 | Estruturação em tempo interativo (≤ 15 s) | Alta | | 3 | ⬜ | |
 | RNF07 | CRUD do CRM ≤ 500 ms | Média | | 3 | ⬜ | |
-| RNF08 | Integridade referencial no banco | Essencial | #136 | 2 | ✅ | Migration [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py); testes em [`test_referential_integrity.py`](../../services/pipeline-service/tests/integration/test_referential_integrity.py) |
+| RNF08 | Integridade referencial no banco | Essencial | #136, #137 | 2 | ✅ | Migration [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py); modelos ORM em [`app/models/`](../../services/pipeline-service/app/models/); sessão em [`app/db/session.py`](../../services/pipeline-service/app/db/session.py); testes em [`test_referential_integrity.py`](../../services/pipeline-service/tests/integration/test_referential_integrity.py), [`test_models.py`](../../services/pipeline-service/tests/unit/test_models.py) e [`test_session.py`](../../services/pipeline-service/tests/unit/test_session.py) |
 | RNF09 | Trilha de auditoria íntegra | Essencial | | 3 | 🟡 | Tabelas `stage_transitions` e `artifact_versions` criadas; `REVOKE UPDATE, DELETE` pendente |
 | RNF10 | Controle de acesso | Essencial | | 3 | ⬜ | |
 | RNF11 | Segredos fora do código | Essencial | | 1 | ✅ | `Settings` por ambiente + `SecretStr` + hash bcrypt + scanner na CI |
