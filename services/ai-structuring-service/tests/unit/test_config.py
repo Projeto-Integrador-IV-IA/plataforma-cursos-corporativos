@@ -12,6 +12,7 @@ def _set_common_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AI_STRUCTURING_PORT", "8003")
     monkeypatch.setenv("PIPELINE_SERVICE_URL", "http://pipeline:8001")
     monkeypatch.setenv("LLM_MODEL", "test-model")
+    monkeypatch.setenv("LLM_BASE_URL", "https://api.exemplo.invalid/v1")
     monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "30")
     monkeypatch.setenv("LLM_MAX_RETRIES", "2")
     monkeypatch.setenv("LLM_TEMPERATURE", "0.2")
