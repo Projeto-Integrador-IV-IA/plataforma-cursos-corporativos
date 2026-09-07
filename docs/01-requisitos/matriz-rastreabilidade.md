@@ -42,7 +42,7 @@ mostra, em uma tela, onde o MVP está.
 |---|---|---|---|---|---|---|
 | RNF01 | Arquitetura em microsserviços | Essencial | | 2 | 🟡 | Estrutura criada; [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md). Frontend: [`web/src/app/routes.tsx`](../../web/src/app/routes.tsx), teste em [`web/src/app/routes.test.tsx`](../../web/src/app/routes.test.tsx) |
 | RNF02 | Contratos de API versionados | Alta | | 2 | 🟡 | Esqueleto em `packages/contracts` |
-| RNF03 | Prompts com schema de saída definido | Essencial | | 2 | ⬜ | |
+| RNF03 | Prompts com schema de saída definido | Essencial | #3 | 2 | 🟡 | Contrato de provedor em [`providers/base.py`](../../services/ai-structuring-service/app/providers/base.py) e erros tipados em [`core/exceptions.py`](../../services/ai-structuring-service/app/core/exceptions.py); testes em [`tests/unit`](../../services/ai-structuring-service/tests/unit). Prompts e validação de schema pendentes |
 | RNF04 | Métricas de qualidade da estruturação | Alta | | 3 | ⬜ | |
 | RNF05 | Falha/timeout do LLM sem perda da demanda | Essencial | | 3 | ⬜ | |
 | RNF06 | Estruturação em tempo interativo (≤ 15 s) | Alta | | 3 | ⬜ | |
