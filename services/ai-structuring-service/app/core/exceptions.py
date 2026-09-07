@@ -174,10 +174,13 @@ class LLMRateLimitError(LLMProviderError):
 class LLMInvalidResponseError(LLMProviderError):
     """Resposta do fornecedor ilegivel ou fora do formato esperado.
 
-    Cobre corpo que nao e o esperado pela API do fornecedor e resposta que nao
-    passa no JSON Schema da saida: resposta invalida e falha, nao e aceita como
-    "quase certa" (ADR-0006). Repetir sem mudar prompt ou parametros tende a
-    repetir o erro, por isso nao e retentavel por padrao.
+    Cobre corpo que nao e o esperado pela API do fornecedor, resposta que nao
+    passa no JSON Schema da saida e requisicao recusada pelo fornecedor por
+    credencial ou parametro invalido (HTTP 4xx que nao seja limite de uso): em
+    todos os casos nao ha resposta utilizavel, e resposta invalida e falha, nao
+    e aceita como "quase certa" (ADR-0006). Repetir sem mudar prompt,
+    parametros ou configuracao tende a repetir o erro, por isso nao e
+    retentavel por padrao.
     """
 
     code: ClassVar[str] = "LLM_INVALID_RESPONSE"
