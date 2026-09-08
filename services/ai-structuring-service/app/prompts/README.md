@@ -23,7 +23,7 @@ Cada arquivo contém, nesta ordem:
 
 | Arquivo | Função | Requisito |
 |---|---|---|
-| `extract-requirements.v1.md` | Extrair tema, nicho, público, nº de participantes, carga horária e formato do texto bruto. | RF11 |
+| `extract-requirements.v1.md` | Extrair os cinco campos pedagógicos — tema, público-alvo, carga horária, ementa e objetivos de aprendizagem — do texto normalizado. **Escrito** (card #5). | RF13 (RF11 na matriz) |
 | `generate-syllabus.v1.md` | Gerar ementa com objetivos de aprendizagem a partir dos requisitos extraídos. | RF12 |
 
 ## Regras
@@ -32,4 +32,21 @@ Cada arquivo contém, nesta ordem:
 - Toda alteração de prompt exige nova rodada de avaliação antes do merge (RNF04).
 - O prompt em uso é escolhido por configuração, não por edição de código.
 
-> Estado: **conteúdo pendente**. Os prompts são construídos na PoC da Fase 2 (05–15/09).
+## Como carregar
+
+O prompt é lido do arquivo pelo nome e pela versão — nunca embutido como string no serviço:
+
+```python
+from app.prompts import carregar_prompt
+
+prompt = carregar_prompt("extract-requirements", "v1")
+texto = prompt.render(texto_normalizado=demanda)
+```
+
+As variáveis do corpo usam chaves duplas (`{{texto_normalizado}}`), porque o corpo tem exemplos em
+JSON e chave simples colidiria com eles. `render()` falha se faltar variável ou se vier variável que
+o prompt não usa — prompt e chamador fora de sincronia é defeito, não detalhe. `prompt.identificador`
+(`extract-requirements.v1`) é o que vai para a proveniência do artefato (RNF04, RNF09).
+
+> Estado: `extract-requirements.v1` **escrito**; `generate-syllabus.v1` pendente, construído na PoC
+> da Fase 2 (05–15/09).
