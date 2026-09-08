@@ -1,23 +1,30 @@
-"""Configuracao do gateway-service.
+"""Configuracao do gateway-service obtida exclusivamente do ambiente."""
 
-Toda a configuracao chega por variavel de ambiente (RNF11: nenhum segredo no
-codigo-fonte). O template das variaveis fica em .env.example, na raiz do
-repositorio; nenhum valor real deve ser versionado.
+from functools import lru_cache
+from typing import Literal
 
-Contrato esperado desta camada:
-    - classe Settings baseada em pydantic_settings.BaseSettings;
-    - leitura do arquivo .env em desenvolvimento e do ambiente em producao;
-    - validacao na inicializacao - o servico falha rapido se faltar variavel
-      obrigatoria, em vez de quebrar no meio de uma requisicao;
-    - instancia unica cacheada, importada pelos demais modulos.
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-Variaveis consumidas por este servico:
-    ENVIRONMENT, LOG_LEVEL, SERVICE_PORT (8000 por padrao) e as especificas
-    documentadas no README do servico.
 
-TODO(scaffolding): implementar Settings e get_settings().
-"""
+class Settings(BaseSettings):
+    """Variaveis obrigatorias do gateway; segredos sao mascarados em logs."""
 
-# TODO: from pydantic_settings import BaseSettings, SettingsConfigDict
-# TODO: class Settings(BaseSettings): ...
-# TODO: def get_settings() -> Settings: ...
+    model_config = SettingsConfigDict(case_sensitive=False, extra="ignore", frozen=True)
+
+    environment: Literal["development", "test", "staging", "production"]
+    log_level: str = Field(min_length=1)
+    gateway_port: int = Field(ge=1, le=65535)
+    pipeline_service_url: str = Field(min_length=1)
+    ingestion_service_url: str = Field(min_length=1)
+    ai_structuring_service_url: str = Field(min_length=1)
+    jwt_secret_key: SecretStr = Field(min_length=32)
+    jwt_algorithm: Literal["HS256", "HS384", "HS512"]
+    access_token_expire_minutes: int = Field(gt=0)
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Le e valida o ambiente uma unica vez por processo."""
+
+    return Settings()

@@ -40,17 +40,17 @@ mostra, em uma tela, onde o MVP está.
 
 | ID | Requisito (resumo) | Prioridade | Card | Fase | Status | Evidência |
 |---|---|---|---|---|---|---|
-| RNF01 | Arquitetura em microsserviços | Essencial | | 2 | 🟡 | Estrutura criada; [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md) |
+| RNF01 | Arquitetura em microsserviços | Essencial | | 2 | 🟡 | Estrutura criada; [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md). Frontend: [`web/src/app/routes.tsx`](../../web/src/app/routes.tsx), teste em [`web/src/app/routes.test.tsx`](../../web/src/app/routes.test.tsx) |
 | RNF02 | Contratos de API versionados | Alta | | 2 | 🟡 | Esqueleto em `packages/contracts` |
-| RNF03 | Prompts com schema de saída definido | Essencial | | 2 | ⬜ | |
+| RNF03 | Prompts com schema de saída definido | Essencial | #3, #4 | 2 | 🟡 | Contrato em [`providers/base.py`](../../services/ai-structuring-service/app/providers/base.py), erros tipados em [`core/exceptions.py`](../../services/ai-structuring-service/app/core/exceptions.py) e provedores `mock`/`http` selecionados por `LLM_PROVIDER` ([`providers/factory.py`](../../services/ai-structuring-service/app/providers/factory.py)); testes em [`tests/unit`](../../services/ai-structuring-service/tests/unit). Prompts e validação de schema pendentes |
 | RNF04 | Métricas de qualidade da estruturação | Alta | | 3 | ⬜ | |
 | RNF05 | Falha/timeout do LLM sem perda da demanda | Essencial | | 3 | ⬜ | |
 | RNF06 | Estruturação em tempo interativo (≤ 15 s) | Alta | | 3 | ⬜ | |
 | RNF07 | CRUD do CRM ≤ 500 ms | Média | | 3 | ⬜ | |
-| RNF08 | Integridade referencial no banco | Essencial | | 2 | ⬜ | |
-| RNF09 | Trilha de auditoria íntegra | Essencial | | 3 | ⬜ | |
+| RNF08 | Integridade referencial no banco | Essencial | #136, #137 | 2 | ✅ | Migration [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py); modelos ORM em [`app/models/`](../../services/pipeline-service/app/models/); sessão em [`app/db/session.py`](../../services/pipeline-service/app/db/session.py); testes em [`test_referential_integrity.py`](../../services/pipeline-service/tests/integration/test_referential_integrity.py), [`test_models.py`](../../services/pipeline-service/tests/unit/test_models.py) e [`test_session.py`](../../services/pipeline-service/tests/unit/test_session.py) |
+| RNF09 | Trilha de auditoria íntegra | Essencial | | 3 | 🟡 | Tabelas `stage_transitions` e `artifact_versions` criadas; `REVOKE UPDATE, DELETE` pendente |
 | RNF10 | Controle de acesso | Essencial | | 3 | ⬜ | |
-| RNF11 | Segredos fora do código | Essencial | | 1 | ✅ | `.env.example` + job de segurança na CI |
+| RNF11 | Segredos fora do código | Essencial | | 1 | ✅ | `Settings` por ambiente + `SecretStr` + hash bcrypt + scanner na CI |
 | RNF12 | Operação em camada gratuita | Alta | | 3 | ⬜ | |
 | RNF13 | Serviços desacoplados | Alta | | 2 | 🟡 | [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md) |
 | RNF14 | Fluxo Card → PR → Merge no GitHub | Alta | | 1 | ✅ | [CONTRIBUTING.md](../../CONTRIBUTING.md), templates, CI |

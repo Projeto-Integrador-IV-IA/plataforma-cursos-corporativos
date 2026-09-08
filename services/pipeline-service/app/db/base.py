@@ -1,9 +1,18 @@
-"""Base declarativa do SQLAlchemy e registro de modelos.
+"""Base declarativa do modelo relacional exigido pelo RNF08."""
 
-Importa todos os modelos de ``app.models`` para que o Alembic enxergue o
-metadata completo ao gerar migrations automaticamente.
+import sqlalchemy as sa
+from sqlalchemy.orm import DeclarativeBase
 
-TODO(scaffolding): definir ``Base`` e importar os modelos.
-"""
+NAMING_CONVENTION = {
+    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
+    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
 
-# TODO: class Base(DeclarativeBase): ...
+
+class Base(DeclarativeBase):
+    """Agrupa o metadata usado pelos modelos e pelo Alembic."""
+
+    metadata = sa.MetaData(naming_convention=NAMING_CONVENTION)
