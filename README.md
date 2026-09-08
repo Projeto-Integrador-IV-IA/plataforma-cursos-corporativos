@@ -4,7 +4,6 @@
 
 **Projeto Integrador de Extensão IV** · Curso IA/CD · Equipe de 6 · Ago–Nov/2026
 
-teste
 ---
 
 ## O problema
@@ -130,7 +129,10 @@ Acompanhe o avanço em [docs/01-requisitos/matriz-rastreabilidade.md](docs/01-re
 
 ## Como rodar (quando houver implementação)
 
-Pré-requisitos: Docker Desktop, Python 3.12+, Node 20+.
+Para o passo a passo completo de configuração do zero, resolução de problemas e requisitos detalhados de ambiente, consulte o guia oficial:  
+👉 **[Guia de Ambiente de Desenvolvimento (RNF25)](docs/05-processo/ambiente-desenvolvimento.md)**
+
+Pré-requisitos: Docker Desktop 26+, Docker Compose v2.24+, Python 3.12+, Node 20+.
 
 ```bash
 cp .env.example .env      # preencha os valores locais (nunca versione o .env)

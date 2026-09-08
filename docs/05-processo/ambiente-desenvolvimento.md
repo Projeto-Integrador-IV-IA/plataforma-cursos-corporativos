@@ -1,11 +1,15 @@
 # Ambiente de desenvolvimento
 
+Atende **RNF25** (reprodução do ambiente local do zero).  
+Depende de **#64** ([S01][RNF01] Composição dos microsserviços e comunicação REST).
+
 ## Pré-requisitos
 
 | Ferramenta | Versão | Para quê |
 |---|---|---|
 | Git | 2.40+ | Controle de versão |
-| Docker Desktop | recente | Banco e orquestração local |
+| Docker Desktop | 26+ (Engine) | Banco e orquestração local |
+| Docker Compose | v2.24+ | Orquestração de múltiplos contêineres |
 | Python | 3.12+ | Microsserviços |
 | Node.js | 20+ | Frontend |
 | GitHub CLI (`gh`) | opcional | Criar PR pelo terminal |
@@ -18,8 +22,9 @@ cd plataforma-cursos-corporativos
 cp .env.example .env
 ```
 
-Abra o `.env` e preencha os valores locais. **Nunca versione este arquivo** (RNF11) — ele já está no
-`.gitignore`, e a CI reprova o PR se ele aparecer.
+Abra o `.env` gerado a partir do `.env.example` e confira as variáveis de ambiente:
+- As portas e credenciais padrão já vêm preparadas para execução local sem necessidade de edição imediata.
+- **Segurança (RNF11):** **Nunca versione este arquivo** — ele já está no `.gitignore`, e a pipeline de CI reprova o PR automaticamente se ele for enviado.
 
 Chave da API de linguagem: solicite à gerência. Enquanto não tiver, use `LLM_PROVIDER=mock`, que
 funciona sem chave e sem custo.
