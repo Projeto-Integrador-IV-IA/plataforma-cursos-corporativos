@@ -1,88 +1,162 @@
 # =============================================================================
 # Orquestracao local dos microsservicos (RNF01).
-# Uso: cp .env.example .env  &&  docker compose up -d
-# ATENCAO: os servicos ainda nao possuem implementacao - somente `db` sobe hoje.
+# Uso: make dev
+# Somente o gateway publica porta no host; os demais servicos conversam pela
+# rede privada usando os nomes DNS declarados neste arquivo.
 # =============================================================================
 name: cursos-corporativos
 
 services:
   db:
     image: postgres:16-alpine
-    container_name: cursos-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_PORT}:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-cursos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_DB: ${POSTGRES_DB:-cursos_corporativos}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - services-network
 
   pipeline-service:
     build:
       context: ./services/pipeline-service
       dockerfile: Dockerfile
-    container_name: cursos-pipeline
-    env_file: .env
-    ports:
-      - "${PIPELINE_PORT}:${PIPELINE_PORT}"
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PIPELINE_PORT: ${PIPELINE_PORT:-8001}
+      # Credencial exclusiva do dono do banco (ADR-0004).
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://cursos:change-me-local-only@db:5432/cursos_corporativos}
+    expose:
+      - "${PIPELINE_PORT:-8001}"
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./services/pipeline-service:/app
       - ./packages/contracts:/contracts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:$${PIPELINE_PORT}/health', timeout=2).read()\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - services-network
 
   ingestion-service:
     build:
       context: ./services/ingestion-service
       dockerfile: Dockerfile
-    container_name: cursos-ingestion
-    env_file: .env
-    ports:
-      - "${INGESTION_PORT}:${INGESTION_PORT}"
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      INGESTION_PORT: ${INGESTION_PORT:-8002}
+      PIPELINE_SERVICE_URL: ${PIPELINE_SERVICE_URL:-http://pipeline-service:8001}
+      AI_STRUCTURING_SERVICE_URL: ${AI_STRUCTURING_SERVICE_URL:-http://ai-structuring-service:8003}
+    expose:
+      - "${INGESTION_PORT:-8002}"
     depends_on:
-      - pipeline-service
+      pipeline-service:
+        condition: service_healthy
+      ai-structuring-service:
+        condition: service_healthy
     volumes:
       - ./services/ingestion-service:/app
       - ./packages/contracts:/contracts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:$${INGESTION_PORT}/health', timeout=2).read()\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - services-network
 
   ai-structuring-service:
     build:
       context: ./services/ai-structuring-service
       dockerfile: Dockerfile
-    container_name: cursos-ai
-    env_file: .env
-    ports:
-      - "${AI_STRUCTURING_PORT}:${AI_STRUCTURING_PORT}"
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AI_STRUCTURING_PORT: ${AI_STRUCTURING_PORT:-8003}
+      PIPELINE_SERVICE_URL: ${PIPELINE_SERVICE_URL:-http://pipeline-service:8001}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_MODEL: ${LLM_MODEL:-mock}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_COMPLETIONS_PATH: ${LLM_COMPLETIONS_PATH:-/chat/completions}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-30}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+    expose:
+      - "${AI_STRUCTURING_PORT:-8003}"
     depends_on:
-      - pipeline-service
+      pipeline-service:
+        condition: service_healthy
     volumes:
       - ./services/ai-structuring-service:/app
       - ./packages/contracts:/contracts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:$${AI_STRUCTURING_PORT}/health', timeout=2).read()\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - services-network
 
   gateway-service:
     build:
       context: ./services/gateway-service
       dockerfile: Dockerfile
-    container_name: cursos-gateway
-    env_file: .env
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      GATEWAY_PORT: ${GATEWAY_PORT:-8000}
+      PIPELINE_SERVICE_URL: ${PIPELINE_SERVICE_URL:-http://pipeline-service:8001}
+      INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://ingestion-service:8002}
+      AI_STRUCTURING_SERVICE_URL: ${AI_STRUCTURING_SERVICE_URL:-http://ai-structuring-service:8003}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-local-only-with-at-least-32-characters}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
     ports:
-      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+      - "${GATEWAY_PORT:-8000}:${GATEWAY_PORT:-8000}"
     depends_on:
-      - pipeline-service
-      - ingestion-service
-      - ai-structuring-service
+      pipeline-service:
+        condition: service_healthy
+      ingestion-service:
+        condition: service_healthy
+      ai-structuring-service:
+        condition: service_healthy
     volumes:
       - ./services/gateway-service:/app
       - ./packages/contracts:/contracts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:$${GATEWAY_PORT}/health', timeout=2).read()\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - services-network
 
 volumes:
   pgdata:
+
+networks:
+  services-network:
+    driver: bridge

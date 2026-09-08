@@ -23,7 +23,7 @@ install-py: ## Instala dependencias Python de cada microsservico
 install-web: ## Instala dependencias do frontend
 	cd web && npm install
 
-dev: ## Sobe todos os servicos + frontend via Docker Compose
+dev: ## Sobe o banco e os quatro microsservicos via Docker Compose
 	docker compose up --build
 
 up: ## Sobe a stack em background
