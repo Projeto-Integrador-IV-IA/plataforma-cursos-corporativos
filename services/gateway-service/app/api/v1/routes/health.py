@@ -1,14 +1,12 @@
-"""Endpoints de saude do gateway-service.
+"""Endpoint de liveness do gateway-service."""
 
-Rotas previstas:
-    GET /health   - o processo esta de pe (liveness).
-    GET /ready    - as dependencias respondem (readiness): banco, servicos
-                    a jusante e provedor de LLM, conforme o caso.
+from fastapi import APIRouter
 
-Usados pelo healthcheck do Docker Compose e pela CI. Nao exigem autenticacao e
-nao devem revelar detalhes internos de infraestrutura (RNF10).
+router = APIRouter(tags=["health"])
 
-TODO(scaffolding): implementar as rotas.
-"""
 
-# TODO: router = APIRouter(tags=["health"])
+@router.get("/health")
+def health() -> dict[str, str]:
+    """Confirma que o processo HTTP esta apto a responder."""
+
+    return {"status": "ok", "service": "gateway-service"}
