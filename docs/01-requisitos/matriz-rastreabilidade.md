@@ -28,7 +28,7 @@ mostra, em uma tela, onde o MVP está.
 | RF08 | Versionar artefatos com recuperação | Alta | pipeline | | 3 | ⬜ | |
 | RF09 | Inserir demanda como texto livre | Essencial | ingestion + web | | 3 | ⬜ | |
 | RF10 | Normalizar a entrada bruta | Alta | ingestion | | 3 | ⬜ | |
-| RF11 | Extrair requisitos do texto não estruturado | Essencial | ai-structuring | | 2 (PoC) / 3 | ⬜ | |
+| RF11 | Extrair requisitos do texto não estruturado | Essencial | ai-structuring | #5 | 2 (PoC) / 3 | 🟡 | Prompt versionado [`extract-requirements.v1.md`](../../services/ai-structuring-service/app/prompts/extract-requirements.v1.md), carregado por versão em [`app/prompts/__init__.py`](../../services/ai-structuring-service/app/prompts/__init__.py); testes em [`test_prompts.py`](../../services/ai-structuring-service/tests/unit/test_prompts.py) e [`test_extract_requirements.py`](../../services/ai-structuring-service/tests/integration/test_extract_requirements.py). Caso de uso e validação de schema pendentes |
 | RF12 | Gerar ementa com objetivos de aprendizagem | Essencial | ai-structuring | | 2 (PoC) / 3 | ⬜ | |
 | RF13 | Anexar resultado estruturado à negociação | Essencial | ai + pipeline | | 3 | ⬜ | |
 | RF14 | Revisar e editar a saída da IA | Essencial | web + pipeline | | 3 | ⬜ | |
