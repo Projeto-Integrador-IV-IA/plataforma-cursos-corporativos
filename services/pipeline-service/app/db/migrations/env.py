@@ -14,20 +14,16 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
+import app.models  # noqa: F401 - registra as tabelas em Base.metadata
 from app.core.config import get_settings
+from app.db.base import Base
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Os modelos ORM de ``app.models`` ainda sao stubs, entao ``Base.metadata`` esta
-# vazio: apontar ``target_metadata`` para ele faria o ``--autogenerate`` (usado
-# por ``make migration``) gerar um DROP de todas as tabelas do schema. Com None,
-# o Alembic recusa o autogenerate em vez de produzir a migration destrutiva.
-# Ao implementar os modelos, importe-os em ``app.db.base`` e volte a apontar
-# para ``Base.metadata``, reativando tambem ``compare_type=True``.
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def get_database_url() -> str:
@@ -44,6 +40,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -59,6 +56,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            compare_type=True,
         )
 
         with context.begin_transaction():

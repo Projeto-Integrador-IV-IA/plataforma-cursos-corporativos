@@ -1,12 +1,18 @@
-"""Base declarativa compartilhada pelos modelos do pipeline-service.
+"""Base declarativa do modelo relacional exigido pelo RNF08."""
 
-Quando os modelos de ``app.models`` deixarem de ser stubs, importe-os aqui para
-que ``Base.metadata`` reflita o schema completo - e so entao volte a apontar
-``target_metadata`` para ele em ``app/db/migrations/env.py``.
-"""
-
+import sqlalchemy as sa
 from sqlalchemy.orm import DeclarativeBase
+
+NAMING_CONVENTION = {
+    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
+    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
 
 
 class Base(DeclarativeBase):
     """Agrupa o metadata usado pelos modelos e pelo Alembic."""
+
+    metadata = sa.MetaData(naming_convention=NAMING_CONVENTION)

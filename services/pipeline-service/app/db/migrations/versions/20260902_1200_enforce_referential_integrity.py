@@ -63,7 +63,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
-        sa.CheckConstraint("role IN ('OPERADOR')", name="ck_users_role"),
+        sa.CheckConstraint("role IN ('OPERADOR')", name=op.f("ck_users_role")),
         sa.PrimaryKeyConstraint("id", name="pk_users"),
         sa.UniqueConstraint("email", name="uq_users_email"),
     )
@@ -134,11 +134,11 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             f"current_stage IN ({quoted_values(PIPELINE_STAGES)})",
-            name="ck_demands_current_stage",
+            name=op.f("ck_demands_current_stage"),
         ),
         sa.CheckConstraint(
             f"status IN ({quoted_values(DEMAND_STATUSES)})",
-            name="ck_demands_status",
+            name=op.f("ck_demands_status"),
         ),
         sa.ForeignKeyConstraint(
             ["client_id"],
@@ -177,7 +177,7 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             f"source IN ({quoted_values(RAW_INPUT_SOURCES)})",
-            name="ck_raw_inputs_source",
+            name=op.f("ck_raw_inputs_source"),
         ),
         sa.ForeignKeyConstraint(
             ["author_id"],
@@ -216,15 +216,15 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             f"from_stage IS NULL OR from_stage IN ({quoted_values(PIPELINE_STAGES)})",
-            name="ck_stage_transitions_from_stage",
+            name=op.f("ck_stage_transitions_from_stage"),
         ),
         sa.CheckConstraint(
             f"to_stage IN ({quoted_values(PIPELINE_STAGES)})",
-            name="ck_stage_transitions_to_stage",
+            name=op.f("ck_stage_transitions_to_stage"),
         ),
         sa.CheckConstraint(
             "from_stage IS NULL OR from_stage <> to_stage",
-            name="ck_stage_transitions_distinct_stages",
+            name=op.f("ck_stage_transitions_distinct_stages"),
         ),
         sa.ForeignKeyConstraint(
             ["author_id"],
@@ -261,7 +261,7 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             f"type IN ({quoted_values(ARTIFACT_TYPES)})",
-            name="ck_artifacts_type",
+            name=op.f("ck_artifacts_type"),
         ),
         sa.ForeignKeyConstraint(
             ["demand_id"],
@@ -298,14 +298,17 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
-        sa.CheckConstraint("number > 0", name="ck_artifact_versions_number_positive"),
+        sa.CheckConstraint(
+            "number > 0",
+            name=op.f("ck_artifact_versions_number_positive"),
+        ),
         sa.CheckConstraint(
             "origin = 'IA' OR author_id IS NOT NULL",
-            name="ck_artifact_versions_human_requires_author",
+            name=op.f("ck_artifact_versions_human_requires_author"),
         ),
         sa.CheckConstraint(
             f"origin IN ({quoted_values(ARTIFACT_ORIGINS)})",
-            name="ck_artifact_versions_origin",
+            name=op.f("ck_artifact_versions_origin"),
         ),
         sa.ForeignKeyConstraint(
             ["artifact_id"],
