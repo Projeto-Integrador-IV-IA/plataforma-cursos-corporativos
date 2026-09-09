@@ -1,6 +1,6 @@
 # =============================================================================
 # Contrato do ai-structuring-service (RNF02).
-# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
+# Nucleo inteligente de estruturacao de cursos por IA.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -9,8 +9,8 @@ info:
   title: ai-structuring-service
   version: 1.0.0
   description: |
-    Estruturacao do curso por LLM.
-    Requisitos atendidos: RF11, RF12, RNF03, RNF04.
+    Estruturacao do curso e geracao de ementa por LLM a partir do texto normalizado.
+    Requisitos atendidos: RF11, RF12, RNF02, RNF03, RNF04.
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
 
@@ -21,14 +21,259 @@ servers:
     description: Rede interna do Docker Compose
 
 tags:
+  - name: structuring
+    description: Estruturacao, consulta de estado e reprocessamento por IA (RF11, RF12)
   - name: health
-    description: Liveness e readiness
+    description: Liveness e readiness do servico
 
 security:
   - bearerAuth: []
 
-paths: {}
-# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Healthcheck do servico de IA
+      description: Verifica liveness e conectividade basica do microservico de IA.
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Servico saudavel.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  llm_provider:
+                    type: string
+                    example: mock
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-09-08T21:15:00Z'
+                required:
+                  - status
+                  - timestamp
+
+  /structurings:
+    post:
+      tags:
+        - structuring
+      summary: Disparar estruturacao de curso por IA (RF11, RF12)
+      description: |
+        Recebe o texto normalizado da fonte bruta, submete ao prompt estruturado da LLM
+        e produz a saida canonica de curso validada pelo schema fixo (RNF03).
+      operationId: startStructuring
+      requestBody:
+        required: true
+        description: Dados da demanda normalizada para estruturacao.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartStructuringRequest'
+            examples:
+              exemploDemanda:
+                summary: Demanda normalizada enviada pelo ingestion-service
+                value:
+                  demand_id: "dem-8f92a10c"
+                  source_id: "src-10293847"
+                  normalized_text: "Treinamento corporativo de Python para Analise de Dados para 25 analistas do setor financeiro. Carga horaria total de 40 horas."
+                  prompt_version: "v1.2.0"
+      responses:
+        '201':
+          description: Estruturacao concluida e validada contra o schema canonico.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuringResponse'
+              examples:
+                sucessoEstruturacao:
+                  summary: Curso estruturado e validado com sucesso
+                  value:
+                    job_id: "job-44556677"
+                    demand_id: "dem-8f92a10c"
+                    source_id: "src-10293847"
+                    status: "completed"
+                    result:
+                      tema: "Python para Analise de Dados no Mercado Financeiro"
+                      nicho: "Financas e Investimentos"
+                      publico_alvo: "Analistas financeiros e de risco"
+                      numero_participantes: 25
+                      carga_horaria: 40
+                      formato: "nao_especificado"
+                      objetivos_aprendizagem:
+                        - "Manipular series temporais financeiras com pandas"
+                        - "Calcular metricas basicas de risco e volatilidade"
+                      ementa:
+                        - modulo: 1
+                          titulo: "Fundamentos e Analise de Dados"
+                          topicos:
+                            - "DataFrames"
+                            - "Limpeza de dados"
+                      campos_ausentes:
+                        - "formato"
+                      observacoes: "Formato do curso nao foi especificado na demanda bruta."
+                      metadados:
+                        versao_prompt: "v1.2.0"
+                        modelo: "mock-llm-v1"
+                        gerado_em: "2026-09-08T21:15:00Z"
+                        tokens_utilizados: 850
+                    created_at: "2026-09-08T21:14:50Z"
+                    completed_at: "2026-09-08T21:15:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '502':
+          $ref: '#/components/responses/LLMBadGatewayError'
+        '504':
+          $ref: '#/components/responses/LLMTimeoutError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /structurings/{job_id}:
+    get:
+      tags:
+        - structuring
+      summary: Consultar estado da estruturacao (RF11)
+      description: Retorna o estado atual da tarefa de estruturacao (pending, processing, completed, failed) e o curso resultante.
+      operationId: getStructuringById
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Identificador unico da tarefa de estruturacao
+          schema:
+            type: string
+            example: "job-44556677"
+      responses:
+        '200':
+          description: Estado da tarefa recuperado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuringResponse'
+              examples:
+                consultaConcluida:
+                  summary: Tarefa finalizada
+                  value:
+                    job_id: "job-44556677"
+                    demand_id: "dem-8f92a10c"
+                    source_id: "src-10293847"
+                    status: "completed"
+                    result:
+                      tema: "Python para Analise de Dados no Mercado Financeiro"
+                      nicho: "Financas e Investimentos"
+                      publico_alvo: "Analistas financeiros e de risco"
+                      numero_participantes: 25
+                      carga_horaria: 40
+                      formato: "nao_especificado"
+                      objetivos_aprendizagem:
+                        - "Manipular series temporais financeiras com pandas"
+                      ementa:
+                        - modulo: 1
+                          titulo: "Fundamentos e Analise de Dados"
+                          topicos:
+                            - "DataFrames"
+                      campos_ausentes:
+                        - "formato"
+                      observacoes: null
+                      metadados:
+                        versao_prompt: "v1.2.0"
+                        modelo: "mock-llm-v1"
+                        gerado_em: "2026-09-08T21:15:00Z"
+                        tokens_utilizados: 850
+                    created_at: "2026-09-08T21:14:50Z"
+                    completed_at: "2026-09-08T21:15:00Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /structurings/{job_id}/reprocess:
+    post:
+      tags:
+        - structuring
+      summary: Reprocessar estruturacao por IA (RF11, RF12)
+      description: Dispara nova chamada a LLM para uma demanda existente, permitindo trocar versao de prompt ou modelo.
+      operationId: reprocessStructuring
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Identificador unico da tarefa a ser reprocessada
+          schema:
+            type: string
+            example: "job-44556677"
+      requestBody:
+        required: false
+        description: Parametros opcionais para o novo ciclo de estruturacao.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReprocessStructuringRequest'
+            examples:
+              exemploReprocessarPrompt:
+                summary: Reprocessar com nova versao de prompt
+                value:
+                  prompt_version: "v1.3.0"
+                  reason: "Refinamento nos criterios de extracao de carga horaria."
+      responses:
+        '200':
+          description: Reprocessamento aceito e concluido com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuringResponse'
+              examples:
+                sucessoReprocessamento:
+                  summary: Novo resultado gerado com novo prompt
+                  value:
+                    job_id: "job-44556677"
+                    demand_id: "dem-8f92a10c"
+                    source_id: "src-10293847"
+                    status: "completed"
+                    result:
+                      tema: "Python Aplicado ao Mercado Financeiro"
+                      nicho: "Financas"
+                      publico_alvo: "Analistas e Cientistas de Dados"
+                      numero_participantes: 25
+                      carga_horaria: 40
+                      formato: "nao_especificado"
+                      objetivos_aprendizagem:
+                        - "Modelagem financeira com Pandas"
+                      ementa:
+                        - modulo: 1
+                          titulo: "Pandas Avancado"
+                          topicos:
+                            - "Series Temporais"
+                      campos_ausentes:
+                        - "formato"
+                      observacoes: "Reprocessado com prompt v1.3.0."
+                      metadados:
+                        versao_prompt: "v1.3.0"
+                        modelo: "mock-llm-v1"
+                        gerado_em: "2026-09-08T21:20:00Z"
+                        tokens_utilizados: 890
+                    created_at: "2026-09-08T21:14:50Z"
+                    completed_at: "2026-09-08T21:20:00Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '502':
+          $ref: '#/components/responses/LLMBadGatewayError'
+        '504':
+          $ref: '#/components/responses/LLMTimeoutError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -37,5 +282,200 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
-  schemas: {}
-  # TODO(Fase 2): referenciar ../schemas/*.json
+
+  responses:
+    BadRequestError:
+      description: Requisicao malformada ou texto normalizado ausente.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroTextoVazio:
+              value:
+                error:
+                  code: "INVALID_NORMALIZED_TEXT"
+                  message: "O texto normalizado para estruturacao nao pode ser vazio."
+                  details:
+                    field: "normalized_text"
+                  request_id: "req-ai-001"
+
+    UnauthorizedError:
+      description: Token JWT ausente ou invalido.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroNaoAutorizado:
+              value:
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Credenciais ausentes ou expiradas."
+                  details: {}
+                  request_id: "req-ai-002"
+
+    NotFoundError:
+      description: Tarefa de estruturacao nao localizada.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroJobNaoEncontrado:
+              value:
+                error:
+                  code: "STRUCTURING_JOB_NOT_FOUND"
+                  message: "A tarefa 'job-44556677' nao foi encontrada."
+                  details:
+                    job_id: "job-44556677"
+                  request_id: "req-ai-003"
+
+    LLMBadGatewayError:
+      description: Falha de comunicacao ou resposta invalida do provedor de LLM (RNF03, RNF05).
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroLLMIndisponivel:
+              value:
+                error:
+                  code: "LLM_UNAVAILABLE"
+                  message: "O provedor de linguagem falhou ao responder a solicitacao."
+                  details:
+                    provider: "mock-or-external"
+                    reason: "Connection refused ou 502 da API externa."
+                  request_id: "req-ai-004"
+            erroValidacaoSchemaLLM:
+              value:
+                error:
+                  code: "LLM_SCHEMA_VALIDATION_FAILED"
+                  message: "A resposta do modelo nao respeitou o schema fixo esperado (RNF03)."
+                  details:
+                    schema: "structured-course.schema.json"
+                  request_id: "req-ai-005"
+
+    LLMTimeoutError:
+      description: Timeout na chamada ao provedor de LLM (RNF05).
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroTimeoutLLM:
+              value:
+                error:
+                  code: "LLM_TIMEOUT"
+                  message: "O tempo limite de resposta do modelo foi excedido. Demanda bruta preservada (RNF05)."
+                  details:
+                    timeout_seconds: 30
+                  request_id: "req-ai-006"
+
+    InternalServerError:
+      description: Erro interno no servico de IA.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroInterno:
+              value:
+                error:
+                  code: "AI_STRUCTURING_ERROR"
+                  message: "Falha interna ao processar estruturacao."
+                  details: {}
+                  request_id: "req-ai-007"
+
+  schemas:
+    StartStructuringRequest:
+      type: object
+      description: Payload de entrada para iniciar a estruturacao de uma demanda.
+      required:
+        - demand_id
+        - source_id
+        - normalized_text
+      properties:
+        demand_id:
+          type: string
+          description: ID da demanda vinculada.
+          example: "dem-8f92a10c"
+        source_id:
+          type: string
+          description: ID da fonte normalizada.
+          example: "src-10293847"
+        normalized_text:
+          type: string
+          description: Texto da demanda pronto para envio ao prompt da IA.
+          example: "Treinamento corporativo de Python para Analise de Dados..."
+        prompt_version:
+          type: string
+          description: Versao do catalogo de prompt a ser utilizada (opcional).
+          example: "v1.2.0"
+
+    ReprocessStructuringRequest:
+      type: object
+      description: Parametros para forcar ou refinar o reprocessamento da estruturacao.
+      properties:
+        prompt_version:
+          type: string
+          description: Nova versao de prompt para a tentativa.
+          example: "v1.3.0"
+        model:
+          type: string
+          description: Modelo alternativo (ex.: mock, gpt-4o, claude-3-5).
+          example: "mock-llm-v1"
+        reason:
+          type: string
+          description: Justificativa para a trilha de auditoria.
+          example: "Regeneracao apos ajuste de requisitos."
+
+    StructuringStatus:
+      type: string
+      description: Status do ciclo de vida da tarefa de estruturacao.
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+      example: "completed"
+
+    StructuringResponse:
+      type: object
+      description: Objeto de resposta contendo o resultado da estruturacao por IA.
+      required:
+        - job_id
+        - demand_id
+        - source_id
+        - status
+        - created_at
+      properties:
+        job_id:
+          type: string
+          description: Identificador unico da execucao.
+          example: "job-44556677"
+        demand_id:
+          type: string
+          description: ID da demanda vinculada.
+          example: "dem-8f92a10c"
+        source_id:
+          type: string
+          description: ID da fonte consumida.
+          example: "src-10293847"
+        status:
+          $ref: '#/components/schemas/StructuringStatus'
+        result:
+          anyOf:
+            - $ref: '../schemas/structured-course.schema.json'
+            - type: "null"
+          description: Saida canonica de curso estruturado validado (RNF03). Nulo se status for diferente de completed.
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-08T21:14:50Z"
+        completed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          example: "2026-09-08T21:15:00Z"
