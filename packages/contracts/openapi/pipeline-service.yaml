@@ -1,6 +1,6 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
+# Servico dono do banco de dados (CRM, pipeline, trilha e artefatos).
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -9,8 +9,9 @@ info:
   title: pipeline-service
   version: 1.0.0
   description: |
-    CRM, pipeline e artefatos versionados.
-    Requisitos atendidos: RF01-RF08, RF13, RF15.
+    CRM corporativo, gestao de demandas, avanco e retrocesso de pipeline,
+    trilha de auditoria imutavel e versionamento de artefatos.
+    Requisitos atendidos: RF01-RF08, RF13, RF15, RNF02, RNF07, RNF08, RNF09.
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
 
@@ -21,14 +22,544 @@ servers:
     description: Rede interna do Docker Compose
 
 tags:
+  - name: clients
+    description: Gestao cadastral de clientes corporativos (RF01)
+  - name: demands
+    description: Ciclo de vida e gestao de demandas (RF01, RF02, RF03)
+  - name: pipeline
+    description: Transicao e retrocesso de etapas do pipeline (RF04, RF05)
+  - name: audit-trail
+    description: Trilha de auditoria cronologica e imutavel (RF07, RNF08, RNF09)
+  - name: artifacts
+    description: Versionamento e historico de artefatos de curso/proposta (RF13, RF15)
   - name: health
-    description: Liveness e readiness
+    description: Liveness e readiness do servico
 
 security:
   - bearerAuth: []
 
-paths: {}
-# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Healthcheck do servico
+      description: Verifica liveness e conectividade com o PostgreSQL.
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Servico e conexao com banco estaveis.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - database
+                  - timestamp
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  database:
+                    type: string
+                    example: connected
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-09-08T22:00:00Z'
+
+  # ===========================================================================
+  # 1. CLIENTES (RF01)
+  # ===========================================================================
+  /clients:
+    get:
+      tags:
+        - clients
+      summary: Listar clientes corporativos (RF01)
+      description: Retorna clientes com suporte a filtros e envelope padronizado de paginacao.
+      operationId: listClients
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - name: search
+          in: query
+          required: false
+          description: Busca por razao social, nome fantasia ou CNPJ
+          schema:
+            type: string
+            example: "Banco Alpha"
+        - name: segment
+          in: query
+          required: false
+          description: Filtro por segmento de atuacao
+          schema:
+            type: string
+            example: "Financeiro"
+      responses:
+        '200':
+          description: Lista paginada de clientes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientListResponse'
+              examples:
+                listaClientes:
+                  value:
+                    data:
+                      - client_id: "cli-9901"
+                        corporate_name: "Banco Alpha S.A."
+                        trade_name: "Banco Alpha"
+                        tax_id: "12.345.678/0001-90"
+                        segment: "Financeiro"
+                        primary_contact_name: "Mariana Souza"
+                        primary_contact_email: "mariana.souza@bancoalpha.com.br"
+                        created_at: "2026-08-10T10:00:00Z"
+                    pagination:
+                      page: 1
+                      page_size: 20
+                      total_items: 1
+                      total_pages: 1
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - clients
+      summary: Cadastrar cliente corporativo (RF01)
+      description: Cria um novo registro de cliente para associacao com demandas.
+      operationId: createClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientRequest'
+            examples:
+              novoCliente:
+                value:
+                  corporate_name: "Banco Alpha S.A."
+                  trade_name: "Banco Alpha"
+                  tax_id: "12.345.678/0001-90"
+                  segment: "Financeiro"
+                  primary_contact_name: "Mariana Souza"
+                  primary_contact_email: "mariana.souza@bancoalpha.com.br"
+      responses:
+        '201':
+          description: Cliente criado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientResponse'
+              examples:
+                clienteCriado:
+                  value:
+                    client_id: "cli-9901"
+                    corporate_name: "Banco Alpha S.A."
+                    trade_name: "Banco Alpha"
+                    tax_id: "12.345.678/0001-90"
+                    segment: "Financeiro"
+                    primary_contact_name: "Mariana Souza"
+                    primary_contact_email: "mariana.souza@bancoalpha.com.br"
+                    created_at: "2026-08-10T10:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ===========================================================================
+  # 2. DEMANDAS (RF01, RF02, RF03)
+  # ===========================================================================
+  /demands:
+    get:
+      tags:
+        - demands
+      summary: Listar demandas de cursos (RF02, RF03)
+      description: Consulta demandas com filtros por cliente, etapa de pipeline, prioridade e responsavel.
+      operationId: listDemands
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+        - name: client_id
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "cli-9901"
+        - name: stage
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/PipelineStage'
+          example: "triagem"
+        - name: priority
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/PriorityLevel'
+          example: "alta"
+      responses:
+        '200':
+          description: Listagem paginada de demandas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandListResponse'
+              examples:
+                listaDemandas:
+                  value:
+                    data:
+                      - demand_id: "dem-8f92a10c"
+                        client_id: "cli-9901"
+                        title: "Formacao Python para Analistas de Dados"
+                        current_stage: "estruturacao_ia"
+                        priority: "alta"
+                        created_by: "operador.joao@empresa.com.br"
+                        created_at: "2026-09-08T14:00:00Z"
+                        updated_at: "2026-09-08T14:35:00Z"
+                    pagination:
+                      page: 1
+                      page_size: 20
+                      total_items: 1
+                      total_pages: 1
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - demands
+      summary: Criar nova demanda (RF01, RF02)
+      description: Inicia uma nova negociacao de curso vinculada a um cliente.
+      operationId: createDemand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDemandRequest'
+            examples:
+              novaDemanda:
+                value:
+                  client_id: "cli-9901"
+                  title: "Formacao Python para Analistas de Dados"
+                  description: "Treinamento intensivo de 40h para o time de credito."
+                  priority: "alta"
+      responses:
+        '201':
+          description: Demanda criada com sucesso na etapa inicial.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandResponse'
+              examples:
+                demandaCriada:
+                  value:
+                    demand_id: "dem-8f92a10c"
+                    client_id: "cli-9901"
+                    title: "Formacao Python para Analistas de Dados"
+                    description: "Treinamento intensivo de 40h para o time de credito."
+                    current_stage: "triagem"
+                    priority: "alta"
+                    created_by: "operador.joao@empresa.com.br"
+                    created_at: "2026-09-08T14:00:00Z"
+                    updated_at: "2026-09-08T14:00:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /demands/{demand_id}:
+    get:
+      tags:
+        - demands
+      summary: Consultar detalhes da demanda (RF02)
+      description: Recupera informacoes consolidadas da demanda, etapa atual e cliente.
+      operationId: getDemandById
+      parameters:
+        - name: demand_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dem-8f92a10c"
+      responses:
+        '200':
+          description: Demanda localizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandResponse'
+              examples:
+                detalheDemanda:
+                  value:
+                    demand_id: "dem-8f92a10c"
+                    client_id: "cli-9901"
+                    title: "Formacao Python para Analistas de Dados"
+                    description: "Treinamento intensivo de 40h para o time de credito."
+                    current_stage: "estruturacao_ia"
+                    priority: "alta"
+                    created_by: "operador.joao@empresa.com.br"
+                    created_at: "2026-09-08T14:00:00Z"
+                    updated_at: "2026-09-08T14:35:00Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ===========================================================================
+  # 3. PIPELINE (RF04, RF05)
+  # ===========================================================================
+  /demands/{demand_id}/transition:
+    post:
+      tags:
+        - pipeline
+      summary: Avancar ou retroceder etapa do pipeline (RF04, RF05)
+      description: Executa transicao de estado com registro obrigatorio de justificativa em caso de retrocesso.
+      operationId: transitionDemandStage
+      parameters:
+        - name: demand_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dem-8f92a10c"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionStageRequest'
+            examples:
+              avancoEtapa:
+                summary: Avanco para validacao humana
+                value:
+                  target_stage: "validacao_humana"
+                  reason: "Curso gerado pelo ai-structuring-service pronto para revisao."
+              retrocessoEtapa:
+                summary: Retrocesso livre com justificativa (RF05)
+                value:
+                  target_stage: "captacao_demanda"
+                  reason: "Cliente solicitou inclusao de mais um modulo de Machine Learning."
+      responses:
+        '200':
+          description: Transicao de etapa concluida e registrada na trilha.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandResponse'
+              examples:
+                sucessoTransicao:
+                  value:
+                    demand_id: "dem-8f92a10c"
+                    client_id: "cli-9901"
+                    title: "Formacao Python para Analistas de Dados"
+                    description: "Treinamento intensivo de 40h para o time de credito."
+                    current_stage: "validacao_humana"
+                    priority: "alta"
+                    created_by: "operador.joao@empresa.com.br"
+                    created_at: "2026-09-08T14:00:00Z"
+                    updated_at: "2026-09-08T15:10:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ===========================================================================
+  # 4. TRILHA DE AUDITORIA (RF07, RNF08, RNF09)
+  # ===========================================================================
+  /demands/{demand_id}/audit-trail:
+    get:
+      tags:
+        - audit-trail
+      summary: Consultar trilha de auditoria da demanda (RF07, RNF08, RNF09)
+      description: Historico cronologico e imutavel de eventos, alteracoes de etapa e acoes humanas.
+      operationId: getDemandAuditTrail
+      parameters:
+        - name: demand_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dem-8f92a10c"
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PageSizeQuery'
+      responses:
+        '200':
+          description: Eventos da trilha recuperados ordenados cronologicamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditTrailListResponse'
+              examples:
+                trilhaEventos:
+                  value:
+                    data:
+                      - event_id: "evt-001"
+                        demand_id: "dem-8f92a10c"
+                        event_type: "STAGE_TRANSITION"
+                        actor: "operador.joao@empresa.com.br"
+                        action_description: "Transicao de triagem para estruturacao_ia."
+                        metadata:
+                          previous_stage: "triagem"
+                          new_stage: "estruturacao_ia"
+                        created_at: "2026-09-08T14:30:00Z"
+                      - event_id: "evt-002"
+                        demand_id: "dem-8f92a10c"
+                        event_type: "ARTIFACT_ATTACHED"
+                        actor: "system:ai-structuring-service"
+                        action_description: "Anexado artefato estruturado versao v1."
+                        metadata:
+                          artifact_id: "art-5501"
+                          version: 1
+                        created_at: "2026-09-08T14:35:00Z"
+                    pagination:
+                      page: 1
+                      page_size: 20
+                      total_items: 2
+                      total_pages: 1
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ===========================================================================
+  # 5. ARTEFATOS (RF13, RF15)
+  # ===========================================================================
+  /demands/{demand_id}/artifacts:
+    get:
+      tags:
+        - artifacts
+      summary: Listar versoes de artefatos da demanda (RF13, RF15)
+      description: Retorna o historico de versoes de ementas/propostas geradas ou editadas pelo operador.
+      operationId: listDemandArtifacts
+      parameters:
+        - name: demand_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dem-8f92a10c"
+      responses:
+        '200':
+          description: Lista de artefatos associados a demanda.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactListResponse'
+              examples:
+                historicoArtefatos:
+                  value:
+                    data:
+                      - artifact_id: "art-5501"
+                        demand_id: "dem-8f92a10c"
+                        artifact_type: "structured_course"
+                        version: 1
+                        created_by: "system:ai-structuring-service"
+                        created_at: "2026-09-08T14:35:00Z"
+                        content:
+                          tema: "Python para Analise de Dados no Mercado Financeiro"
+                          carga_horaria: 40
+                      - artifact_id: "art-5502"
+                        demand_id: "dem-8f92a10c"
+                        artifact_type: "structured_course"
+                        version: 2
+                        created_by: "operador.joao@empresa.com.br"
+                        created_at: "2026-09-08T15:20:00Z"
+                        content:
+                          tema: "Python para Analise de Dados no Mercado Financeiro (Revisado)"
+                          carga_horaria: 48
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - artifacts
+      summary: Criar nova versao de artefato (RF13, RF14)
+      description: Salva uma nova versao de curso/proposta editada pelo operador humano ou anexada por servico.
+      operationId: createArtifactVersion
+      parameters:
+        - name: demand_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "dem-8f92a10c"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateArtifactRequest'
+            examples:
+              revisaoHumanaArtefato:
+                value:
+                  artifact_type: "structured_course"
+                  change_summary: "Ajuste na carga horaria de 40h para 48h apos reuniao com o cliente."
+                  content:
+                    tema: "Python para Analise de Dados no Mercado Financeiro (Revisado)"
+                    nicho: "Financas"
+                    publico_alvo: "Analistas e Cientistas"
+                    carga_horaria: 48
+                    objetivos_aprendizagem:
+                      - "Manipular series temporais com Pandas"
+                    ementa:
+                      - modulo: 1
+                        titulo: "Pandas Avancado"
+                        topicos: ["Series Temporais", "Analise de Risco"]
+                    campos_ausentes: []
+                    metadados:
+                      versao_prompt: "revisao_humana_v1"
+                      modelo: "human_operator"
+                      gerado_em: "2026-09-08T15:20:00Z"
+      responses:
+        '201':
+          description: Nova versao do artefato gerada e versionada sequencialmente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactResponse'
+              examples:
+                artefatoCriado:
+                  value:
+                    artifact_id: "art-5502"
+                    demand_id: "dem-8f92a10c"
+                    artifact_type: "structured_course"
+                    version: 2
+                    change_summary: "Ajuste na carga horaria de 40h para 48h apos reuniao com o cliente."
+                    created_by: "operador.joao@empresa.com.br"
+                    created_at: "2026-09-08T15:20:00Z"
+                    content:
+                      tema: "Python para Analise de Dados no Mercado Financeiro (Revisado)"
+                      carga_horaria: 48
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -37,5 +568,429 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
-  schemas: {}
-  # TODO(Fase 2): referenciar ../schemas/*.json
+
+  parameters:
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: Numero da pagina solicitada (padrao 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        example: 1
+    PageSizeQuery:
+      name: page_size
+      in: query
+      required: false
+      description: Itens por pagina (padrao 20, maximo 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+        example: 20
+
+  responses:
+    BadRequestError:
+      description: Requisicao com formato invalido ou campos obrigatorios ausentes.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroRequisicao:
+              value:
+                error:
+                  code: "INVALID_STAGE_TRANSITION"
+                  message: "Transicao de etapa invalida sem justificativa informada."
+                  details:
+                    target_stage: "captacao_demanda"
+                  request_id: "req-pipe-01"
+
+    UnauthorizedError:
+      description: Token JWT ausente ou invalido.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroNaoAutorizado:
+              value:
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Acesso nao autorizado."
+                  details: {}
+                  request_id: "req-pipe-02"
+
+    NotFoundError:
+      description: Registro nao encontrado no banco de dados.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroNaoEncontrado:
+              value:
+                error:
+                  code: "DEMAND_NOT_FOUND"
+                  message: "Demanda 'dem-8f92a10c' nao encontrada."
+                  details:
+                    demand_id: "dem-8f92a10c"
+                  request_id: "req-pipe-03"
+
+    InternalServerError:
+      description: Erro interno no banco de dados ou no pipeline-service.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroBanco:
+              value:
+                error:
+                  code: "DATABASE_CONNECTION_ERROR"
+                  message: "Falha na comunicacao com a base PostgreSQL."
+                  details: {}
+                  request_id: "req-pipe-04"
+
+  schemas:
+    # -------------------------------------------------------------------------
+    # Envelopes e Tipos Padrao
+    # -------------------------------------------------------------------------
+    PaginationMetadata:
+      type: object
+      description: Envelope padrao de paginacao da plataforma (RNF02).
+      required:
+        - page
+        - page_size
+        - total_items
+        - total_pages
+      properties:
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        total_items:
+          type: integer
+          example: 45
+        total_pages:
+          type: integer
+          example: 3
+
+    PipelineStage:
+      type: string
+      description: Etapas do pipeline de negociacao e producao (RF04, RF05).
+      enum:
+        - triagem
+        - captacao_demanda
+        - estruturacao_ia
+        - validacao_humana
+        - proposta_comercial
+        - aprovado
+        - cancelado
+      example: "estruturacao_ia"
+
+    PriorityLevel:
+      type: string
+      enum:
+        - essencial
+        - alta
+        - media
+        - baixa
+      example: "alta"
+
+    # -------------------------------------------------------------------------
+    # Schemas de Clientes
+    # -------------------------------------------------------------------------
+    CreateClientRequest:
+      type: object
+      required:
+        - corporate_name
+        - tax_id
+        - primary_contact_name
+        - primary_contact_email
+      properties:
+        corporate_name:
+          type: string
+          example: "Banco Alpha S.A."
+        trade_name:
+          type: string
+          example: "Banco Alpha"
+        tax_id:
+          type: string
+          description: CNPJ do cliente corporativo
+          example: "12.345.678/0001-90"
+        segment:
+          type: string
+          example: "Financeiro"
+        primary_contact_name:
+          type: string
+          example: "Mariana Souza"
+        primary_contact_email:
+          type: string
+          format: email
+          example: "mariana.souza@bancoalpha.com.br"
+
+    ClientResponse:
+      type: object
+      required:
+        - client_id
+        - corporate_name
+        - tax_id
+        - primary_contact_name
+        - primary_contact_email
+        - created_at
+      properties:
+        client_id:
+          type: string
+          example: "cli-9901"
+        corporate_name:
+          type: string
+          example: "Banco Alpha S.A."
+        trade_name:
+          type: string
+          example: "Banco Alpha"
+        tax_id:
+          type: string
+          example: "12.345.678/0001-90"
+        segment:
+          type: string
+          example: "Financeiro"
+        primary_contact_name:
+          type: string
+          example: "Mariana Souza"
+        primary_contact_email:
+          type: string
+          format: email
+          example: "mariana.souza@bancoalpha.com.br"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-08-10T10:00:00Z"
+
+    ClientListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationMetadata'
+
+    # -------------------------------------------------------------------------
+    # Schemas de Demandas
+    # -------------------------------------------------------------------------
+    CreateDemandRequest:
+      type: object
+      required:
+        - client_id
+        - title
+      properties:
+        client_id:
+          type: string
+          example: "cli-9901"
+        title:
+          type: string
+          example: "Formacao Python para Analistas de Dados"
+        description:
+          type: string
+          example: "Treinamento intensivo de 40h para o time de credito."
+        priority:
+          $ref: '#/components/schemas/PriorityLevel'
+          default: "media"
+
+    DemandResponse:
+      type: object
+      required:
+        - demand_id
+        - client_id
+        - title
+        - current_stage
+        - priority
+        - created_by
+        - created_at
+        - updated_at
+      properties:
+        demand_id:
+          type: string
+          example: "dem-8f92a10c"
+        client_id:
+          type: string
+          example: "cli-9901"
+        title:
+          type: string
+          example: "Formacao Python para Analistas de Dados"
+        description:
+          type: string
+          example: "Treinamento intensivo de 40h para o time de credito."
+        current_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        priority:
+          $ref: '#/components/schemas/PriorityLevel'
+        created_by:
+          type: string
+          example: "operador.joao@empresa.com.br"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-08T14:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-09-08T14:35:00Z"
+
+    DemandListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemandResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationMetadata'
+
+    TransitionStageRequest:
+      type: object
+      required:
+        - target_stage
+      properties:
+        target_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        reason:
+          type: string
+          description: Obrigatorio para transicoes de retrocesso ou cancelamento (RF05).
+          example: "Cliente solicitou inclusao de novos modulos tecnicos."
+
+    # -------------------------------------------------------------------------
+    # Schemas de Trilha de Auditoria
+    # -------------------------------------------------------------------------
+    AuditTrailEventResponse:
+      type: object
+      required:
+        - event_id
+        - demand_id
+        - event_type
+        - actor
+        - action_description
+        - created_at
+      properties:
+        event_id:
+          type: string
+          example: "evt-001"
+        demand_id:
+          type: string
+          example: "dem-8f92a10c"
+        event_type:
+          type: string
+          example: "STAGE_TRANSITION"
+        actor:
+          type: string
+          example: "operador.joao@empresa.com.br"
+        action_description:
+          type: string
+          example: "Transicao de triagem para estruturacao_ia."
+        metadata:
+          type: object
+          additionalProperties: true
+          example:
+            previous_stage: "triagem"
+            new_stage: "estruturacao_ia"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-08T14:30:00Z"
+
+    AuditTrailListResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditTrailEventResponse'
+        pagination:
+          $ref: '#/components/schemas/PaginationMetadata'
+
+    # -------------------------------------------------------------------------
+    # Schemas de Artefatos
+    # -------------------------------------------------------------------------
+    CreateArtifactRequest:
+      type: object
+      required:
+        - artifact_type
+        - content
+      properties:
+        artifact_type:
+          type: string
+          enum:
+            - structured_course
+            - proposal
+            - presentation
+          example: "structured_course"
+        change_summary:
+          type: string
+          example: "Ajuste na carga horaria de 40h para 48h apos reuniao com o cliente."
+        content:
+          type: object
+          additionalProperties: true
+          description: Carga estruturada do curso ou proposta.
+
+    ArtifactResponse:
+      type: object
+      required:
+        - artifact_id
+        - demand_id
+        - artifact_type
+        - version
+        - created_by
+        - created_at
+        - content
+      properties:
+        artifact_id:
+          type: string
+          example: "art-5502"
+        demand_id:
+          type: string
+          example: "dem-8f92a10c"
+        artifact_type:
+          type: string
+          example: "structured_course"
+        version:
+          type: integer
+          example: 2
+        change_summary:
+          type: string
+          example: "Ajuste na carga horaria."
+        created_by:
+          type: string
+          example: "operador.joao@empresa.com.br"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-08T15:20:00Z"
+        content:
+          type: object
+          additionalProperties: true
+
+    ArtifactListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactResponse'
