@@ -2,30 +2,122 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://projeto-integrador-iv/schemas/structured-course.schema.json",
   "title": "StructuredCourse",
-  "description": "Saida canonica da estruturacao por IA (RF11, RF12). Formato fixo e versionado: e contra este schema que a resposta do LLM e validada (RNF03) e sobre ele que as metricas de qualidade sao calculadas (RNF04). ESTADO: esqueleto - campos definidos na PoC da Fase 2.",
+  "description": "Saida canonica da estruturacao por IA (RF11, RF12). Formato fixo e versionado: e contra este schema que a resposta do LLM e validada (RNF03) e sobre ele que as metricas de qualidade sao calculadas (RNF04).",
   "type": "object",
-  "x-estado": "esqueleto",
-  "x-requisitos": ["RF11", "RF12", "RNF03", "RNF04"],
-  "x-campos-extraidos-previstos": [
+  "properties": {
+    "tema": {
+      "type": "string",
+      "description": "Titulo ou tema principal do treinamento.",
+      "example": "Python para Analise de Dados no Mercado Financeiro"
+    },
+    "nicho": {
+      "type": "string",
+      "description": "Setor ou especialidade do negocio.",
+      "example": "Financas e Investimentos"
+    },
+    "publico_alvo": {
+      "type": "string",
+      "description": "Perfil profissional dos alunos.",
+      "example": "Analistas financeiros e de risco"
+    },
+    "numero_participantes": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Quantidade estimada de participantes. Nulo se nao informado.",
+      "example": 25
+    },
+    "carga_horaria": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Carga horaria total em horas. Nulo se nao informado.",
+      "example": 40
+    },
+    "formato": {
+      "type": "string",
+      "enum": ["presencial", "online_ao_vivo", "online_gravado", "hibrido", "nao_especificado"],
+      "description": "Modalidade do curso.",
+      "example": "online_ao_vivo"
+    },
+    "objetivos_aprendizagem": {
+      "type": "array",
+      "description": "Lista de habilidades e conhecimentos adquiridos gerados via IA.",
+      "items": {
+        "type": "string"
+      },
+      "example": [
+        "Manipular series temporais financeiras com pandas",
+        "Calcular metricas basicas de risco e volatilidade",
+        "Automatizar relatorios com visualizacao de dados"
+      ]
+    },
+    "ementa": {
+      "type": "array",
+      "description": "Modulos estruturados do curso gerados via IA.",
+      "items": {
+        "type": "object",
+        "required": ["modulo", "titulo", "topicos"],
+        "properties": {
+          "modulo": {
+            "type": "integer",
+            "example": 1
+          },
+          "titulo": {
+            "type": "string",
+            "example": "Introducao e Manipulacao com Pandas"
+          },
+          "topicos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["DataFrames", "Tratamento de nulos", "Agrupamentos"]
+          }
+        }
+      }
+    },
+    "campos_ausentes": {
+      "type": "array",
+      "description": "Campos sem base no texto de entrada, nunca inferidos (RF14).",
+      "items": {
+        "type": "string"
+      },
+      "example": ["formato", "numero_participantes"]
+    },
+    "observacoes": {
+      "type": ["string", "null"],
+      "description": "Notas adicionais de analise ou advertencias da extracao.",
+      "example": "O cliente mencionou preferencia por horario noturno, pendente alinhamento."
+    },
+    "metadados": {
+      "type": "object",
+      "required": ["versao_prompt", "modelo", "gerado_em"],
+      "properties": {
+        "versao_prompt": {
+          "type": "string",
+          "example": "v1.2.0"
+        },
+        "modelo": {
+          "type": "string",
+          "example": "mock-llm-v1"
+        },
+        "gerado_em": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2026-09-08T21:15:00Z"
+        },
+        "tokens_utilizados": {
+          "type": ["integer", "null"],
+          "example": 850
+        }
+      }
+    }
+  },
+  "required": [
     "tema",
-    "nicho",
     "publico_alvo",
-    "numero_participantes",
-    "carga_horaria",
-    "formato"
-  ],
-  "x-campos-gerados-previstos": [
     "objetivos_aprendizagem",
-    "ementa"
-  ],
-  "x-metadados-previstos": [
+    "ementa",
     "campos_ausentes",
-    "observacoes",
-    "versao_prompt",
-    "modelo",
-    "gerado_em"
-  ],
-  "x-regra": "Campo sem base no texto de entrada e reportado em campos_ausentes, nunca inferido (RF14).",
-  "properties": {},
-  "required": []
+    "metadados"
+  ]
 }
