@@ -1,6 +1,6 @@
 # =============================================================================
 # Contrato do ai-structuring-service (RNF02).
-# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
+# Nucleo inteligente de estruturacao de cursos por IA.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
