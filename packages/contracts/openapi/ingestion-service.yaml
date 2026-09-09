@@ -1,6 +1,5 @@
 # =============================================================================
 # Contrato do ingestion-service (RNF02).
-# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -9,8 +8,8 @@ info:
   title: ingestion-service
   version: 1.0.0
   description: |
-    Ingestao e normalizacao da demanda bruta.
-    Requisitos atendidos: RF09, RF10.
+    Ingestao, captura e normalizacao da demanda bruta heterogenea.
+    Requisitos atendidos: RF09, RF10, RNF02, RNF05.
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
 
@@ -21,14 +20,214 @@ servers:
     description: Rede interna do Docker Compose
 
 tags:
+  - name: sources
+    description: Captacao, consulta e reprocessamento de fontes brutas (RF09, RF10)
   - name: health
-    description: Liveness e readiness
+    description: Liveness e readiness do servico
 
 security:
   - bearerAuth: []
 
-paths: {}
-# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Healthcheck do servico
+      description: Verifica liveness e readiness do microsservico de ingestao.
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Servico saudavel e pronto para receber requisicoes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-09-08T21:00:00Z'
+                required:
+                  - status
+                  - timestamp
+
+  /sources:
+    post:
+      tags:
+        - sources
+      summary: Captar nova fonte bruta (RF09)
+      description: |
+        Recebe insumo bruto heterogeneo (e-mail, transcricao, WhatsApp, notas),
+        registra proveniencia, persiste conteudo original (RNF05) e inicia a normalizacao.
+      operationId: captureSource
+      requestBody:
+        required: true
+        description: Dados da fonte bruta e metadados de proveniencia.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptureSourceRequest'
+            examples:
+              exemploEmail:
+                summary: Captura de e-mail de cliente corporativo
+                value:
+                  demand_id: "dem-8f92a10c"
+                  source_type: "email"
+                  raw_content: "Ola equipe, precisamos de um treinamento de 40h de Python para Analise de Dados focado no setor financeiro para 25 analistas."
+                  provenance:
+                    channel: "email"
+                    origin_sender: "treinamentos@empresa-financeira.com.br"
+                    collected_by: "operador.joao@empresa.com.br"
+                    captured_at: "2026-09-08T14:32:00Z"
+                    metadata:
+                      subject: "Demanda Curso In-company Python"
+                      message_id: "<msg-9921@empresa-financeira.com.br>"
+      responses:
+        '201':
+          description: Fonte capturada e persistida com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceResponse'
+              examples:
+                sucessoCaptura:
+                  summary: Fonte registrada com status pending_normalization
+                  value:
+                    source_id: "src-10293847"
+                    demand_id: "dem-8f92a10c"
+                    source_type: "email"
+                    raw_content: "Ola equipe, precisamos de um treinamento de 40h de Python para Analise de Dados focado no setor financeiro para 25 analistas."
+                    normalized_content: null
+                    status: "pending_normalization"
+                    provenance:
+                      channel: "email"
+                      origin_sender: "treinamentos@empresa-financeira.com.br"
+                      collected_by: "operador.joao@empresa.com.br"
+                      captured_at: "2026-09-08T14:32:00Z"
+                      metadata:
+                        subject: "Demanda Curso In-company Python"
+                    created_at: "2026-09-08T14:32:05Z"
+                    updated_at: "2026-09-08T14:32:05Z"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sources/{source_id}:
+    get:
+      tags:
+        - sources
+      summary: Consultar fonte capturada (RF09, RF10)
+      description: Retorna o estado atual da fonte, conteudo bruto original e conteudo normalizado.
+      operationId: getSourceById
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          description: Identificador unico da fonte
+          schema:
+            type: string
+            example: "src-10293847"
+      responses:
+        '200':
+          description: Detalhes da fonte recuperados com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceResponse'
+              examples:
+                fonteNormalizada:
+                  summary: Fonte consultada com texto normalizado
+                  value:
+                    source_id: "src-10293847"
+                    demand_id: "dem-8f92a10c"
+                    source_type: "email"
+                    raw_content: "Ola equipe, precisamos de um treinamento de 40h de Python para Analise de Dados focado no setor financeiro para 25 analistas."
+                    normalized_content: "Curso: Python para Analise de Dados. Carga horaria: 40h. Publico: 25 analistas do setor financeiro."
+                    status: "normalized"
+                    provenance:
+                      channel: "email"
+                      origin_sender: "treinamentos@empresa-financeira.com.br"
+                      collected_by: "operador.joao@empresa.com.br"
+                      captured_at: "2026-09-08T14:32:00Z"
+                      metadata:
+                        subject: "Demanda Curso In-company Python"
+                    created_at: "2026-09-08T14:32:05Z"
+                    updated_at: "2026-09-08T14:32:10Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sources/{source_id}/reprocess:
+    post:
+      tags:
+        - sources
+      summary: Reprocessar normalizacao da fonte (RF10)
+      description: Dispara uma nova tentativa de normalizacao e preparacao para o envio a camada de IA.
+      operationId: reprocessSource
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          description: Identificador unico da fonte a ser reprocessada
+          schema:
+            type: string
+            example: "src-10293847"
+      requestBody:
+        required: false
+        description: Parametros opcionais para orientar o reprocessamento.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReprocessSourceRequest'
+            examples:
+              exemploReprocessamento:
+                summary: Forcar nova extracao
+                value:
+                  force: true
+                  reason: "Ajuste na regra de normalizacao de formato de carga horaria."
+      responses:
+        '200':
+          description: Reprocessamento enfileirado ou executado com sucesso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceResponse'
+              examples:
+                sucessoReprocessamento:
+                  summary: Fonte em reprocessamento
+                  value:
+                    source_id: "src-10293847"
+                    demand_id: "dem-8f92a10c"
+                    source_type: "email"
+                    raw_content: "Ola equipe, precisamos de um treinamento de 40h de Python para Analise de Dados focado no setor financeiro para 25 analistas."
+                    normalized_content: null
+                    status: "processing"
+                    provenance:
+                      channel: "email"
+                      origin_sender: "treinamentos@empresa-financeira.com.br"
+                      collected_by: "operador.joao@empresa.com.br"
+                      captured_at: "2026-09-08T14:32:00Z"
+                      metadata:
+                        subject: "Demanda Curso In-company Python"
+                    created_at: "2026-09-08T14:32:05Z"
+                    updated_at: "2026-09-08T14:40:00Z"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -37,5 +236,201 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
-  schemas: {}
-  # TODO(Fase 2): referenciar ../schemas/*.json
+
+  responses:
+    BadRequestError:
+      description: Requisicao invalida ou payload com formato incorreto.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroValidacao:
+              value:
+                error:
+                  code: "INVALID_PAYLOAD"
+                  message: "O campo 'raw_content' nao pode ser vazio."
+                  details:
+                    field: "raw_content"
+                  request_id: "req-778899"
+
+    UnauthorizedError:
+      description: Token ausente, expirado ou sem autorizacao.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroAutenticacao:
+              value:
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Token JWT ausente ou invalido."
+                  details: {}
+                  request_id: "req-112233"
+
+    NotFoundError:
+      description: Fonte solicitada nao foi encontrada.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroNaoEncontrado:
+              value:
+                error:
+                  code: "SOURCE_NOT_FOUND"
+                  message: "A fonte 'src-10293847' nao foi localizada."
+                  details:
+                    source_id: "src-10293847"
+                  request_id: "req-445566"
+
+    InternalServerError:
+      description: Erro interno inesperado no servico de ingestao.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroInterno:
+              value:
+                error:
+                  code: "INGESTION_SERVICE_ERROR"
+                  message: "Falha interna ao processar a fonte bruta."
+                  details: {}
+                  request_id: "req-990011"
+
+  schemas:
+    SourceType:
+      type: string
+      description: Canal ou modalidade da fonte de entrada.
+      enum:
+        - email
+        - transcription
+        - whatsapp
+        - notes
+        - document
+      example: "email"
+
+    SourceStatus:
+      type: string
+      description: Estado atual do ciclo de vida da fonte no servico.
+      enum:
+        - pending_normalization
+        - processing
+        - normalized
+        - failed
+      example: "normalized"
+
+    Provenance:
+      type: object
+      description: Trilha de proveniencia e auditoria da fonte capturada (RNF09, RNF05).
+      required:
+        - channel
+        - captured_at
+      properties:
+        channel:
+          type: string
+          description: Canal de entrada do contato com o cliente.
+          example: "email"
+        origin_sender:
+          type: string
+          description: Identificador do remetente original (e-mail, numero ou nome).
+          example: "treinamentos@empresa-financeira.com.br"
+        collected_by:
+          type: string
+          description: Operador ou integracao que capturou o registro.
+          example: "operador.joao@empresa.com.br"
+        captured_at:
+          type: string
+          format: date-time
+          description: Momento exato em que o insumo foi recebido.
+          example: "2026-09-08T14:32:00Z"
+        metadata:
+          type: object
+          description: Informacoes adicionais especificas do canal de origem.
+          additionalProperties: true
+          example:
+            subject: "Demanda Curso In-company Python"
+
+    CaptureSourceRequest:
+      type: object
+      description: Payload para captar uma nova fonte bruta associada a uma demanda.
+      required:
+        - demand_id
+        - source_type
+        - raw_content
+        - provenance
+      properties:
+        demand_id:
+          type: string
+          description: Identificador da negociacao/demanda no pipeline-service (RF01).
+          example: "dem-8f92a10c"
+        source_type:
+          $ref: '#/components/schemas/SourceType'
+        raw_content:
+          type: string
+          description: Texto original bruto e sem alteracoes (RNF05).
+          example: "Ola equipe, precisamos de um treinamento de 40h de Python para Analise de Dados..."
+        provenance:
+          $ref: '#/components/schemas/Provenance'
+
+    ReprocessSourceRequest:
+      type: object
+      description: Parametros para forcar ou direcionar o reprocessamento da fonte.
+      properties:
+        force:
+          type: boolean
+          default: false
+          description: Forca novo processamento mesmo se o estado ja for 'normalized'.
+          example: true
+        reason:
+          type: string
+          description: Motivo do reprocessamento para auditoria.
+          example: "Ajuste de prompt ou normalizador."
+
+    SourceResponse:
+      type: object
+      description: Objeto consolidado da fonte de demanda capturada.
+      required:
+        - source_id
+        - demand_id
+        - source_type
+        - raw_content
+        - status
+        - provenance
+        - created_at
+        - updated_at
+      properties:
+        source_id:
+          type: string
+          description: Identificador unico da fonte.
+          example: "src-10293847"
+        demand_id:
+          type: string
+          description: ID da demanda vinculada.
+          example: "dem-8f92a10c"
+        source_type:
+          $ref: '#/components/schemas/SourceType'
+        raw_content:
+          type: string
+          description: Conteudo bruto original preservado (RNF05).
+          example: "Ola equipe, precisamos de um treinamento de 40h..."
+        normalized_content:
+          type:
+            - string
+            - "null"
+          description: Conteudo normalizado pronto para consumo pela IA. Nulo se pendente.
+          example: "Curso: Python para Analise de Dados. Carga horaria: 40h."
+        status:
+          $ref: '#/components/schemas/SourceStatus'
+        provenance:
+          $ref: '#/components/schemas/Provenance'
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-09-08T14:32:05Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-09-08T14:32:10Z"
