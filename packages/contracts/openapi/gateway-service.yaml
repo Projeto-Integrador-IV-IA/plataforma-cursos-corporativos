@@ -1,6 +1,6 @@
 # =============================================================================
 # Contrato do gateway-service (RNF02).
-# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
+# Porta de entrada unica, autenticacao e BFF (ADR-0005, RF16, RNF10).
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -9,26 +9,238 @@ info:
   title: gateway-service
   version: 1.0.0
   description: |
-    Autenticacao, roteamento e agregacao.
-    Requisitos atendidos: RF16, RF17, RNF10.
+    BFF (Backend for Frontend), roteamento unificado de chamadas para servicos internos
+    e ponto central de autenticacao e emissao de tokens JWT (ADR-0005, RF16).
+    Requisitos atendidos: RF16, RF17, RNF02, RNF10.
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
 
 servers:
   - url: http://localhost:8000
-    description: Desenvolvimento local
+    description: Desenvolvimento local (Gateway Borda)
   - url: http://gateway-service:8000
     description: Rede interna do Docker Compose
 
 tags:
+  - name: auth
+    description: Autenticacao, emissao e validacao de sessao JWT (RF16)
+  - name: gateway-proxy
+    description: Roteamento de borda e BFF para os servicos internos (pipeline, ingestion, ai)
   - name: health
-    description: Liveness e readiness
+    description: Liveness e readiness do gateway
 
 security:
   - bearerAuth: []
 
-paths: {}
-# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Healthcheck do gateway-service
+      description: Verifica liveness e disponibilidade da borda.
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Gateway operacional.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - timestamp
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: '2026-09-08T22:30:00Z'
+
+  # ===========================================================================
+  # 1. AUTENTICAÇÃO E SESSÃO (RF16)
+  # ===========================================================================
+  /api/v1/auth/login:
+    post:
+      tags:
+        - auth
+      summary: Autenticar operador e emitir token JWT (RF16)
+      description: |
+        Recebe credenciais de acesso corporativo (e-mail e senha) e retorna um
+        token JWT de sessao valido para acesso aos servicos protegidos da plataforma.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              credenciaisOperador:
+                value:
+                  email: "operador.joao@empresa.com.br"
+                  password: "senhaSegura123"
+      responses:
+        '200':
+          description: Autenticacao realizada com sucesso. Token JWT emitido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              examples:
+                sucessoLogin:
+                  value:
+                    access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWI..."
+                    token_type: "bearer"
+                    expires_in: 3600
+                    operator:
+                      name: "Joao Silva"
+                      email: "operador.joao@empresa.com.br"
+                      role: "operador"
+        '401':
+          description: Credenciais invalidas ou operador nao cadastrado.
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas/error.schema.json'
+              examples:
+                erroCredenciais:
+                  value:
+                    error:
+                      code: "INVALID_CREDENTIALS"
+                      message: "E-mail ou senha incorretos."
+                      details: {}
+                      request_id: "req-gw-01"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/verify:
+    get:
+      tags:
+        - auth
+      summary: Verificar validade da sessao atual
+      description: Valida o token JWT bearer informado no header e retorna os dados do operador logado.
+      operationId: verifySession
+      responses:
+        '200':
+          description: Sessao valida.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - active
+                  - email
+                  - role
+                properties:
+                  active:
+                    type: boolean
+                    example: true
+                  email:
+                    type: string
+                    example: "operador.joao@empresa.com.br"
+                  role:
+                    type: string
+                    example: "operador"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ===========================================================================
+  # 2. ROTEAMENTO DE BORDA / PROXY PARA SERVIÇOS INTERNOS (ADR-0005)
+  # ===========================================================================
+  /api/v1/demands/{proxy_path}:
+    all:
+      tags:
+        - gateway-proxy
+      summary: Roteador de Borda para o pipeline-service (:8001)
+      description: Encaminha chamadas autenticadas de demandas e CRM para o pipeline-service interno.
+      operationId: proxyPipelineService
+      parameters:
+        - name: proxy_path
+          in: path
+          required: true
+          description: Caminho restante da rota encaminhada
+          schema:
+            type: string
+            example: "dem-8f92a10c"
+      responses:
+        '200':
+          description: Resposta repassada com sucesso do servico interno.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/sources/{proxy_path}:
+    all:
+      tags:
+        - gateway-proxy
+      summary: Roteador de Borda para o ingestion-service (:8002)
+      description: Encaminha chamadas de fontes e captação bruta para o ingestion-service interno.
+      operationId: proxyIngestionService
+      parameters:
+        - name: proxy_path
+          in: path
+          required: true
+          description: Caminho restante da rota encaminhada
+          schema:
+            type: string
+            example: "src-10293847"
+      responses:
+        '200':
+          description: Resposta repassada com sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
+
+  /api/v1/structurings/{proxy_path}:
+    all:
+      tags:
+        - gateway-proxy
+      summary: Roteador de Borda para o ai-structuring-service (:8003)
+      description: Encaminha chamadas de estruturacao por IA para o servico interno de IA.
+      operationId: proxyAiStructuringService
+      parameters:
+        - name: proxy_path
+          in: path
+          required: true
+          description: Caminho restante da rota
+          schema:
+            type: string
+            example: "job-44556677"
+      responses:
+        '200':
+          description: Resposta repassada com sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '502':
+          $ref: '#/components/responses/BadGatewayError'
 
 components:
   securitySchemes:
@@ -36,6 +248,126 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Token emitido pelo gateway-service (RF16).
-  schemas: {}
-  # TODO(Fase 2): referenciar ../schemas/*.json
+      description: |
+        Token JWT emitido pelo /api/v1/auth/login.
+        Deve ser enviado no header com o formato: `Authorization: Bearer <seu_token>` (RF16, ADR-0005).
+
+  responses:
+    UnauthorizedError:
+      description: Token JWT ausente, expirado ou invalido.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroToken:
+              value:
+                error:
+                  code: "UNAUTHORIZED"
+                  message: "Token de acesso ausente ou invalido."
+                  details: {}
+                  request_id: "req-gw-02"
+
+    NotFoundError:
+      description: Recurso nao encontrado nos servicos internos.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erro404:
+              value:
+                error:
+                  code: "RESOURCE_NOT_FOUND"
+                  message: "O recurso solicitado nao foi localizado."
+                  details: {}
+                  request_id: "req-gw-03"
+
+    BadGatewayError:
+      description: Falha de comunicacao ou indisponibilidade do microsservico interno.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroProxy:
+              value:
+                error:
+                  code: "UPSTREAM_SERVICE_UNAVAILABLE"
+                  message: "O servico interno responsavel nao respondeu a requisicao."
+                  details:
+                    service: "pipeline-service"
+                  request_id: "req-gw-04"
+
+    InternalServerError:
+      description: Erro inesperado na borda do gateway.
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/error.schema.json'
+          examples:
+            erroGeral:
+              value:
+                error:
+                  code: "GATEWAY_INTERNAL_ERROR"
+                  message: "Erro interno no processamento do gateway."
+                  details: {}
+                  request_id: "req-gw-05"
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: E-mail corporativo cadastrado do operador.
+          example: "operador.joao@empresa.com.br"
+        password:
+          type: string
+          format: password
+          description: Senha de acesso.
+          example: "senhaSegura123"
+
+    OperatorInfo:
+      type: object
+      required:
+        - name
+        - email
+        - role
+      properties:
+        name:
+          type: string
+          example: "Joao Silva"
+        email:
+          type: string
+          format: email
+          example: "operador.joao@empresa.com.br"
+        role:
+          type: string
+          example: "operador"
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - operator
+      properties:
+        access_token:
+          type: string
+          description: Token JWT assinado para autenticacao nas rotas protegidas (RF16).
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          example: "bearer"
+        expires_in:
+          type: integer
+          description: Tempo de expiracao do token em segundos.
+          example: 3600
+        operator:
+          $ref: '#/components/schemas/OperatorInfo'
