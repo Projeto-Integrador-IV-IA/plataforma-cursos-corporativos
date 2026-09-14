@@ -118,10 +118,11 @@ Justificativa completa em [ADR-0002](docs/02-arquitetura/decisoes/ADR-0002-stack
 
 ## Estado atual
 
-> ⚠️ **Fase de scaffolding.** A estrutura, os contratos e a documentação estão montados;
-> **os módulos ainda não têm implementação** — cada arquivo `.py` traz sua responsabilidade
-> documentada e `TODO` apontando o requisito que deve atender. O `docker compose up` ainda
-> **não sobe** os serviços. A implementação começa na Fase 3 (16/09), conforme o cronograma.
+> ⚠️ **Fim do scaffolding.** A estrutura, os contratos e a documentação estão montados. Os quatro
+> serviços já sobem com `make dev` e respondem `GET /health`, e partes do núcleo existem: modelo
+> relacional do `pipeline-service`, provedores de LLM e prompt de extração do
+> `ai-structuring-service`. Os demais módulos seguem como stubs, com responsabilidade documentada e
+> `TODO` apontando o requisito. As rotas de negócio começam na Fase 3 (16/09), conforme o cronograma.
 
 Acompanhe o avanço em [docs/01-requisitos/matriz-rastreabilidade.md](docs/01-requisitos/matriz-rastreabilidade.md).
 
