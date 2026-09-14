@@ -1,4 +1,16 @@
-"""Endpoint de liveness do ai-structuring-service."""
+"""Endpoints de saude do ai-structuring-service.
+
+Rotas:
+    GET /health   - liveness: o processo HTTP esta de pe. Usado pelo healthcheck
+                    do Docker Compose.
+    GET /ready    - readiness: pipeline-service e provedor de LLM configurado.
+                    Ainda nao implementado.
+
+Nao exigem autenticacao e nao devem revelar detalhes internos de
+infraestrutura (RNF10).
+
+TODO(RNF01): implementar ``GET /ready`` quando as dependencias existirem.
+"""
 
 from fastapi import APIRouter
 

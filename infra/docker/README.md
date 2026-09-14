@@ -29,5 +29,21 @@ Para conferir um endpoint interno diretamente:
 docker compose exec pipeline-service python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/health').read().decode())"
 ```
 
-Os valores `change-me-local-only` do `.env.example` existem apenas para a primeira subida local.
-Ambientes compartilhados devem fornecer credenciais proprias e nao versionadas.
+## Credenciais (RNF11)
+
+`POSTGRES_PASSWORD`, `DATABASE_URL` e `JWT_SECRET_KEY` nao tem valor padrao, nem no `.env.example`
+nem no `docker-compose.yml`. Enquanto nao forem preenchidos no `.env`, o Compose interrompe a subida
+com `defina <VARIAVEL> no .env` — de proposito, para que nenhum ambiente suba com uma senha conhecida.
+
+```bash
+make setup    # cria o .env a partir do template
+# preencha POSTGRES_PASSWORD, DATABASE_URL e JWT_SECRET_KEY
+make dev
+```
+
+## Migrations
+
+Como o banco nao publica porta no host, `make migrate` e `make migration` executam o Alembic num
+container efemero do `pipeline-service` (`docker compose run --rm`), que ja esta na rede do banco e
+recebe o `DATABASE_URL` do `.env`. A migration gerada aparece em
+`services/pipeline-service/app/db/migrations/versions/` pelo volume montado.

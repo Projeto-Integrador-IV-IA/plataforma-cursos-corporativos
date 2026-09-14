@@ -8,7 +8,6 @@ Responsabilidades deste modulo:
     - registrar middlewares transversais (CORS, correlacao de requisicao, log de acesso);
     - registrar os handlers de excecao definidos em app.core.exceptions;
     - expor os endpoints de saude usados pelo Docker Compose e pela CI.
-
 """
 
 from fastapi import FastAPI

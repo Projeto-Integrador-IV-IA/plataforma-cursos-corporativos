@@ -1,8 +1,10 @@
 # =============================================================================
 # Orquestracao local dos microsservicos (RNF01).
-# Uso: make dev
+# Uso: make setup (cria o .env) -> preencha os campos sensiveis -> make dev
 # Somente o gateway publica porta no host; os demais servicos conversam pela
 # rede privada usando os nomes DNS declarados neste arquivo.
+# Credenciais nao tem valor padrao (RNF11): sem elas no .env, o Compose recusa
+# subir a stack em vez de iniciar com uma senha conhecida.
 # =============================================================================
 name: cursos-corporativos
 
@@ -12,7 +14,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cursos}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       POSTGRES_DB: ${POSTGRES_DB:-cursos_corporativos}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -35,7 +37,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PIPELINE_PORT: ${PIPELINE_PORT:-8001}
       # Credencial exclusiva do dono do banco (ADR-0004).
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://cursos:change-me-local-only@db:5432/cursos_corporativos}
+      DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL no .env}
     expose:
       - "${PIPELINE_PORT:-8001}"
     depends_on:
@@ -130,7 +132,7 @@ services:
       PIPELINE_SERVICE_URL: ${PIPELINE_SERVICE_URL:-http://pipeline-service:8001}
       INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://ingestion-service:8002}
       AI_STRUCTURING_SERVICE_URL: ${AI_STRUCTURING_SERVICE_URL:-http://ai-structuring-service:8003}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-local-only-with-at-least-32-characters}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY no .env}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
     ports:
