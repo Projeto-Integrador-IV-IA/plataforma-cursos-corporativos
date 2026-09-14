@@ -1,10 +1,15 @@
 # Modelo de dados
 
-Atende **RNF08** (integridade referencial entre cliente, demanda, etapa e artefato) e **RNF09**
-(nenhuma transição ou versão pode ser perdida).
+Atende **RNF08** (integridade referencial entre cliente, demanda, etapa, fonte e artefato) e
+**RNF09** (nenhuma transição ou versão pode ser perdida). O Documento Consolidado de Requisitos
+v1.0 numera o RNF08 como RNF14 — enquanto esse documento não estiver versionado aqui, o ID válido
+é o da [matriz de rastreabilidade](../01-requisitos/matriz-rastreabilidade.md).
 
-> **Estado:** proposta da Fase 2 (modelagem até 08/09). O schema real é criado exclusivamente por
-> migrations do Alembic — ver [ADR-0004](../02-arquitetura/decisoes/ADR-0004-banco-unico-com-dono.md).
+> **Estado:** integridade referencial (RNF08) implementada pela migration
+> [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py).
+> As garantias de append-only do RNF09 (`REVOKE UPDATE, DELETE`) ainda estão pendentes.
+> O schema real é criado exclusivamente por migrations do Alembic — ver
+> [ADR-0004](../02-arquitetura/decisoes/ADR-0004-banco-unico-com-dono.md).
 
 ## Entidade-relacionamento
 
@@ -23,18 +28,18 @@ erDiagram
 
     CLIENTS {
         uuid id PK
-        text nome
+        text name
         text cnpj
-        text segmento
-        text contato_nome
-        text contato_email
+        text segment
+        text contact_name
+        text contact_email
         timestamptz created_at
     }
 
     DEMANDS {
         uuid id PK
         uuid client_id FK
-        text titulo
+        text title
         text current_stage
         text status
         uuid owner_id FK
@@ -44,9 +49,9 @@ erDiagram
     RAW_INPUTS {
         uuid id PK
         uuid demand_id FK
-        text conteudo_original
-        text conteudo_normalizado
-        text origem
+        text original_content
+        text normalized_content
+        text source
         timestamptz created_at
     }
 
@@ -55,7 +60,7 @@ erDiagram
         uuid demand_id FK
         text from_stage
         text to_stage
-        text motivo
+        text reason
         uuid author_id FK
         timestamptz occurred_at
     }
@@ -63,7 +68,7 @@ erDiagram
     ARTIFACTS {
         uuid id PK
         uuid demand_id FK
-        text tipo
+        text type
         uuid raw_input_id FK
         timestamptz created_at
     }
@@ -71,10 +76,10 @@ erDiagram
     ARTIFACT_VERSIONS {
         uuid id PK
         uuid artifact_id FK
-        int numero
-        jsonb conteudo
-        text origem
-        jsonb metadados_ia
+        int number
+        jsonb content
+        text origin
+        jsonb ai_metadata
         uuid author_id FK
         timestamptz created_at
     }
@@ -123,16 +128,22 @@ A validação do formato acontece na aplicação, contra o JSON Schema (RNF03) �
 
 ### 4. Proveniência da IA gravada junto
 
-`artifact_versions.metadados_ia` guarda modelo, versão de prompt, tokens e latência de cada geração.
+`artifact_versions.ai_metadata` guarda modelo, versão de prompt, tokens e latência de cada geração.
 Sem isso, nenhum resultado é reproduzível e as métricas de RNF04 não têm como ser recalculadas depois.
 
-`artifact_versions.origem` distingue `IA` de `HUMANO` — é o que permite medir quanto o operador
+`artifact_versions.origin` distingue `IA` de `HUMANO` — é o que permite medir quanto o operador
 precisou corrigir, principal indicador prático de qualidade da estruturação.
 
 ### 5. Nada é apagado
 
 Cliente e demanda usam desativação lógica, nunca `DELETE`. Apagar um cliente levaria junto o
 histórico das negociações dele — o oposto de RNF09 e de RF15.
+
+### 6. Fonte e artefato pertencem à mesma demanda
+
+Quando `artifacts.raw_input_id` é informado, a chave estrangeira composta
+`(raw_input_id, demand_id)` garante que a fonte e o artefato pertençam à mesma demanda. Assim, não é
+possível formar uma cadeia válida individualmente, mas inconsistente entre clientes ou demandas.
 
 ## Máquina de estados do pipeline
 
@@ -170,9 +181,9 @@ Demanda com status diferente de `ABERTA` não muda de etapa.
 | `demands` | `(client_id, status, created_at)` | Listagem filtrada de RF03 dentro do alvo de RNF07 |
 | `demands` | `(current_stage)` | Visão de pipeline |
 | `stage_transitions` | `(demand_id, occurred_at)` | Histórico cronológico de RF04 e RF07 |
-| `artifact_versions` | `(artifact_id, numero)` único | Garante numeração sequencial sem lacuna (RF08) |
+| `artifact_versions` | `(artifact_id, number)` único | Garante numeração sequencial sem lacuna (RF08) |
 | `raw_inputs` | `(demand_id, created_at)` | Recuperação do bruto |
-| `clients` | `nome` com `unaccent` | Busca de cliente sem acento (RF03) |
+| `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) — **pendente** |
 
 ## Questões que afetam este modelo
 

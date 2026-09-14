@@ -33,15 +33,42 @@ src/
 ├── hooks/        Hooks compartilhados
 ├── types/        Tipos derivados dos contratos de API
 ├── lib/          Utilitários
+├── test/         Setup e helpers da suíte de testes
 └── styles/       Estilos globais
 ```
+
+## Rotas
+
+Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
+[`src/app/paths.ts`](src/app/paths.ts) e nenhum componente escreve URL literal.
+
+| Caminho | Tela | Requisitos |
+|---|---|---|
+| `/login` | Entrar | RF16 |
+| `/clientes` | Clientes | RF01, RF03 |
+| `/clientes/:clientId` | Detalhe do cliente | RF01 |
+| `/demandas` | Demandas | RF02, RF03 |
+| `/demandas/:demandId` | Detalhe da demanda | RF04–RF07, RF15 |
+| `/demandas/:demandId/ingestao` | Ingestão da demanda | RF09, RNF05 |
+| `/demandas/:demandId/estruturacao` | Estruturação por IA | RF12, RF14 |
+| `/artefatos/:artifactId/versoes` | Versões do artefato | RF08 |
+
+`/` redireciona para `/clientes`; qualquer outro caminho cai na tela de rota inexistente.
+
+`/login` é rota irmã do layout: todas as demais são filhas de `App` e recebem a navegação
+lateral. Essa separação é o lugar do guarda de sessão (RNF10) quando RF16 existir — hoje
+não há token para verificar e as rotas ficam abertas.
 
 ## Executar
 
 ```bash
 cp .env.example .env
 npm install
-npm run dev
+npm run dev     # http://localhost:5173
+npm run build   # tsc -b && vite build
+npm run test    # vitest
+npm run lint    # eslint
 ```
 
-> Estado: **scaffolding**. Nenhum componente implementado ainda.
+> Estado: **estrutura base pronta** (RNF01) — rotas, layout e providers navegáveis.
+> As telas são molduras: nenhum dado é consumido do gateway ainda.
