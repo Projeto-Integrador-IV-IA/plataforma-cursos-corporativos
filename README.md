@@ -127,18 +127,20 @@ Acompanhe o avanço em [docs/01-requisitos/matriz-rastreabilidade.md](docs/01-re
 
 ---
 
-## Como rodar (quando houver implementação)
+## Como rodar
 
 Para o passo a passo completo de configuração do zero, resolução de problemas e requisitos detalhados de ambiente, consulte o guia oficial:  
-👉 **[Guia de Ambiente de Desenvolvimento (RNF25)](docs/05-processo/ambiente-desenvolvimento.md)**
+👉 **[Guia de Ambiente de Desenvolvimento](docs/05-processo/ambiente-desenvolvimento.md)**
 
 Pré-requisitos: Docker Desktop 26+, Docker Compose v2.24+, Python 3.12+, Node 20+.
 
 ```bash
-cp .env.example .env      # preencha os valores locais (nunca versione o .env)
-docker compose up -d db   # sobe apenas o PostgreSQL
+make setup                # cria o .env a partir do template
+                          # preencha POSTGRES_PASSWORD, DATABASE_URL e JWT_SECRET_KEY (nunca versione o .env)
 make install              # dependências de todos os serviços + web
-make dev                  # sobe os 4 serviços e o frontend
+make migrate              # aplica as migrations
+make dev                  # sobe o banco e os 4 serviços; o gateway responde em http://localhost:8000
+cd web && npm run dev     # frontend em http://localhost:5173, fora do Compose
 ```
 
 Comandos disponíveis: `make help`.
