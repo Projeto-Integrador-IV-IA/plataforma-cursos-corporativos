@@ -32,7 +32,7 @@ Todo trabalho começa por um card no GitHub Projects, criado a partir de um
 
 ## 2. Branch
 
-Uma branch por card, sempre a partir da `main` atualizada:
+Uma branch por card, sempre a partir da `dev` atualizada:
 
 ```
 <tipo>/<ID>-<descricao-curta>
@@ -48,7 +48,7 @@ Uma branch por card, sempre a partir da `main` atualizada:
 | `chore` | Infra, dependências, configuração |
 
 ```bash
-git switch main && git pull
+git switch dev && git pull
 git switch -c feat/RF05-transicao-etapas
 ```
 
@@ -79,7 +79,7 @@ assim o card fecha sozinho no merge. **CI verde é pré-requisito para review.**
 | Situação | Aprovações |
 |---|---|
 | Mudança comum | 1 |
-| Contrato de API (`packages/contracts`) ou modelo de dados | 2 |
+| Contrato de API (`packages/contracts`) ou modelo de dados | 1 |
 
 O revisor verifica: atende ao requisito do card? tem teste? respeita o contrato? não vaza segredo?
 não amplia o escopo do MVP por conta própria?
@@ -96,14 +96,14 @@ Comentário é sugestão até o autor responder. Discussão aberta bloqueia o me
 - [Matriz de rastreabilidade](../01-requisitos/matriz-rastreabilidade.md) atualizada — no mesmo PR,
   não depois.
 
-## Regras da `main`
+## Regras da `dev` e `main`
 
 - Ninguém faz push direto. Tudo passa por PR.
-- A `main` está sempre íntegra: o que estiver nela precisa subir.
-- Conflito se resolve na branch, com `rebase` sobre a `main` atualizada:
+- A branch dev recebe a integração contínua do dia a dia; a main é reservada para lançamentos (releases).
+- Conflito se resolve na branch, com rebase sobre a dev atualizada:
 
 ```bash
-git fetch origin && git rebase origin/main
+git fetch origin && git rebase origin/dev
 ```
 
 ## Sprints
