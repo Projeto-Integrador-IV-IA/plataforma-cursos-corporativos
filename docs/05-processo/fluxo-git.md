@@ -1,6 +1,6 @@
 # Fluxo de trabalho no Git
 
-Atende **RNF14** (fluxo Card → Branch → Commits → Pull Request → Review → Merge) e **RNF16**
+Atende **RNF24** (processo de versionamento e trabalho em equipe), **RNF14** (fluxo Card → Branch → Commits → Pull Request → Review → Merge) e **RNF16**
 (rastreabilidade requisito → card → sprint).
 
 ```mermaid
@@ -15,12 +15,19 @@ flowchart LR
 ```
 
 O ID do requisito atravessa todas as etapas. É isso — e não uma planilha à parte — que produz a
-rastreabilidade exigida por RNF16.
+rastreabilidade exigida por RNF16 e RNF24.
 
 ## 1. Card
 
 Todo trabalho começa por um card no GitHub Projects, criado a partir de um
 [template de issue](../../.github/ISSUE_TEMPLATE).
+
+### Movimentação no GitHub Projects (Board):
+O card avança entre as colunas conforme o desenvolvimento acontece:
+- **Backlog / Ready:** Card priorizado na sprint aguardando início.
+- **In Progress:** Quando o desenvolvedor cria a branch e começa o trabalho (card com *Assignee* definido).
+- **In Review:** Assim que o Pull Request é aberto e vinculado ao card.
+- **Done:** Movido automaticamente ou manualmente quando o PR recebe o merge na `main`.
 
 ```
 [RF05] Avançar e retroceder etapas do pipeline
@@ -87,6 +94,13 @@ não amplia o escopo do MVP por conta própria?
 Comentário é sugestão até o autor responder. Discussão aberta bloqueia o merge.
 
 **Revisar é trabalho, não favor.** PR parado é sprint parada — meta de resposta: mesmo dia útil.
+
+### O que impede o merge:
+- Testes automatizados ou pipelines de CI com falha (CI quebrado).
+- Ausência de aprovação formal (mínimo de 1 aprovação para código comum, 2 para contratos de API/dados).
+- Fios de comentários/discussões não resolvidos (*unresolved conversations*).
+- Conflitos de código com a branch `main`.
+- Mensagens de commit fora do padrão ou sem o ID do requisito.
 
 ## 6. Merge
 
