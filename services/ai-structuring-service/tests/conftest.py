@@ -6,14 +6,16 @@ Fixtures previstas:
     - dublês dos servicos a jusante, para que o teste de um microsservico nao
       dependa da subida dos outros.
 
-TODO(scaffolding): implementar o cliente HTTP quando app/main.py existir.
+``client`` e ``make_settings`` ja estao implementadas; os dublês seguem pendentes.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.core.config import Settings
+from app.main import create_app
 
 MakeSettings = Callable[..., Settings]
 
@@ -44,3 +46,11 @@ def make_settings() -> MakeSettings:
         return Settings(**base)  # type: ignore[arg-type]
 
     return _make
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    """Cliente HTTP em processo sobre a aplicacao, sem subir servidor."""
+
+    with TestClient(create_app()) as test_client:
+        yield test_client

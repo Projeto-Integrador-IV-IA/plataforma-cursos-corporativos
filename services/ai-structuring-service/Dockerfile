@@ -10,5 +10,4 @@ RUN pip install --upgrade pip && pip install -e .
 
 COPY app ./app
 
-# TODO: implementar app/main.py antes de subir este container.
 CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port \"$AI_STRUCTURING_PORT\""]

@@ -23,7 +23,7 @@ install-py: ## Instala dependencias Python de cada microsservico
 install-web: ## Instala dependencias do frontend
 	cd web && npm install
 
-dev: ## Sobe todos os servicos + frontend via Docker Compose
+dev: ## Sobe o banco e os quatro microsservicos via Docker Compose
 	docker compose up --build
 
 up: ## Sobe a stack em background
@@ -41,11 +41,14 @@ db-up: ## Sobe apenas o PostgreSQL
 db-shell: ## Abre o psql no banco local
 	docker compose exec db psql -U $${POSTGRES_USER} -d $${POSTGRES_DB}
 
+# O banco nao publica porta no host (so o gateway publica), entao o Alembic roda
+# num container efemero do pipeline-service, dentro da rede do Compose. O codigo
+# e montado por volume: a migration gerada aparece direto em versions/.
 migrate: ## Aplica as migrations no banco
-	cd services/pipeline-service && alembic upgrade head
+	docker compose run --rm pipeline-service alembic upgrade head
 
 migration: ## Gera nova migration. Uso: make migration m="descricao"
-	cd services/pipeline-service && alembic revision --autogenerate -m "$(m)"
+	docker compose run --rm pipeline-service alembic revision --autogenerate -m "$(m)"
 
 test: test-py test-web ## Roda toda a suite de testes
 
