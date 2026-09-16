@@ -24,6 +24,7 @@ class Demand(Base):
 
     __tablename__ = "demands"
     __table_args__ = (
+        sa.CheckConstraint("length(trim(title)) > 0", name="title_not_blank"),
         sa.CheckConstraint(
             f"current_stage IN ({sql_enum_values(PipelineStage)})",
             name="current_stage",
@@ -53,6 +54,7 @@ class Demand(Base):
         nullable=False,
     )
     title: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    # Contexto da negociacao; preserva o nome usado no dicionario de dados.
     description: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     current_stage: Mapped[str] = mapped_column(
         sa.Text,
