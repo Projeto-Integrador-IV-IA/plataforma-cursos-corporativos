@@ -237,6 +237,18 @@ def test_stage_accepts_only_contract_values(database: Connection) -> None:
     )
 
 
+def test_new_demand_starts_in_captacao(database: Connection) -> None:
+    insert_client(database)
+    insert_demand(database)
+
+    current_stage = database.scalar(
+        sa.text("SELECT current_stage FROM demands WHERE id = :id"),
+        {"id": DEMAND_ID},
+    )
+
+    assert current_stage == "CAPTACAO"
+
+
 def test_valid_client_demand_source_and_artifact_chain_is_persisted(
     database: Connection,
 ) -> None:
