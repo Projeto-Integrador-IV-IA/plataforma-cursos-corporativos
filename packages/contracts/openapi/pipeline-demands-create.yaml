@@ -1,0 +1,191 @@
+# RF02: contrato isolado para evitar conflito com o PR #146.
+openapi: 3.1.0
+info:
+  title: 'pipeline-service: criacao de demandas (RF02)'
+  version: 1.0.0
+  description: 'Contrato da operacao implementada. Consolidacao com o PR #146 deve
+    preservar UUIDs e as etapas do modelo integrado no PR #137.'
+servers:
+- url: http://localhost:8001
+  description: Execucao local direta do pipeline-service
+paths:
+  /api/v1/demands:
+    post:
+      tags:
+      - demands
+      summary: Criar demanda vinculada a cliente
+      description: Cria uma negociacao com cliente obrigatorio, na situacao ABERTA
+        e etapa CAPTACAO. description registra o contexto; owner_id indica um usuario
+        responsavel existente.
+      operationId: create_demand_api_v1_demands_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandRead'
+        '404':
+          description: Cliente ou responsavel inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
+        '409':
+          description: Referencia removida durante a criacao.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
+        '422':
+          description: Dados de entrada invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
+components:
+  schemas:
+    DemandCreate:
+      properties:
+        client_id:
+          type: string
+          format: uuid
+          title: Client Id
+          description: Identificador de um cliente existente. Obrigatorio.
+        title:
+          type: string
+          minLength: 1
+          title: Title
+          description: Titulo da negociacao.
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Contexto da negociacao.
+        owner_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+          description: Identificador do usuario responsavel.
+      additionalProperties: false
+      type: object
+      required:
+      - client_id
+      - title
+      title: DemandCreate
+      description: Dados da negociacao; situacao e etapa inicial sao definidas pelo
+        servico.
+    DemandErrorDetails:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties:
+            type: string
+          type: object
+          title: Details
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      title: DemandErrorDetails
+      description: Erro previsivel, sem detalhes internos do banco.
+    DemandErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/DemandErrorDetails'
+      type: object
+      required:
+      - error
+      title: DemandErrorResponse
+      description: Envelope de erro acordado para a plataforma (RNF02).
+    DemandRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        client_id:
+          type: string
+          format: uuid
+          title: Client Id
+        title:
+          type: string
+          title: Title
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        owner_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+        status:
+          $ref: '#/components/schemas/DemandStatus'
+        current_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        active:
+          type: boolean
+          title: Active
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - client_id
+      - title
+      - description
+      - owner_id
+      - status
+      - current_stage
+      - active
+      - created_at
+      - updated_at
+      title: DemandRead
+      description: Demanda persistida, com situacao, etapa corrente e vinculo ao cliente.
+    DemandStatus:
+      type: string
+      enum:
+      - ABERTA
+      - GANHA
+      - PERDIDA
+      - CANCELADA
+      title: DemandStatus
+      description: Situacoes da demanda, ortogonais a etapa corrente.
+    PipelineStage:
+      type: string
+      enum:
+      - CAPTACAO
+      - ESTRUTURACAO
+      - PRODUTO
+      - PROPOSTA
+      - ACOMPANHAMENTO
+      title: PipelineStage
+      description: Etapas percorridas por uma demanda no pipeline (RF05).

@@ -1,11 +1,20 @@
-"""Persistencia de demandas (RF02, RF03, RF04).
+"""Persistencia de demandas, sem encerrar a transacao da requisicao (RF02)."""
 
-Operacoes previstas: criar, obter por id, atualizar, listar com filtro por
-status, cliente e periodo (RF03), e carregar o detalhe completo com historico e
-artefatos atrelados (RF04).
+from sqlalchemy.orm import Session
 
-Atencao ao alvo de latencia do CRM (RNF07: 500 ms): a listagem precisa de
-indice por (client_id, status, created_at) e nao pode carregar historico.
+from app.models.demand import Demand
 
-TODO(scaffolding): implementar.
-"""
+
+class DemandRepository:
+    """Isola a escrita e recupera os valores gerados pelo banco."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def create(self, demand: Demand) -> Demand:
+        """Insere e valida as restricoes antes de produzir a resposta HTTP."""
+
+        self.session.add(demand)
+        self.session.flush()
+        self.session.refresh(demand)
+        return demand
