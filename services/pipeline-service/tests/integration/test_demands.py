@@ -22,7 +22,7 @@ from app.repositories.demand_repository import DemandRepository
 
 
 @pytest.fixture
-def database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
+def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
     """Aplica a cadeia Alembic em um banco temporario, sem acessar dados reais."""
 
     from app.core.config import get_settings
@@ -52,11 +52,11 @@ def database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine
 
 
 @pytest.fixture
-def api(database: Engine) -> Iterator[TestClient]:
+def api(engine: Engine) -> Iterator[TestClient]:
     application = create_app()
 
     def session_override() -> Iterator[Session]:
-        with Session(database, expire_on_commit=False) as session:
+        with Session(engine, expire_on_commit=False) as session:
             try:
                 yield session
                 session.commit()
@@ -70,8 +70,8 @@ def api(database: Engine) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def company(database: Engine) -> UUID:
-    with Session(database) as session:
+def company(engine: Engine) -> UUID:
+    with Session(engine) as session:
         client = Client(name="Empresa de teste")
         session.add(client)
         session.commit()
@@ -79,9 +79,9 @@ def company(database: Engine) -> UUID:
 
 
 def test_create_persists_negotiation_with_client_and_owner(
-    api: TestClient, database: Engine, company: UUID
+    api: TestClient, engine: Engine, company: UUID
 ) -> None:
-    with Session(database) as session:
+    with Session(engine) as session:
         owner = User(name="Responsavel", email="owner@example.com", password_hash="test-hash")
         session.add(owner)
         session.commit()
@@ -106,7 +106,7 @@ def test_create_persists_negotiation_with_client_and_owner(
     assert body["current_stage"] == "CAPTACAO"
     assert body["active"] is True
     assert body["created_at"] and body["updated_at"]
-    with Session(database) as session:
+    with Session(engine) as session:
         demand = session.get(Demand, UUID(body["id"]))
         assert demand is not None
         assert demand.client.id == company
@@ -122,7 +122,7 @@ def test_minimal_creation_keeps_context_and_owner_optional(api: TestClient, comp
     assert response.json()["owner_id"] is None
 
 
-def test_missing_client_is_refused_without_persisting(api: TestClient, database: Engine) -> None:
+def test_missing_client_is_refused_without_persisting(api: TestClient, engine: Engine) -> None:
     missing_id = str(uuid4())
     response = api.post(
         "/api/v1/demands",
@@ -136,18 +136,18 @@ def test_missing_client_is_refused_without_persisting(api: TestClient, database:
         "details": {"client_id": missing_id},
         "request_id": "demand-test",
     }
-    with Session(database) as session:
+    with Session(engine) as session:
         assert session.scalar(sa.select(sa.func.count(Demand.id))) == 0
 
 
-def test_missing_owner_is_refused(api: TestClient, database: Engine, company: UUID) -> None:
+def test_missing_owner_is_refused(api: TestClient, engine: Engine, company: UUID) -> None:
     response = api.post(
         "/api/v1/demands",
         json={"client_id": str(company), "title": "Demanda", "owner_id": str(uuid4())},
     )
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "USER_NOT_FOUND"
-    with Session(database) as session:
+    with Session(engine) as session:
         assert session.scalar(sa.select(sa.func.count(Demand.id))) == 0
 
 
@@ -165,7 +165,7 @@ def test_missing_owner_is_refused(api: TestClient, database: Engine, company: UU
     ],
 )
 def test_invalid_creation_is_refused(
-    api: TestClient, database: Engine, company: UUID, invalid_fields: dict[str, Any]
+    api: TestClient, engine: Engine, company: UUID, invalid_fields: dict[str, Any]
 ) -> None:
     response = api.post(
         "/api/v1/demands",
@@ -175,7 +175,7 @@ def test_invalid_creation_is_refused(
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
     assert response.json()["error"]["details"]
     assert "detail" not in response.json()
-    with Session(database) as session:
+    with Session(engine) as session:
         assert session.scalar(sa.select(sa.func.count(Demand.id))) == 0
 
 
@@ -187,15 +187,15 @@ def test_required_fields_cannot_be_omitted(api: TestClient, payload: dict[str, s
     assert response.json()["error"]["request_id"] == "invalid-demand"
 
 
-def test_database_rejects_orphan_even_when_api_is_bypassed(database: Engine) -> None:
+def test_database_rejects_orphan_even_when_api_is_bypassed(engine: Engine) -> None:
     for client_id in (None, uuid4()):
-        with Session(database) as session, pytest.raises(IntegrityError):
+        with Session(engine) as session, pytest.raises(IntegrityError):
             session.add(Demand(client_id=client_id, title="Orfa"))
             session.commit()
 
 
 def test_client_with_demand_cannot_be_deleted(
-    api: TestClient, database: Engine, company: UUID
+    api: TestClient, engine: Engine, company: UUID
 ) -> None:
     assert (
         api.post(
@@ -203,12 +203,12 @@ def test_client_with_demand_cannot_be_deleted(
         ).status_code
         == 201
     )
-    with database.begin() as connection, pytest.raises(IntegrityError):
+    with engine.begin() as connection, pytest.raises(IntegrityError):
         connection.execute(sa.delete(Client).where(Client.id == company))
 
 
 def test_removed_client_between_validation_and_insert_is_a_conflict(
-    api: TestClient, database: Engine, company: UUID, monkeypatch: pytest.MonkeyPatch
+    api: TestClient, engine: Engine, company: UUID, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     original_create = DemandRepository.create
 
@@ -220,15 +220,15 @@ def test_removed_client_between_validation_and_insert_is_a_conflict(
     response = api.post("/api/v1/demands", json={"client_id": str(company), "title": "Demanda"})
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "DEMAND_REFERENCE_CONFLICT"
-    with Session(database) as session:
+    with Session(engine) as session:
         assert session.scalar(sa.select(sa.func.count(Demand.id))) == 0
         assert session.get(Client, company) is not None  # rollback da transacao inteira
 
 
 def test_migration_checks_title_and_preserves_existing_demand(
-    database: Engine, company: UUID
+    engine: Engine, company: UUID
 ) -> None:
-    with Session(database) as session:
+    with Session(engine) as session:
         demand = Demand(client_id=company, title="Historico", description="Contexto preservado")
         session.add(demand)
         session.commit()
@@ -239,7 +239,7 @@ def test_migration_checks_title_and_preserves_existing_demand(
     command.upgrade(config, "head")
     command.check(config)
 
-    inspector = sa.inspect(database)
+    inspector = sa.inspect(engine)
     assert (
         next(c for c in inspector.get_columns("demands") if c["name"] == "client_id")["nullable"]
         is False
@@ -247,9 +247,9 @@ def test_migration_checks_title_and_preserves_existing_demand(
     assert "ck_demands_title_not_blank" in {
         constraint["name"] for constraint in inspector.get_check_constraints("demands")
     }
-    with Session(database) as session:
+    with Session(engine) as session:
         assert session.get(Demand, demand_id).description == "Contexto preservado"
-    with Session(database) as session, pytest.raises(IntegrityError):
+    with Session(engine) as session, pytest.raises(IntegrityError):
         session.add(Demand(client_id=company, title="   "))
         session.commit()
 
@@ -268,7 +268,7 @@ def test_versioned_contract_matches_published_creation(api: TestClient) -> None:
     import yaml
 
     contract_path = Path(__file__).resolve().parents[4] / (
-        "packages/contracts/openapi/pipeline-demands-create.yaml"
+        "packages/contracts/openapi/pipeline-service.yaml"
     )
     contract = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
     published = api.get("/openapi.json").json()

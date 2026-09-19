@@ -5,7 +5,6 @@ Nucleo do CRM: clientes, demandas, etapas do pipeline, historico e artefatos ver
 - **Porta:** `8001`
 - **Requisitos atendidos:** RF01-RF08, RF13, RF15, RNF07, RNF08, RNF09
 - **Contrato de API:** [`packages/contracts/openapi/pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml)
-- **Contrato da criacao de demandas:** [`pipeline-demands-create.yaml`](../../packages/contracts/openapi/pipeline-demands-create.yaml)
 
 ## Estrutura
 
@@ -65,14 +64,15 @@ A migration inicial ja inclui os campos e `client_id NOT NULL`, com FK e
 preenchido. Se houver titulos vazios antigos, corrija-os antes do upgrade; a
 migration nao altera silenciosamente registros historicos.
 
-Rastreabilidade: o Word indicado na task usa **RNF14** para integridade
-referencial; a matriz versionada deste repositorio usa **RNF08** para a mesma
-regra. O comportamento implementado segue o Word.
+Rastreabilidade: a integridade referencial que sustenta esta rota e o **RNF08**
+da [matriz versionada](../../docs/01-requisitos/matriz-rastreabilidade.md). O
+Documento Consolidado de Requisitos v1.0 numera esse mesmo requisito como RNF14;
+o ID valido aqui e sempre o da matriz.
 
-O contrato desta criacao fica em um arquivo separado para permitir merge
-independente do PR #146, que altera o contrato completo. As divergencias e a
-ordem sugerida de integracao estao em
-[`rf02-compatibilidade-prs.md`](../../docs/06-entregas/rf02-compatibilidade-prs.md).
+A operacao fica no contrato do servico,
+[`pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml),
+e o teste `test_versioned_contract_matches_published_creation` compara o arquivo
+com o `openapi.json` gerado, impedindo que os dois divirjam.
 
 ## Testes
 

@@ -1,4 +1,8 @@
-"""Criacao de negociacoes com cliente obrigatorio (RF02, RNF14 no DOCX)."""
+"""Criacao de negociacoes com cliente obrigatorio (RF02).
+
+O vinculo obrigatorio com o cliente e garantido no banco pelo RNF08 - numerado
+como RNF14 no Documento Consolidado v1.0; vale o ID da matriz do repositorio.
+"""
 
 import sqlite3
 
