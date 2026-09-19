@@ -22,8 +22,8 @@ mostra, em uma tela, onde o MVP está.
 | RF02 | Cadastrar demandas vinculadas a cliente | Essencial | pipeline | | 3 | ⬜ | |
 | RF03 | Listar e filtrar por status, cliente e período | Alta | pipeline + web | | 3 | ⬜ | |
 | RF04 | Detalhe da negociação com histórico e artefatos | Essencial | pipeline + web | | 3 | ⬜ | |
-| RF05 | Percorrer as etapas do pipeline | Essencial | pipeline | | 3 | ⬜ | |
-| RF06 | Retroceder livremente a etapas anteriores | Essencial | pipeline | | 3 | ⬜ | |
+| RF05 | Percorrer as etapas do pipeline | Essencial | pipeline | #148 | 3 | 🟡 | Máquina de estados em [`app/domain/rules.py`](../../services/pipeline-service/app/domain/rules.py) (avanço só para a etapa seguinte); etapa inicial garantida pelo schema, em [`test_demand_state.py`](../../services/pipeline-service/tests/integration/test_demand_state.py); transições cobertas em [`test_pipeline_rules.py`](../../services/pipeline-service/tests/unit/test_pipeline_rules.py). Rotas e persistência da transição (RF07) pendentes |
+| RF06 | Retroceder livremente a etapas anteriores | Essencial | pipeline | #148 | 3 | 🟡 | Retrocesso para qualquer etapa anterior na mesma máquina de estados ([`app/domain/rules.py`](../../services/pipeline-service/app/domain/rules.py)), com os 25 pares de etapas verificados em [`test_pipeline_rules.py`](../../services/pipeline-service/tests/unit/test_pipeline_rules.py). Rotas pendentes |
 | RF07 | Histórico de alterações de etapa | Essencial | pipeline | | 3 | ⬜ | |
 | RF08 | Versionar artefatos com recuperação | Alta | pipeline | | 3 | ⬜ | |
 | RF09 | Inserir demanda como texto livre | Essencial | ingestion + web | | 3 | ⬜ | |
