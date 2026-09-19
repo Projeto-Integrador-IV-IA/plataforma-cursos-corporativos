@@ -1,7 +1,7 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: EM CONSTRUCAO - a criacao de demandas (RF02) esta implementada e
-# verificada contra o openapi.json do servico; os demais caminhos vem na Fase 2.
+# Estado: EM CONSTRUCAO - criacao (RF02) e listagem filtrada (RF03) de demandas
+# estao verificadas contra o openapi.json do servico; os demais caminhos seguem pendentes.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -30,6 +30,102 @@ security:
 
 paths:
   /api/v1/demands:
+    get:
+      tags:
+      - demands
+      summary: Listar e filtrar demandas
+      description: Lista demandas por cliente, etapa, responsavel, periodo de criacao
+        e situacao. Os filtros informados sao combinados com AND.
+      operationId: list_demands_api_v1_demands_get
+      parameters:
+      - name: client_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Client Id
+      - name: stage
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/PipelineStage'
+          - type: 'null'
+          title: Stage
+      - name: owner_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+      - name: from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          description: Inicio inclusivo do periodo de criacao, com fuso.
+          title: From
+        description: Inicio inclusivo do periodo de criacao, com fuso.
+      - name: to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          description: Fim inclusivo do periodo de criacao, com fuso.
+          title: To
+        description: Fim inclusivo do periodo de criacao, com fuso.
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DemandStatus'
+          - type: 'null'
+          description: Situacao atual da demanda.
+          title: Status
+        description: Situacao atual da demanda.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_DemandRead_'
+        '422':
+          description: Filtros invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
     post:
       tags:
       - demands
@@ -217,4 +313,33 @@ components:
       - ACOMPANHAMENTO
       title: PipelineStage
       description: Etapas percorridas por uma demanda no pipeline (RF05).
+    PaginatedResponse_DemandRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/DemandRead'
+          type: array
+          title: Items
+        total:
+          type: integer
+          minimum: 0.0
+          title: Total
+          description: Total de registros que atendem aos filtros.
+        page:
+          type: integer
+          minimum: 1.0
+          title: Page
+          description: Pagina atual, calculada a partir de offset e limit.
+        size:
+          type: integer
+          minimum: 1.0
+          title: Size
+          description: Limite de registros solicitado por pagina.
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      title: PaginatedResponse[DemandRead]
   # TODO(Fase 2): referenciar ../schemas/*.json para os demais artefatos

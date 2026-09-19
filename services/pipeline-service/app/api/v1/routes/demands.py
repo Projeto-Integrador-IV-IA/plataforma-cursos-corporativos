@@ -1,15 +1,20 @@
-"""Criacao de negociacoes vinculadas a clientes (RF02)."""
+"""Criacao e consulta filtrada de negociacoes (RF02, RF03)."""
 
 from collections.abc import Callable, Coroutine
+from datetime import datetime
 from typing import Annotated, Any
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from fastapi.routing import APIRoute
 from sqlalchemy.orm import Session
 
 from app.db.session import get_session
+from app.domain.enums import DemandStatus, PipelineStage
+from app.repositories.demand_repository import DemandRepository
+from app.schemas.common import PaginatedResponse
 from app.schemas.demand import DemandCreate, DemandErrorResponse, DemandRead
 from app.services.demand_service import DemandCreationError, DemandService
 
@@ -42,7 +47,7 @@ class DemandRoute(APIRoute):
                     request,
                     422,
                     "VALIDATION_ERROR",
-                    "Dados invalidos para criar a demanda.",
+                    "Dados invalidos para a demanda.",
                     {".".join(map(str, error["loc"])): error["msg"] for error in exc.errors()},
                 )
 
@@ -50,6 +55,89 @@ class DemandRoute(APIRoute):
 
 
 router = APIRouter(prefix="/demands", tags=["demands"], route_class=DemandRoute)
+
+
+@router.get(
+    "",
+    response_model=PaginatedResponse[DemandRead],
+    summary="Listar e filtrar demandas",
+    description=(
+        "Lista demandas por cliente, etapa, responsavel, periodo de criacao e situacao. "
+        "Os filtros informados sao combinados com AND."
+    ),
+    responses={
+        422: {"model": DemandErrorResponse, "description": "Filtros invalidos."},
+    },
+)
+def list_demands(
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+    client_id: UUID | None = None,
+    stage: PipelineStage | None = None,
+    owner_id: UUID | None = None,
+    created_from: Annotated[
+        datetime | None,
+        Query(alias="from", description="Inicio inclusivo do periodo de criacao, com fuso."),
+    ] = None,
+    created_to: Annotated[
+        datetime | None,
+        Query(alias="to", description="Fim inclusivo do periodo de criacao, com fuso."),
+    ] = None,
+    demand_status: Annotated[
+        DemandStatus | None,
+        Query(alias="status", description="Situacao atual da demanda."),
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> PaginatedResponse[DemandRead] | JSONResponse:
+    """Aplica filtros combinaveis e devolve o total antes da paginacao."""
+
+    period_error = _validate_period(created_from, created_to)
+    if period_error is not None:
+        return _error_response(
+            request,
+            422,
+            "VALIDATION_ERROR",
+            "Periodo de criacao invalido.",
+            period_error,
+        )
+
+    items, total = DemandRepository(session).list(
+        client_id=client_id,
+        stage=stage,
+        owner_id=owner_id,
+        created_from=created_from,
+        created_to=created_to,
+        status=demand_status,
+        limit=limit,
+        offset=offset,
+    )
+    return PaginatedResponse[DemandRead](
+        items=[DemandRead.model_validate(item) for item in items],
+        total=total,
+        page=(offset // limit) + 1,
+        size=limit,
+    )
+
+
+def _validate_period(
+    created_from: datetime | None, created_to: datetime | None
+) -> dict[str, str] | None:
+    """Exige fuso e uma faixa cronologica coerente para o filtro de periodo."""
+
+    errors: dict[str, str] = {}
+    if created_from is not None and created_from.utcoffset() is None:
+        errors["query.from"] = "A data inicial deve informar o fuso horario."
+    if created_to is not None and created_to.utcoffset() is None:
+        errors["query.to"] = "A data final deve informar o fuso horario."
+    if (
+        not errors
+        and created_from is not None
+        and created_to is not None
+        and created_from > created_to
+    ):
+        errors["query.to"] = "A data final deve ser maior ou igual a data inicial."
+    return errors or None
 
 
 @router.post(
