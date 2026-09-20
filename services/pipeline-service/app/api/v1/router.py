@@ -8,9 +8,11 @@ abre a v2 em vez de alterar a v1 em uso.
 from fastapi import APIRouter
 
 from app.api.v1.routes.demands import router as demands_router
+from app.api.v1.routes.raw_inputs import router as raw_inputs_router
 
 # Ainda sem rotas de negocio: cada router de ``routes/`` entra aqui com
 # ``api_router.include_router(...)`` a medida que seu contrato for implementado.
 # O health fica fora do prefixo versionado porque e infraestrutura, nao contrato.
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(demands_router)
+api_router.include_router(raw_inputs_router)
