@@ -32,9 +32,19 @@ class RawInputRead(BaseModel):
     id: UUID
     demand_id: UUID
     original_content: str
+    normalized_content: str | None
     source: RawInputSource
     author_id: UUID
+    truncated: bool
     created_at: datetime
+
+
+class RawInputNormalization(BaseModel):
+    """Copia sanitizada; o contrato nao aceita o conteudo original nesta operacao."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    normalized_content: str
 
 
 class RawInputErrorDetails(BaseModel):
