@@ -59,6 +59,38 @@ class PipelineClient:
             created_at=datetime.fromisoformat(body["created_at"]),
         )
 
+    def persist_normalization(
+        self,
+        raw_input_id: UUID,
+        normalized_content: str,
+        *,
+        request_id: str | None = None,
+    ) -> None:
+        """Grava a copia sanitizada sem reenviar ou substituir o texto original."""
+
+        headers = {"X-Request-ID": request_id} if request_id else None
+        try:
+            response = self.http_client.patch(
+                f"/api/v1/raw-inputs/{raw_input_id}/normalization",
+                json={"normalized_content": normalized_content},
+                headers=headers,
+            )
+        except httpx.TimeoutException as exc:
+            raise UpstreamError(
+                status_code=504,
+                code="PIPELINE_TIMEOUT",
+                message="O pipeline-service nao confirmou a normalizacao no prazo.",
+            ) from exc
+        except httpx.RequestError as exc:
+            raise UpstreamError(
+                status_code=502,
+                code="PIPELINE_UNAVAILABLE",
+                message="Nao foi possivel persistir o texto normalizado no pipeline-service.",
+            ) from exc
+
+        if response.status_code != 200:
+            self._raise_response_error(response)
+
     @staticmethod
     def _raise_response_error(response: httpx.Response) -> None:
         try:

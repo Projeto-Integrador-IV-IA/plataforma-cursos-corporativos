@@ -14,3 +14,9 @@ class RawInputRepository:
         self.session.flush()
         self.session.refresh(raw_input)
         return raw_input
+
+    def update_normalization(self, raw_input: RawInput, normalized_content: str) -> RawInput:
+        raw_input.normalized_content = normalized_content
+        self.session.flush()
+        self.session.refresh(raw_input)
+        return raw_input

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models import Demand, RawInput, User
 from app.repositories.raw_input_repository import RawInputRepository
-from app.schemas.raw_input import RawInputCreate
+from app.schemas.raw_input import RawInputCreate, RawInputNormalization
 
 
 class RawInputService:
@@ -53,3 +53,15 @@ class RawInputService:
                 message="A demanda ou o operador deixou de existir durante a persistencia.",
                 details={"demand_id": str(demand_id), "author_id": str(author_id)},
             ) from exc
+
+    def normalize(self, raw_input_id: UUID, data: RawInputNormalization) -> RawInput:
+        """Preenche somente o campo normalizado e conserva o original imutavel."""
+
+        raw_input = self.session.get(RawInput, raw_input_id)
+        if raw_input is None:
+            raise NotFoundError(
+                code="RAW_INPUT_NOT_FOUND",
+                message="Fonte bruta nao encontrada.",
+                details={"raw_input_id": str(raw_input_id)},
+            )
+        return self.repository.update_normalization(raw_input, data.normalized_content)

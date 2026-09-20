@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.clients.pipeline_client import PipelineClient
 from app.domain.raw_demand import PersistedRawDemand, RawDemand
+from app.normalizers.text_normalizer import normalize_text
 
 
 class IngestionService:
@@ -17,10 +18,17 @@ class IngestionService:
         author_id: UUID,
         request_id: str | None = None,
     ) -> PersistedRawDemand:
-        """Encerra a captacao apos o commit remoto, sem normalizar o original."""
+        """Persiste o original, sanitiza uma copia e grava o resultado separadamente."""
 
-        return self.pipeline_client.persist_raw_demand(
+        persisted = self.pipeline_client.persist_raw_demand(
             raw_demand,
             author_id=author_id,
             request_id=request_id,
         )
+        normalized_content = normalize_text(raw_demand.text, raw_demand.source_type)
+        self.pipeline_client.persist_normalization(
+            persisted.raw_input_id,
+            normalized_content,
+            request_id=request_id,
+        )
+        return persisted
