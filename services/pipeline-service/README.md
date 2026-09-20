@@ -25,7 +25,7 @@ pip install -e ".[dev]"
 uvicorn app.main:app --reload --port "$PIPELINE_PORT"
 ```
 
-> Criacao de demandas implementada. As demais rotas de negocio, incluindo o
+> Criacao, consulta e edicao de contexto de demandas implementadas. As demais rotas, incluindo o
 > cadastro de clientes (dependencia RF01.1), ainda sao scaffolding nesta branch.
 
 ## Criar demanda (RF02)
@@ -71,8 +71,17 @@ o ID valido aqui e sempre o da matriz.
 
 A operacao fica no contrato do servico,
 [`pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml),
-e o teste `test_versioned_contract_matches_published_creation` compara o arquivo
+e o teste `test_versioned_contract_matches_published_demand_operations` compara o arquivo
 com o `openapi.json` gerado, impedindo que os dois divirjam.
+
+## Consultar e editar o contexto (RF02)
+
+`GET /api/v1/demands/{id}` devolve a demanda com o cliente, a etapa corrente e
+os artefatos vinculados, incluindo as versoes necessárias para exibir a estrutura
+gerada. `PATCH /api/v1/demands/{id}` aceita `title`, `description` e `owner_id`;
+somente os campos enviados sao alterados. Enviar `null` limpa `description` ou
+`owner_id`, enquanto etapa, situacao, cliente, artefatos e datas anteriores sao
+preservados. Identificadores inexistentes retornam `DEMAND_NOT_FOUND` com HTTP 404.
 
 ## Testes
 

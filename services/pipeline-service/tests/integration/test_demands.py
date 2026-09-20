@@ -17,7 +17,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.session import get_session
 from app.main import create_app
-from app.models import Client, Demand, User
+from app.models import Artifact, ArtifactVersion, Client, Demand, User
 from app.repositories.demand_repository import DemandRepository
 
 
@@ -264,7 +264,7 @@ def test_swagger_documents_creation(api: TestClient) -> None:
     assert schema["additionalProperties"] is False
 
 
-def test_versioned_contract_matches_published_creation(api: TestClient) -> None:
+def test_versioned_contract_matches_published_demand_operations(api: TestClient) -> None:
     import yaml
 
     contract_path = Path(__file__).resolve().parents[4] / (
@@ -273,5 +273,119 @@ def test_versioned_contract_matches_published_creation(api: TestClient) -> None:
     contract = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
     published = api.get("/openapi.json").json()
     assert contract["paths"]["/api/v1/demands"] == published["paths"]["/api/v1/demands"]
+    detail_path = "/api/v1/demands/{demand_id}"
+    assert contract["paths"][detail_path] == published["paths"][detail_path]
     for name, schema in published["components"]["schemas"].items():
         assert contract["components"]["schemas"][name] == schema
+
+
+def test_get_returns_context_client_stage_and_linked_artifacts(
+    api: TestClient, engine: Engine, company: UUID
+) -> None:
+    with Session(engine) as session:
+        demand = Demand(client_id=company, title="Lideranca", description="Contexto original")
+        session.add(demand)
+        session.flush()
+        artifact = Artifact(demand_id=demand.id, type="REQUISITOS_EXTRAIDOS", title="Estrutura")
+        session.add(artifact)
+        session.flush()
+        version = ArtifactVersion(
+            artifact_id=artifact.id,
+            number=1,
+            content={"tema": "Lideranca"},
+            origin="IA",
+        )
+        session.add(version)
+        session.commit()
+        demand_id = demand.id
+        artifact_id = artifact.id
+
+    response = api.get(f"/api/v1/demands/{demand_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["description"] == "Contexto original"
+    assert body["current_stage"] == "CAPTACAO"
+    assert body["client"]["id"] == str(company)
+    assert body["client"]["name"] == "Empresa de teste"
+    assert body["artifacts"][0]["id"] == str(artifact_id)
+    assert body["artifacts"][0]["versions"][0]["content"] == {"tema": "Lideranca"}
+
+
+def test_patch_is_partial_and_next_get_reflects_changes(
+    api: TestClient, engine: Engine, company: UUID
+) -> None:
+    with Session(engine) as session:
+        demand = Demand(client_id=company, title="Titulo anterior", description="Contexto anterior")
+        session.add(demand)
+        session.commit()
+        demand_id = demand.id
+
+    patched = api.patch(
+        f"/api/v1/demands/{demand_id}",
+        json={"description": "Contexto revisado"},
+    )
+
+    assert patched.status_code == 200
+    assert patched.json()["description"] == "Contexto revisado"
+    assert patched.json()["title"] == "Titulo anterior"
+    fetched = api.get(f"/api/v1/demands/{demand_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["description"] == "Contexto revisado"
+    assert fetched.json()["client_id"] == str(company)
+    assert fetched.json()["current_stage"] == "CAPTACAO"
+
+
+@pytest.mark.parametrize("method", ["get", "patch"])
+def test_missing_demand_returns_typed_404(api: TestClient, method: str) -> None:
+    demand_id = uuid4()
+    response = getattr(api, method)(
+        f"/api/v1/demands/{demand_id}",
+        **({"json": {"description": "Novo contexto"}} if method == "patch" else {}),
+        headers={"X-Request-ID": "missing-demand"},
+    )
+    assert response.status_code == 404
+    assert response.json()["error"] == {
+        "code": "DEMAND_NOT_FOUND",
+        "message": "Demanda nao encontrada.",
+        "details": {"demand_id": str(demand_id)},
+        "request_id": "missing-demand",
+    }
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"title": None},
+        {"title": "   "},
+        {"current_stage": "PROPOSTA"},
+        {"status": "GANHA"},
+        {"client_id": str(uuid4())},
+    ],
+)
+def test_patch_rejects_invalid_or_non_context_fields(
+    api: TestClient, engine: Engine, company: UUID, payload: dict[str, Any]
+) -> None:
+    with Session(engine) as session:
+        demand = Demand(client_id=company, title="Preservar", description="Contexto")
+        session.add(demand)
+        session.commit()
+        demand_id = demand.id
+
+    response = api.patch(f"/api/v1/demands/{demand_id}", json=payload)
+    assert response.status_code == 422
+    with Session(engine) as session:
+        unchanged = session.get(Demand, demand_id)
+        assert unchanged.title == "Preservar"
+        assert unchanged.description == "Contexto"
+
+
+def test_swagger_documents_detail_and_partial_update(api: TestClient) -> None:
+    document = api.get("/openapi.json").json()
+    operations = document["paths"]["/api/v1/demands/{demand_id}"]
+    assert {"get", "patch"} == set(operations)
+    assert {"200", "404", "422"} <= set(operations["get"]["responses"])
+    assert {"200", "404", "422"} <= set(operations["patch"]["responses"])
+    update_schema = document["components"]["schemas"]["DemandUpdate"]
+    assert "required" not in update_schema
+    assert update_schema["additionalProperties"] is False
