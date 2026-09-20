@@ -69,6 +69,25 @@ LLM_API_KEY=...
 Nome nao registrado em `LLM_PROVIDER` falha na criacao do provedor, listando os disponiveis - erro
 de configuracao aparece na subida, nao no meio de uma demanda.
 
+## Curso estruturado (RNF03)
+
+A saida da estruturacao tem forma fixa entre execucoes. `domain/course.py` define o modelo
+canonico `StructuredCourse` (Pydantic) e `validar_curso_estruturado()`, que transforma o texto
+bruto do provedor em objeto validado:
+
+- **mesmas chaves, mesma ordem, mesmos tipos** em toda execucao - campo que a resposta nao traz
+  vem como `null` ou lista vazia, nunca some da saida;
+- **chave fora do contrato e recusada** (`extra="forbid"`), assim como tipo incompativel, JSON
+  invalido ou chave obrigatoria ausente. Nesses casos a validacao levanta
+  `LLMInvalidResponseError`: resposta invalida e falha, nao e aceita como "quase certa"
+  ([ADR-0006](../../docs/02-arquitetura/decisoes/ADR-0006-saida-da-ia-com-schema-fixo.md));
+- **obrigatoriedade = a chave vem na resposta**, ainda que com valor nulo. As sete chaves
+  obrigatorias sao exatamente as que o prompt ativo `extract-requirements.v1` manda devolver;
+  `nicho`, `numero_participantes` e `formato` ficam opcionais ate existir prompt que os produza.
+
+`schema_do_curso_estruturado()` devolve o JSON Schema derivado do modelo - e o que se passa em
+`CompletionParams.response_schema` para fornecedores com saida estruturada.
+
 ## Falha e timeout do LLM (RNF05)
 
 O provedor pode falhar; a demanda bruta, nao. Quem persiste o texto colado e o `ingestion-service`,
