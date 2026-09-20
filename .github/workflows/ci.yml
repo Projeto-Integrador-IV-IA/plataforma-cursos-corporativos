@@ -1,7 +1,8 @@
 # =============================================================================
 # Portao de qualidade dos PRs (RNF14).
-# Enquanto os servicos nao tiverem implementacao, os jobs sao tolerantes a
-# ausencia de codigo/testes - remova os `continue-on-error` ao iniciar a Fase 3.
+# O job de backend reprova de fato: lint, formatacao e testes dos quatro
+# servicos sao obrigatorios. O job de frontend ainda tolera falha em lint e
+# build - endurece-lo (e incluir `npm run test`) fica para card proprio.
 # =============================================================================
 name: CI
 
@@ -52,7 +53,6 @@ jobs:
       - name: Testes
         working-directory: services/${{ matrix.service }}
         run: pytest -q
-        continue-on-error: true   # TODO: remover na Fase 3, quando houver testes
 
   frontend:
     name: Frontend
