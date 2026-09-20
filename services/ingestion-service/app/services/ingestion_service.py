@@ -1,16 +1,26 @@
-"""Caso de uso: ingestao de demanda heterogenea (RF09, RF10, RNF05).
+"""Captacao que persiste o bruto antes de qualquer etapa posterior (RF09)."""
 
-Ordem obrigatoria das etapas:
-    1. receber o texto bruto do formulario padronizado (RF09);
-    2. persistir o bruto no pipeline-service - este passo vem primeiro e e
-       inegociavel (RNF05);
-    3. normalizar o texto (RF10);
-    4. solicitar a estruturacao ao ai-structuring-service;
-    5. anexar o resultado a negociacao (RF13) e reportar o estado ao chamador.
+from uuid import UUID
 
-Se qualquer passo a partir do 3 falhar, o passo 2 ja garantiu que nada se
-perdeu: a demanda fica registrada e pendente de estruturacao, e a operacao pode
-ser repetida sem o operador colar o texto de novo.
+from app.clients.pipeline_client import PipelineClient
+from app.domain.raw_demand import PersistedRawDemand, RawDemand
 
-TODO(scaffolding): implementar o caso de uso.
-"""
+
+class IngestionService:
+    def __init__(self, pipeline_client: PipelineClient) -> None:
+        self.pipeline_client = pipeline_client
+
+    def capture(
+        self,
+        raw_demand: RawDemand,
+        *,
+        author_id: UUID,
+        request_id: str | None = None,
+    ) -> PersistedRawDemand:
+        """Encerra a captacao apos o commit remoto, sem normalizar o original."""
+
+        return self.pipeline_client.persist_raw_demand(
+            raw_demand,
+            author_id=author_id,
+            request_id=request_id,
+        )
