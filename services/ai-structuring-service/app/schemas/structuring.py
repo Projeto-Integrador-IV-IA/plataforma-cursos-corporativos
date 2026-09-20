@@ -41,7 +41,7 @@ EXEMPLO_DE_REQUISICAO: Final[dict[str, Any]] = {
         "pessoal da manutencao da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias "
         "de 8 horas, no proprio site. Fico no aguardo da proposta."
     ),
-    "prompt_version": "v1",
+    "prompt_version": "v2",
 }
 
 #: Resposta de exemplo exibida no Swagger, na ordem canonica dos campos.

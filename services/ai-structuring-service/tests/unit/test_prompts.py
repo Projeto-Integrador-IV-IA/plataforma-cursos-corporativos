@@ -5,6 +5,10 @@ import re
 import pytest
 
 from app.prompts import PROMPTS_DIR, carregar_prompt, listar_prompts
+from app.services.structuring_service import (
+    DEFAULT_PROMPT_VERSION,
+    EXTRACTION_PROMPT_NAME,
+)
 
 CINCO_CAMPOS = ("tema", "publico_alvo", "carga_horaria", "ementa", "objetivos_aprendizagem")
 
@@ -151,3 +155,16 @@ def test_prompt_traz_exemplo_em_que_quase_nada_e_inferivel(corpo: str) -> None:
 
     assert "quase nada é inferível" in corpo
     assert '"tema": null' in corpo
+
+
+def test_o_caso_de_uso_carrega_a_versao_ativa_do_catalogo() -> None:
+    """Prompt marcado ativo que ninguem carrega nao vale nada.
+
+    Publicar uma versao nova sem mover ``DEFAULT_PROMPT_VERSION`` deixaria a
+    politica nova escrita no catalogo e ausente da API. Este teste transforma
+    esse descompasso em falha, em vez de bug silencioso em producao.
+    """
+
+    padrao = carregar_prompt(EXTRACTION_PROMPT_NAME, DEFAULT_PROMPT_VERSION)
+
+    assert padrao.metadados["status"] == "ativo"
