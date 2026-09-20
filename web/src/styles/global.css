@@ -14,8 +14,13 @@
   --cor-texto: #1c2430;
   --cor-texto-suave: #5b6675;
   --cor-destaque: #1f4f8f;
+  --cor-sucesso: #1b6b45;
+  --cor-sucesso-fundo: #e7f4ed;
+  --cor-erro: #9d2222;
+  --cor-erro-fundo: #fbeaea;
   --espaco: 1rem;
   --raio: 6px;
+  --sombra: 0 2px 8px rgb(28 36 48 / 18%);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -129,4 +134,86 @@ body {
   border: 1px dashed var(--cor-borda);
   border-radius: var(--raio);
   color: var(--cor-texto-suave);
+}
+
+/*
+ * Mensagens de sucesso e erro (card #84).
+ *
+ * A area flutua sobre o conteudo, no canto inferior direito, sem empurrar o
+ * layout da tela. Ela ignora o ponteiro (`pointer-events: none`) para nao
+ * bloquear cliques no que esta atras; so as mensagens voltam a recebe-lo.
+ */
+
+.feedback-region {
+  position: fixed;
+  right: var(--espaco);
+  bottom: var(--espaco);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(24rem, calc(100vw - 2 * var(--espaco)));
+  pointer-events: none;
+}
+
+.feedback-region__live {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-left-width: 4px;
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra);
+  pointer-events: auto;
+}
+
+.feedback--success {
+  border-color: var(--cor-sucesso);
+  background: var(--cor-sucesso-fundo);
+  color: var(--cor-sucesso);
+}
+
+.feedback--error {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.feedback__mark {
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.feedback__text {
+  flex: 1;
+  color: var(--cor-texto);
+  line-height: 1.4;
+}
+
+.feedback__dismiss {
+  padding: 0 0.25rem;
+  border: 0;
+  border-radius: var(--raio);
+  background: none;
+  color: inherit;
+  font-size: 1.125rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.feedback__dismiss:hover {
+  background: var(--cor-superficie);
+}
+
+.feedback__dismiss:focus-visible {
+  outline: 2px solid var(--cor-texto);
+  outline-offset: 1px;
 }
