@@ -1,6 +1,7 @@
-"""Aceite RF02: HTTP real em processo sobre banco migrado com FKs habilitadas."""
+"""Aceite RF02/RF03: criacao e listagem sobre banco migrado com FKs habilitadas."""
 
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -76,6 +77,170 @@ def company(engine: Engine) -> UUID:
         session.add(client)
         session.commit()
         return client.id
+
+
+@pytest.fixture
+def demand_catalog(engine: Engine) -> dict[str, Any]:
+    """Catalogo com valores distintos para provar cada filtro e suas combinacoes."""
+
+    with Session(engine) as session:
+        client_a = Client(name="Cliente A")
+        client_b = Client(name="Cliente B")
+        owner_a = User(name="Responsavel A", email="owner-a@example.com", password_hash="hash")
+        owner_b = User(name="Responsavel B", email="owner-b@example.com", password_hash="hash")
+        session.add_all([client_a, client_b, owner_a, owner_b])
+        session.flush()
+
+        specifications = [
+            (
+                "d1",
+                client_a.id,
+                owner_a.id,
+                "CAPTACAO",
+                "ABERTA",
+                datetime(2026, 1, 10, tzinfo=UTC),
+            ),
+            ("d2", client_a.id, owner_b.id, "PROPOSTA", "GANHA", datetime(2026, 2, 15, tzinfo=UTC)),
+            (
+                "d3",
+                client_b.id,
+                owner_a.id,
+                "PROPOSTA",
+                "ABERTA",
+                datetime(2026, 3, 20, tzinfo=UTC),
+            ),
+            (
+                "d4",
+                client_a.id,
+                owner_a.id,
+                "PROPOSTA",
+                "ABERTA",
+                datetime(2026, 4, 25, tzinfo=UTC),
+            ),
+            (
+                "d5",
+                client_b.id,
+                None,
+                "ACOMPANHAMENTO",
+                "CANCELADA",
+                datetime(2026, 5, 30, tzinfo=UTC),
+            ),
+            (
+                "d6",
+                client_a.id,
+                owner_a.id,
+                "PROPOSTA",
+                "ABERTA",
+                datetime(2026, 6, 10, tzinfo=UTC),
+            ),
+        ]
+        demand_ids: dict[str, UUID] = {}
+        for key, client_id, owner_id, stage, status, created_at in specifications:
+            demand = Demand(
+                client_id=client_id,
+                owner_id=owner_id,
+                title=key,
+                current_stage=stage,
+                status=status,
+                created_at=created_at,
+                updated_at=created_at,
+            )
+            session.add(demand)
+            session.flush()
+            demand_ids[key] = demand.id
+
+        session.commit()
+        return {
+            "clients": {"a": client_a.id, "b": client_b.id},
+            "owners": {"a": owner_a.id, "b": owner_b.id},
+            "demands": demand_ids,
+        }
+
+
+def _listed_ids(response: Any) -> set[UUID]:
+    assert response.status_code == 200
+    return {UUID(item["id"]) for item in response.json()["items"]}
+
+
+@pytest.mark.parametrize(
+    ("params_factory", "expected_keys"),
+    [
+        (lambda data: {"client_id": data["clients"]["a"]}, {"d1", "d2", "d4", "d6"}),
+        (lambda _data: {"stage": "PROPOSTA"}, {"d2", "d3", "d4", "d6"}),
+        (lambda data: {"owner_id": data["owners"]["a"]}, {"d1", "d3", "d4", "d6"}),
+        (lambda _data: {"from": "2026-03-01T00:00:00Z"}, {"d3", "d4", "d5", "d6"}),
+        (lambda _data: {"to": "2026-02-28T23:59:59Z"}, {"d1", "d2"}),
+        (lambda _data: {"status": "ABERTA"}, {"d1", "d3", "d4", "d6"}),
+    ],
+    ids=["client", "stage", "owner", "from", "to", "status"],
+)
+def test_each_demand_filter_returns_the_correct_subset(
+    api: TestClient,
+    demand_catalog: dict[str, Any],
+    params_factory: Any,
+    expected_keys: set[str],
+) -> None:
+    params = {key: str(value) for key, value in params_factory(demand_catalog).items()}
+    response = api.get("/api/v1/demands", params=params)
+    expected_ids = {demand_catalog["demands"][key] for key in expected_keys}
+    assert _listed_ids(response) == expected_ids
+    assert response.json()["total"] == len(expected_keys)
+
+
+def test_demand_filters_can_be_combined(api: TestClient, demand_catalog: dict[str, Any]) -> None:
+    response = api.get(
+        "/api/v1/demands",
+        params={
+            "client_id": str(demand_catalog["clients"]["a"]),
+            "stage": "PROPOSTA",
+            "owner_id": str(demand_catalog["owners"]["a"]),
+            "from": "2026-04-01T00:00:00Z",
+            "to": "2026-06-30T23:59:59Z",
+            "status": "ABERTA",
+        },
+    )
+    assert _listed_ids(response) == {
+        demand_catalog["demands"]["d4"],
+        demand_catalog["demands"]["d6"],
+    }
+    assert response.json()["total"] == 2
+
+
+def test_demand_pagination_returns_total_current_page_and_stable_order(
+    api: TestClient, demand_catalog: dict[str, Any]
+) -> None:
+    response = api.get("/api/v1/demands", params={"limit": 2, "offset": 2})
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {
+        "items": body["items"],
+        "total": 6,
+        "page": 2,
+        "size": 2,
+    }
+    assert [UUID(item["id"]) for item in body["items"]] == [
+        demand_catalog["demands"]["d4"],
+        demand_catalog["demands"]["d3"],
+    ]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"from": "2026-02-01T00:00:00Z", "to": "2026-01-01T00:00:00Z"},
+        {"from": "2026-01-01T00:00:00"},
+        {"limit": 0},
+        {"limit": 101},
+        {"offset": -1},
+    ],
+)
+def test_invalid_list_filters_use_the_error_envelope(
+    api: TestClient, params: dict[str, Any]
+) -> None:
+    response = api.get("/api/v1/demands", params=params)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert response.json()["error"]["details"]
 
 
 def test_create_persists_negotiation_with_client_and_owner(
