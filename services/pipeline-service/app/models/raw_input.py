@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class RawInput(Base):
-    """Conteudo original preservado antes da normalizacao ou do LLM."""
+    """Conteudo original confirmado em transacao propria antes da normalizacao ou do LLM."""
 
     __tablename__ = "raw_inputs"
     __table_args__ = (
