@@ -10,10 +10,16 @@ Fluxo previsto de ponta a ponta:
     6. registrar metricas da execucao (RNF04) e custo estimado (RNF12);
     7. devolver o curso estruturado para anexacao a negociacao (RF13).
 
-Este modulo implementa hoje o passo 3 e o tratamento de falha que o cerca
-(RNF05; **RF18.1** no Documento Consolidado de Requisitos v1.0). Os passos 2,
-4 e 5 dependem do prompt versionado e do schema fixo, e entram com os cards de
-RF11, RF12 e RNF03.
+Este modulo implementa hoje os passos 1 a 4 e o tratamento de falha que os
+cerca (RF11, RNF05; **RF13.1** e **RF18.1** no Documento Consolidado de
+Requisitos v1.0). ``structure`` faz a chamada crua ao provedor; ``structure_course``
+encadeia prompt versionado, chamada e validacao de schema, e e o caso de uso
+exposto em ``POST /api/v1/structuring``.
+
+O passo 5 continua pendente: ``generate-syllabus.v1`` ainda e rascunho, entao a
+ementa e os objetivos devolvidos hoje sao os que o proprio cliente descreveu no
+texto, extraidos junto com os demais campos (RF12 parcial). Os passos 6 e 7
+entram com os cards de RNF04 e RF13.
 
 Tratamento de falha (RNF05)
 ---------------------------
@@ -66,6 +72,12 @@ from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_aft
 
 from app.core.config import Settings
 from app.core.exceptions import LLMInvalidResponseError, LLMProviderError
+from app.domain.course import (
+    StructuredCourse,
+    schema_do_curso_estruturado,
+    validar_curso_estruturado,
+)
+from app.prompts import carregar_prompt
 from app.providers.base import CompletionParams, CompletionResult, LLMProvider
 
 #: Base do backoff exponencial entre retentativas, em segundos.
@@ -76,6 +88,13 @@ BACKOFF_MAX_SECONDS: Final[float] = 8.0
 
 #: Funcao de espera entre tentativas; injetavel para o teste nao dormir.
 Sleep = Callable[[float], Awaitable[Any]]
+
+#: Prompt versionado que extrai os campos pedagogicos do texto da demanda (RF11).
+EXTRACTION_PROMPT_NAME: Final[str] = "extract-requirements"
+
+#: Versao usada quando o chamador nao pede outra. Versao nova e arquivo novo,
+#: nunca edicao no lugar - ver ``app/prompts/README.md``.
+DEFAULT_PROMPT_VERSION: Final[str] = "v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +127,11 @@ class StructuringOutcome:
         error: falha tipada do provedor; ``None`` quando houve sucesso.
         elapsed_ms: tempo de parede da execucao inteira, incluindo as esperas
             entre tentativas (RNF06).
+        course: curso ja validado na forma canonica (RNF03); ``None`` quando a
+            chamada nao passou por ``structure_course`` ou quando falhou.
+        prompt_id: prompt versionado usado na execucao, ex.:
+            ``extract-requirements.v1``. Acompanha a proveniencia do artefato
+            (RNF04, RNF09).
     """
 
     demand: RawDemand
@@ -115,12 +139,19 @@ class StructuringOutcome:
     completion: CompletionResult | None = None
     error: LLMProviderError | None = None
     elapsed_ms: float = 0.0
+    course: StructuredCourse | None = None
+    prompt_id: str | None = None
 
     @property
     def succeeded(self) -> bool:
-        """Indica se o provedor devolveu resultado."""
+        """Indica se a execucao terminou com resultado utilizavel.
 
-        return self.completion is not None
+        Resultado bruto acompanhado de erro nao conta como sucesso: e o caso da
+        resposta que chegou do provedor mas nao passou no schema do curso, que
+        e falha e nao "quase certa" (ADR-0006).
+        """
+
+        return self.completion is not None and self.error is None
 
     @property
     def retryable(self) -> bool:
@@ -144,6 +175,21 @@ class StructuringOutcome:
             raise LLMInvalidResponseError("Estruturacao terminou sem resultado e sem falha.")
         return self.completion
 
+    def raise_for_course(self) -> StructuredCourse:
+        """Devolve o curso validado ou levanta a falha tipada.
+
+        E o que a rota chama antes de responder: ou ha curso na forma canonica,
+        ou ha erro identificado - nunca um meio-termo (RF11, RNF03).
+
+        Raises:
+            LLMProviderError: a subclasse correspondente a causa da falha.
+        """
+
+        self.raise_for_error()
+        if self.course is None:
+            raise LLMInvalidResponseError("Estruturacao terminou sem curso validado.")
+        return self.course
+
     def to_error_payload(self, request_id: str | None = None) -> dict[str, Any] | None:
         """Corpo de erro no formato da plataforma, ou ``None`` se houve sucesso."""
 
@@ -153,7 +199,21 @@ class StructuringOutcome:
 
 
 class StructuringService:
-    """Executa a chamada ao provedor de LLM para uma demanda bruta (RNF05).
+    """Estrutura a demanda bruta: prompt, provedor e schema em um so fluxo.
+
+    Dois niveis, de proposito:
+
+    ``structure_course``
+        o caso de uso de ponta a ponta (RF11). Monta o prompt versionado,
+        chama o provedor e valida a resposta contra a forma canonica do curso
+        antes de devolver qualquer coisa. E o que a rota
+        ``POST /api/v1/structuring`` expoe.
+
+    ``structure``
+        a chamada crua ao provedor, com a politica de retentativa e o
+        tratamento de falha (RNF05). Fica publica porque avaliacao de prompt e
+        medicao de qualidade (RNF04) precisam do texto do modelo sem passar
+        pela validacao.
 
     Args:
         provider: implementacao de ``LLMProvider``, obtida de
@@ -229,6 +289,79 @@ class StructuringService:
             attempts=tentativas,
             completion=resultado,
             elapsed_ms=_decorrido_ms(inicio),
+        )
+
+    async def structure_course(
+        self,
+        demand: RawDemand,
+        *,
+        prompt_version: str = DEFAULT_PROMPT_VERSION,
+    ) -> StructuringOutcome:
+        """Estrutura a demanda de ponta a ponta e devolve o curso validado (RF11).
+
+        Encadeia os quatro passos do caso de uso: monta o prompt versionado com
+        o texto ja normalizado, chama o provedor com o schema de saida
+        declarado (RNF03), valida a resposta contra ``StructuredCourse`` e so
+        entao devolve o resultado.
+
+        Nao levanta excecao, pela mesma razao que ``structure`` nao levanta: o
+        chamador sempre recebe o desfecho com a demanda bruta em maos (RNF05).
+        Resposta fora do schema vira ``LLMInvalidResponseError`` no desfecho -
+        nao e aceita como "quase certa" (ADR-0006). A fronteira HTTP chama
+        ``raise_for_course`` e deixa o handler de ``app.main`` traduzir o erro.
+
+        Args:
+            demand: demanda bruta ja persistida pelo ingestion-service.
+            prompt_version: versao do prompt de extracao a usar; por padrao, a
+                ativa no catalogo.
+
+        Returns:
+            ``StructuringOutcome`` com ``course`` preenchido quando deu certo,
+            ou com o erro tipado quando nao deu.
+
+        Raises:
+            ValueError: ``prompt_version`` nao existe no catalogo de prompts.
+                E erro de configuracao do chamador, nao falha de execucao, e
+                por isso sobe em vez de virar desfecho.
+        """
+
+        prompt = carregar_prompt(EXTRACTION_PROMPT_NAME, prompt_version)
+        outcome = await self.structure(
+            demand,
+            prompt=prompt.render(texto_normalizado=demand.text),
+            params=self._parametros_da_extracao(),
+        )
+        outcome = replace(outcome, prompt_id=prompt.identificador)
+        if outcome.completion is None:
+            return outcome
+
+        try:
+            curso = validar_curso_estruturado(outcome.completion.text)
+        except LLMInvalidResponseError as erro:
+            erro.add_context(
+                demand_id=demand.demand_id,
+                attempts=outcome.attempts,
+                prompt=prompt.identificador,
+                retryable=erro.retryable,
+            )
+            return replace(outcome, error=erro)
+
+        return replace(outcome, course=curso)
+
+    def _parametros_da_extracao(self) -> CompletionParams:
+        """Parametros da chamada de extracao, todos vindos do ambiente (RNF11).
+
+        Temperatura baixa e schema declarado sao o que sustenta a saida de
+        forma fixa entre execucoes (RNF03); o provedor repassa o schema ao
+        fornecedor quando este aceitar saida estruturada, mas a validacao que
+        vale e sempre a de ``validar_curso_estruturado``.
+        """
+
+        return CompletionParams(
+            model=self._settings.llm_model,
+            temperature=self._settings.llm_temperature,
+            timeout_seconds=self._settings.llm_timeout_seconds,
+            response_schema=schema_do_curso_estruturado(),
         )
 
     def _politica_de_retentativa(self) -> AsyncRetrying:
