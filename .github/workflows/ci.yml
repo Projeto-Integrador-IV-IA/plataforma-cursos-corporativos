@@ -1,8 +1,8 @@
 # =============================================================================
 # Portao de qualidade dos PRs (RNF14).
-# O job de backend reprova de fato: lint, formatacao e testes dos quatro
-# servicos sao obrigatorios. O job de frontend ainda tolera falha em lint e
-# build - endurece-lo (e incluir `npm run test`) fica para card proprio.
+# Backend e frontend reprovam de fato: nenhum passo tolera falha. No backend
+# sao obrigatorios lint, formatacao e testes dos quatro servicos; no frontend,
+# lint, testes e build do `web`. Check verde aqui significa codigo verde.
 # =============================================================================
 name: CI
 
@@ -66,19 +66,23 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # Sem `|| npm install`: o fallback silencioso escondia lockfile
+      # dessincronizado, que e justamente o que o portao deve pegar.
       - name: Instalar dependencias
         working-directory: web
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Lint
         working-directory: web
         run: npm run lint
-        continue-on-error: true   # TODO: remover na Fase 3
+
+      - name: Testes
+        working-directory: web
+        run: npm run test
 
       - name: Build
         working-directory: web
         run: npm run build
-        continue-on-error: true   # TODO: remover na Fase 3
 
   seguranca:
     name: Verificacao de segredos (RNF11)
