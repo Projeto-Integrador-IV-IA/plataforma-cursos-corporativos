@@ -1,7 +1,7 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: RF01.1, RF01.2 e RF02 implementados e verificados contra o
-# openapi.json do servico; os demais caminhos seguem em construcao.
+# Estado: EM CONSTRUCAO - a gestao do contexto de demandas (RF02) esta implementada e
+# verificada contra o openapi.json do servico; os demais caminhos vem na Fase 2.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -24,8 +24,6 @@ servers:
 tags:
   - name: health
     description: Liveness e readiness
-  - name: clients
-    description: Cadastro, consulta e edicao de clientes
 
 security:
   - bearerAuth: []
@@ -71,159 +69,79 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DemandErrorResponse'
-  /api/v1/clients:
-    post:
-      tags:
-      - clients
-      summary: Cadastrar cliente
-      description: Cadastra a identificacao, os contatos e o segmento de uma empresa cliente.
-      operationId: create_client_api_v1_clients_post
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClientCreate'
-      responses:
-        '201':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClientRead'
-        '409':
-          description: CNPJ duplicado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '422':
-          description: Dados de entrada invalidos.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/demands/{demand_id}:
     get:
       tags:
-      - clients
-      summary: Listar clientes
-      description: Lista clientes com paginacao deterministica.
-      operationId: list_clients_api_v1_clients_get
+      - demands
+      summary: Consultar contexto da demanda
+      description: Retorna o contexto da demanda, o cliente, a etapa corrente e os artefatos vinculados com suas versoes.
+      operationId: get_demand_api_v1_demands__demand_id__get
       parameters:
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          description: Pagina iniciada em 1.
-          default: 1
-          title: Page
-        description: Pagina iniciada em 1.
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          maximum: 100
-          minimum: 1
-          description: Itens por pagina.
-          default: 20
-          title: Size
-        description: Itens por pagina.
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ClientPage'
-        '422':
-          description: Paginacao invalida.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/v1/clients/{client_id}:
-    get:
-      tags:
-      - clients
-      summary: Consultar cliente por identificador
-      description: Retorna os dados cadastrais usados pela tela de detalhe do cliente.
-      operationId: get_client_api_v1_clients__client_id__get
-      parameters:
-      - name: client_id
+      - name: demand_id
         in: path
         required: true
         schema:
           type: string
           format: uuid
-          title: Client Id
+          title: Demand Id
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClientRead'
+                $ref: '#/components/schemas/DemandDetail'
         '404':
-          description: Cliente inexistente.
+          description: Demanda inexistente.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/DemandErrorResponse'
         '422':
           description: Identificador invalido.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/DemandErrorResponse'
     patch:
       tags:
-      - clients
-      summary: Editar dados de um cliente
-      description: Altera somente os campos enviados. Campos opcionais enviados como null sao limpos; a
-        inativacao pertence ao RF01.3 e nao e realizada por esta operacao.
-      operationId: update_client_api_v1_clients__client_id__patch
+      - demands
+      summary: Editar contexto da demanda
+      description: Altera somente os campos enviados. description e owner_id enviados como null sao limpos; etapa, situacao, cliente e artefatos permanecem inalterados.
+      operationId: update_demand_api_v1_demands__demand_id__patch
       parameters:
-      - name: client_id
+      - name: demand_id
         in: path
         required: true
         schema:
           type: string
           format: uuid
-          title: Client Id
+          title: Demand Id
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ClientUpdate'
+              $ref: '#/components/schemas/DemandUpdate'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClientRead'
+                $ref: '#/components/schemas/DemandDetail'
         '404':
-          description: Cliente inexistente.
+          description: Demanda ou responsavel inexistente.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: CNPJ duplicado.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/DemandErrorResponse'
         '422':
           description: Dados de entrada invalidos.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/DemandErrorResponse'
 # TODO(Fase 2): declarar os demais caminhos conforme docs/02-arquitetura/contratos-api.md
 
 components:
@@ -234,73 +152,66 @@ components:
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
   schemas:
-    ClientCreate:
+    DemandCreate:
       properties:
-        name:
+        client_id:
+          type: string
+          format: uuid
+          title: Client Id
+          description: Identificador de um cliente existente. Obrigatorio.
+        title:
           type: string
           minLength: 1
-          title: Name
-        cnpj:
+          title: Title
+          description: Titulo da negociacao.
+        description:
           anyOf:
           - type: string
           - type: 'null'
-          title: Cnpj
-        segment:
+          title: Description
+          description: Contexto da negociacao.
+        owner_id:
           anyOf:
           - type: string
+            format: uuid
           - type: 'null'
-          title: Segment
-        contact_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Contact Name
-        contact_email:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Contact Email
-        contact_phone:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Contact Phone
-        notes:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Notes
+          title: Owner Id
+          description: Identificador do usuario responsavel.
       additionalProperties: false
       type: object
       required:
-      - name
-      title: ClientCreate
-      description: Dados cadastrais recebidos pelo fluxo dependente RF01.1.
-    ClientPage:
+      - client_id
+      - title
+      title: DemandCreate
+      description: Dados da negociacao; situacao e etapa inicial sao definidas pelo
+        servico.
+    DemandUpdate:
       properties:
-        items:
-          items:
-            $ref: '#/components/schemas/ClientRead'
-          type: array
-          title: Items
-        total:
-          type: integer
-          title: Total
-        page:
-          type: integer
-          title: Page
-        size:
-          type: integer
-          title: Size
+        title:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Title
+          description: Titulo da negociacao.
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Contexto da negociacao.
+        owner_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+          description: Identificador do usuario responsavel.
+      additionalProperties: false
       type: object
-      required:
-      - items
-      - total
-      - page
-      - size
-      title: ClientPage
-      description: Pagina estavel para a consulta de clientes.
-    ClientRead:
+      title: DemandUpdate
+      description: Campos de contexto editaveis sem substituir os demais dados da demanda.
+    DemandClientRead:
       properties:
         id:
           type: string
@@ -342,14 +253,6 @@ components:
         active:
           type: boolean
           title: Active
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-        updated_at:
-          type: string
-          format: date-time
-          title: Updated At
       type: object
       required:
       - id
@@ -361,117 +264,152 @@ components:
       - contact_phone
       - notes
       - active
-      - created_at
-      - updated_at
-      title: ClientRead
-      description: Representacao completa usada na listagem e na tela de detalhe.
-    ClientUpdate:
+      title: DemandClientRead
+      description: Cliente incorporado ao detalhe para evitar uma segunda consulta da tela.
+    DemandArtifactVersionRead:
       properties:
-        name:
-          anyOf:
-          - type: string
-            minLength: 1
-          - type: 'null'
-          title: Name
-        cnpj:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Cnpj
-        segment:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Segment
-        contact_name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Contact Name
-        contact_email:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Contact Email
-        contact_phone:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Contact Phone
-        notes:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Notes
-      additionalProperties: false
-      type: object
-      title: ClientUpdate
-      description: Edicao parcial; campos omitidos permanecem inalterados (RF01.2).
-    ErrorBody:
-      properties:
-        code:
+        id:
           type: string
-          title: Code
-        message:
+          format: uuid
+          title: Id
+        number:
+          type: integer
+          title: Number
+        content:
+          additionalProperties: true
+          type: object
+          title: Content
+        origin:
           type: string
-          title: Message
-        details:
+          title: Origin
+        ai_metadata:
           anyOf:
           - additionalProperties: true
             type: object
           - type: 'null'
-          title: Details
-        request_id:
+          title: Ai Metadata
+        author_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Author Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - number
+      - content
+      - origin
+      - ai_metadata
+      - author_id
+      - created_at
+      title: DemandArtifactVersionRead
+      description: Versao de artefato disponibilizada para a estrutura gerada no detalhe.
+    DemandArtifactRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        type:
+          type: string
+          title: Type
+        title:
           anyOf:
           - type: string
           - type: 'null'
-          title: Request Id
+          title: Title
+        raw_input_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Raw Input Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        versions:
+          items:
+            $ref: '#/components/schemas/DemandArtifactVersionRead'
+          type: array
+          title: Versions
       type: object
       required:
-      - code
-      - message
-      title: ErrorBody
-    ErrorResponse:
+      - id
+      - type
+      - title
+      - raw_input_id
+      - created_at
+      - versions
+      title: DemandArtifactRead
+      description: Artefato vinculado com suas versoes em ordem crescente.
+    DemandDetail:
       properties:
-        error:
-          $ref: '#/components/schemas/ErrorBody'
-      type: object
-      required:
-      - error
-      title: ErrorResponse
-    DemandCreate:
-      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
         client_id:
           type: string
           format: uuid
           title: Client Id
-          description: Identificador de um cliente existente. Obrigatorio.
         title:
           type: string
-          minLength: 1
           title: Title
-          description: Titulo da negociacao.
         description:
           anyOf:
           - type: string
           - type: 'null'
           title: Description
-          description: Contexto da negociacao.
         owner_id:
           anyOf:
           - type: string
             format: uuid
           - type: 'null'
           title: Owner Id
-          description: Identificador do usuario responsavel.
-      additionalProperties: false
+        status:
+          $ref: '#/components/schemas/DemandStatus'
+        current_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        active:
+          type: boolean
+          title: Active
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        client:
+          $ref: '#/components/schemas/DemandClientRead'
+        artifacts:
+          items:
+            $ref: '#/components/schemas/DemandArtifactRead'
+          type: array
+          title: Artifacts
       type: object
       required:
+      - id
       - client_id
       - title
-      title: DemandCreate
-      description: Dados da negociacao; situacao e etapa inicial sao definidas pelo
-        servico.
+      - description
+      - owner_id
+      - status
+      - current_stage
+      - active
+      - created_at
+      - updated_at
+      - client
+      - artifacts
+      title: DemandDetail
+      description: Agregado usado pela tela de detalhe da demanda.
     DemandErrorDetails:
       properties:
         code:

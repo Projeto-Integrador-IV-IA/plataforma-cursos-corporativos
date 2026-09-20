@@ -26,10 +26,11 @@ pip install -e ".[dev]"
 uvicorn app.main:app --reload --port "$AI_STRUCTURING_PORT"
 ```
 
-> Estado: **scaffolding**. As rotas e o caso de uso ainda nao possuem implementacao - `app/main.py`
-> continua stub, entao o servico ainda nao sobe. Ja implementados: configuracao
-> (`core/config.py`), contrato de provedor (`providers/base.py`), excecoes (`core/exceptions.py`)
-> e os provedores `mock` e `http` com selecao por ambiente.
+> Estado: **scaffolding**. As rotas de negocio ainda nao possuem implementacao. Ja implementados:
+> configuracao (`core/config.py`), contrato de provedor (`providers/base.py`), excecoes
+> (`core/exceptions.py`), os provedores `mock` e `http` com selecao por ambiente, a chamada
+> resiliente ao provedor (`services/structuring_service.py`) e a traducao das falhas em resposta
+> HTTP (`main.py`).
 
 ## Provedor de LLM (RNF03)
 
@@ -67,6 +68,47 @@ LLM_API_KEY=...
 
 Nome nao registrado em `LLM_PROVIDER` falha na criacao do provedor, listando os disponiveis - erro
 de configuracao aparece na subida, nao no meio de uma demanda.
+
+## Curso estruturado (RNF03)
+
+A saida da estruturacao tem forma fixa entre execucoes. `domain/course.py` define o modelo
+canonico `StructuredCourse` (Pydantic) e `validar_curso_estruturado()`, que transforma o texto
+bruto do provedor em objeto validado:
+
+- **mesmas chaves, mesma ordem, mesmos tipos** em toda execucao - campo que a resposta nao traz
+  vem como `null` ou lista vazia, nunca some da saida;
+- **chave fora do contrato e recusada** (`extra="forbid"`), assim como tipo incompativel, JSON
+  invalido ou chave obrigatoria ausente. Nesses casos a validacao levanta
+  `LLMInvalidResponseError`: resposta invalida e falha, nao e aceita como "quase certa"
+  ([ADR-0006](../../docs/02-arquitetura/decisoes/ADR-0006-saida-da-ia-com-schema-fixo.md));
+- **obrigatoriedade = a chave vem na resposta**, ainda que com valor nulo. As sete chaves
+  obrigatorias sao exatamente as que o prompt ativo `extract-requirements.v1` manda devolver;
+  `nicho`, `numero_participantes` e `formato` ficam opcionais ate existir prompt que os produza.
+
+`schema_do_curso_estruturado()` devolve o JSON Schema derivado do modelo - e o que se passa em
+`CompletionParams.response_schema` para fornecedores com saida estruturada.
+
+## Falha e timeout do LLM (RNF05)
+
+O provedor pode falhar; a demanda bruta, nao. Quem persiste o texto colado e o `ingestion-service`,
+**antes** de qualquer chamada ao modelo - este servico nao abre transacao nem escreve no banco de
+outro microsservico, entao falhar aqui nao tem como desfazer o registro do bruto.
+
+O que cabe a este servico esta em [`services/structuring_service.py`](app/services/structuring_service.py):
+
+| Camada | Responsabilidade |
+|---|---|
+| `providers/` | Uma chamada e uma tentativa. Traduz timeout, erro de rede e status HTTP na excecao tipada correspondente, que informa em `retryable` se repetir tem chance. |
+| `services/structuring_service.py` | Politica de retentativa (`tenacity`, ate `LLM_MAX_RETRIES` repeticoes, backoff exponencial ou `Retry-After`) e desfecho: `StructuringOutcome` carrega a demanda intacta, as tentativas gastas, o tempo decorrido e o erro tipado. |
+| `main.py` | Traduz a excecao de dominio no corpo unico de erro da plataforma (RNF02), com o status da propria falha e o `X-Request-ID` da requisicao. |
+
+`structure()` nao deixa excecao de provedor escapar: o chamador recebe sempre um desfecho, com a
+demanda bruta em maos para reprocessar. O corpo de erro identifica a causa (`LLM_TIMEOUT`,
+`LLM_UNAVAILABLE`, `LLM_RATE_LIMITED`, `LLM_INVALID_RESPONSE`), qual demanda falhou, quantas
+tentativas houve e se vale repetir - sem expor credencial (RNF11) nem dado do cliente (RNF10).
+
+Cobertura em [`tests/unit/test_structuring_service.py`](tests/unit/test_structuring_service.py) e
+[`tests/unit/test_error_responses.py`](tests/unit/test_error_responses.py).
 
 ## Testes
 
