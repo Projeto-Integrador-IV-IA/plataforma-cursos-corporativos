@@ -95,8 +95,8 @@ def test_artifact_version_cannot_reference_missing_artifact(database: Connection
     assert_rejected(
         database,
         """
-        INSERT INTO artifact_versions (id, artifact_id, number, content, origin)
-        VALUES (:id, :parent_id, 1, '{}', 'IA')
+        INSERT INTO artifact_versions (id, artifact_id, number, raw_content, content, origin)
+        VALUES (:id, :parent_id, 1, '{}', '{}', 'IA')
         """,
         {"id": RAW_INPUT_ID, "parent_id": ARTIFACT_ID},
     )
@@ -115,8 +115,8 @@ def test_human_version_cannot_be_anonymous(database: Connection) -> None:
     assert_rejected(
         database,
         """
-        INSERT INTO artifact_versions (id, artifact_id, number, content, origin)
-        VALUES (:id, :artifact_id, 1, '{}', 'HUMANO')
+        INSERT INTO artifact_versions (id, artifact_id, number, raw_content, content, origin)
+        VALUES (:id, :artifact_id, 1, '{}', '{}', 'HUMANO')
         """,
         {"id": RAW_INPUT_ID, "artifact_id": ARTIFACT_ID},
     )
@@ -192,8 +192,9 @@ def test_valid_client_demand_source_and_artifact_chain_is_persisted(
     database.execute(
         sa.text(
             """
-            INSERT INTO artifact_versions (id, artifact_id, number, content, origin)
-            VALUES ('00000000000000000000000000000008', :artifact_id, 1, '{}', 'IA')
+            INSERT INTO artifact_versions
+                (id, artifact_id, number, raw_content, content, origin)
+            VALUES ('00000000000000000000000000000008', :artifact_id, 1, '{}', '{}', 'IA')
             """
         ),
         {"artifact_id": ARTIFACT_ID},

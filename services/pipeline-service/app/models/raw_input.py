@@ -12,13 +12,13 @@ from app.domain.enums import RawInputSource, sql_enum_values
 from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
-    from app.models.artifact import Artifact
+    from app.models.artifact import Artifact, ArtifactSource
     from app.models.demand import Demand
     from app.models.user import User
 
 
 class RawInput(Base):
-    """Conteudo original preservado antes da normalizacao ou do LLM."""
+    """Conteudo original confirmado em transacao propria antes da normalizacao ou do LLM."""
 
     __tablename__ = "raw_inputs"
     __table_args__ = (
@@ -77,4 +77,9 @@ class RawInput(Base):
         primaryjoin="RawInput.id == Artifact.raw_input_id",
         foreign_keys="Artifact.raw_input_id",
         passive_deletes=True,
+    )
+    artifact_source_links: Mapped[list["ArtifactSource"]] = relationship(
+        back_populates="raw_input",
+        passive_deletes=True,
+        viewonly=True,
     )
