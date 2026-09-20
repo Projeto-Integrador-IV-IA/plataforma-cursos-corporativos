@@ -59,6 +59,27 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 lateral. Essa separação é o lugar do guarda de sessão (RNF10) quando RF16 existir — hoje
 não há token para verificar e as rotas ficam abertas.
 
+## Acesso ao gateway
+
+Toda chamada de rede passa por [`src/services/api.ts`](src/services/api.ts) — nenhum componente usa
+`fetch` diretamente. Ele lê a URL base de `VITE_API_BASE_URL` (RNF11), anexa o token da sessão
+(RF16), aplica o timeout da operação (RNF06, RNF07) e traduz qualquer falha em um único tipo,
+`ApiError`: erro da API no envelope `{ "error": { code, message, details, request_id } }`, falha de
+rede, timeout ou resposta ilegível chegam à tela da mesma forma.
+
+Os tipos de entrada e saída vivem em [`src/types/api.ts`](src/types/api.ts) e derivam dos contratos
+em `packages/contracts` (RNF02) — divergência falha na compilação, não em produção. Os domínios cujo
+contrato ainda é esqueleto estão marcados como **PREVISTO** no arquivo e seguem o dicionário de
+dados até o contrato ser publicado.
+
+| Módulo | Domínio |
+|---|---|
+| [`services/clients.ts`](src/services/clients.ts) | Clientes (RF01, RF03) |
+| [`services/demands.ts`](src/services/demands.ts) | Demandas (RF02, RF03, RF04) |
+| [`services/ingestion.ts`](src/services/ingestion.ts) | Demanda bruta e normalização (RF09, RF10) |
+| [`services/pipeline.ts`](src/services/pipeline.ts) | Etapas e histórico (RF05, RF06, RF07) |
+| [`services/artifacts.ts`](src/services/artifacts.ts) | Artefatos e versões (RF08, RF15) |
+
 ## Executar
 
 ```bash
