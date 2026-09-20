@@ -34,6 +34,7 @@ class Artifact(Base):
         ),
         sa.Index("ix_artifacts_demand_id", "demand_id"),
         sa.Index("ix_artifacts_raw_input_demand", "raw_input_id", "demand_id"),
+        sa.UniqueConstraint("id", "demand_id", name="uq_artifacts_id_demand_id"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -70,6 +71,11 @@ class Artifact(Base):
         back_populates="artifact",
         passive_deletes=True,
         order_by="ArtifactVersion.number",
+    )
+    source_links: Mapped[list["ArtifactSource"]] = relationship(
+        back_populates="artifact",
+        cascade="all, delete-orphan",
+        order_by="ArtifactSource.raw_input_id",
     )
 
 
@@ -111,6 +117,7 @@ class ArtifactVersion(Base):
         nullable=False,
     )
     number: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    raw_content: Mapped[str] = mapped_column(sa.Text, nullable=False)
     content: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False)
     origin: Mapped[str] = mapped_column(sa.Text, nullable=False)
     ai_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON_TYPE, nullable=True)
@@ -131,3 +138,34 @@ class ArtifactVersion(Base):
 
     artifact: Mapped[Artifact] = relationship(back_populates="versions")
     author: Mapped["User | None"] = relationship(back_populates="artifact_versions")
+
+
+class ArtifactSource(Base):
+    """Fonte usada pela IA, vinculada ao artefato dentro da mesma demanda."""
+
+    __tablename__ = "artifact_sources"
+    __table_args__ = (
+        sa.ForeignKeyConstraint(
+            ["artifact_id", "demand_id"],
+            ["artifacts.id", "artifacts.demand_id"],
+            name="fk_artifact_sources_artifact_demand",
+            ondelete="RESTRICT",
+        ),
+        sa.ForeignKeyConstraint(
+            ["raw_input_id", "demand_id"],
+            ["raw_inputs.id", "raw_inputs.demand_id"],
+            name="fk_artifact_sources_raw_input_demand",
+            ondelete="RESTRICT",
+        ),
+        sa.Index("ix_artifact_sources_demand_id", "demand_id"),
+    )
+
+    artifact_id: Mapped[UUID] = mapped_column(UUID_TYPE, primary_key=True)
+    raw_input_id: Mapped[UUID] = mapped_column(UUID_TYPE, primary_key=True)
+    demand_id: Mapped[UUID] = mapped_column(UUID_TYPE, nullable=False)
+
+    artifact: Mapped[Artifact] = relationship(back_populates="source_links")
+    raw_input: Mapped["RawInput"] = relationship(
+        back_populates="artifact_source_links",
+        viewonly=True,
+    )

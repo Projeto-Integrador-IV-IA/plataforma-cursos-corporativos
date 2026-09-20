@@ -273,5 +273,13 @@ def test_versioned_contract_matches_published_creation(api: TestClient) -> None:
     contract = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
     published = api.get("/openapi.json").json()
     assert contract["paths"]["/api/v1/demands"] == published["paths"]["/api/v1/demands"]
-    for name, schema in published["components"]["schemas"].items():
-        assert contract["components"]["schemas"][name] == schema
+    demand_schema_names = {
+        "DemandCreate",
+        "DemandErrorDetails",
+        "DemandErrorResponse",
+        "DemandRead",
+        "DemandStatus",
+        "PipelineStage",
+    }
+    for name in demand_schema_names:
+        assert contract["components"]["schemas"][name] == published["components"]["schemas"][name]

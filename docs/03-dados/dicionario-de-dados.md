@@ -107,6 +107,16 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 
 ---
 
+## `artifact_sources` — fontes usadas na geração (RF16.1)
+
+| Campo | Tipo | Nulo | Descrição |
+|---|---|---|---|
+| `artifact_id` | uuid FK → `artifacts.id` | não | Parte da chave primária composta. |
+| `raw_input_id` | uuid FK → `raw_inputs.id` | não | Parte da chave primária composta. |
+| `demand_id` | uuid FK | não | Participa das duas FKs compostas e impede vínculos entre demandas diferentes. |
+
+---
+
 ## `artifact_versions` — versões (RF08, RNF09)
 
 **Append-only.** Editar cria linha nova; versão anterior permanece recuperável.
@@ -116,6 +126,7 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 | `id` | uuid PK | não | |
 | `artifact_id` | uuid FK → `artifacts.id` | não | |
 | `number` | integer | não | Sequencial por artefato, começando em 1. Único com `artifact_id`. |
+| `raw_content` | text | não | Resposta integral devolvida pelo LLM, preservada para auditoria. |
 | `content` | jsonb | não | Conteúdo da versão. Para curso estruturado, valida contra o JSON Schema (RNF03). |
 | `origin` | text | não | `IA` ou `HUMANO`. Distingue o gerado do revisado (RF14) — base da métrica de correção (RNF04). |
 | `ai_metadata` | jsonb | sim | Modelo, versão de prompt, tokens de entrada e saída, latência. Preenchido quando `origin = IA`. |
@@ -148,6 +159,7 @@ ser recalculadas depois.
 | `UNIQUE (artifact_id, number)` | RF08 — numeração sem lacuna nem duplicata |
 | `NOT NULL` em `demands.client_id` | RNF08 — demanda órfã não existe |
 | `FOREIGN KEY (raw_input_id, demand_id)` em `artifacts` | RNF08 — artefato não referencia fonte de outra demanda |
+| FKs compostas em `artifact_sources` | RF16.1 — todas as fontes usadas pertencem à demanda do artefato |
 | `CHECK (origin = 'IA' OR author_id IS NOT NULL)` em `artifact_versions` | RF14 — versão revisada por humano tem autor |
 | `CHECK` nos campos de enum (`current_stage`, `status`, `type`, `origin`) | Vocabulário fechado é contrato |
 | `NOT NULL` em `raw_inputs.original_content` | RNF05 — o bruto sempre existe |

@@ -74,6 +74,19 @@ A operacao fica no contrato do servico,
 e o teste `test_versioned_contract_matches_published_creation` compara o arquivo
 com o `openapi.json` gerado, impedindo que os dois divirjam.
 
+## Persistir resultados da IA (RF16.1 consolidado)
+
+`POST /api/v1/demands/{id}/artifacts` grava, na mesma transacao, a resposta
+bruta do LLM, o JSON estruturado validado, os metadados da execucao e os
+vinculos com todas as fontes utilizadas. Se qualquer parte falhar, artefato,
+versao e vinculos sao revertidos. `GET /api/v1/demands/{id}/artifacts` recupera
+o agregado completo a partir da demanda.
+
+O campo legado `artifacts.raw_input_id` continua apontando para a primeira
+fonte por compatibilidade. A tabela `artifact_sources` representa todas as
+fontes e impede, por chave estrangeira composta, vinculos entre demandas
+diferentes.
+
 ## Testes
 
 ```bash
