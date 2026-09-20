@@ -30,7 +30,7 @@ existir.
 """
 
 from collections.abc import Mapping
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 
 class PlatformError(Exception):
@@ -58,6 +58,27 @@ class PlatformError(Exception):
         self.message = message or self.default_message
         self.details: dict[str, Any] = dict(details or {})
         super().__init__(self.message)
+
+    def add_context(self, **contexto: Any) -> Self:
+        """Acrescenta contexto aos detalhes sem sobrescrever o que ja existe.
+
+        Serve para a camada de caso de uso completar o erro levantado mais
+        abaixo com o que so ela conhece - qual demanda estava sendo
+        processada, quantas tentativas foram gastas - sem precisar construir
+        outra excecao e perder o tipo original (RNF05).
+
+        Valor ``None`` e ignorado, para nao poluir o corpo de erro com campo
+        vazio. Contexto nunca carrega credencial (RNF11) nem dado pessoal do
+        cliente (RNF10).
+
+        Returns:
+            A propria excecao, para encadear com ``raise``.
+        """
+
+        for chave, valor in contexto.items():
+            if valor is not None:
+                self.details.setdefault(chave, valor)
+        return self
 
     def to_error_payload(self, request_id: str | None = None) -> dict[str, Any]:
         """Monta o corpo de erro no formato unico da plataforma (RNF02).
@@ -91,7 +112,8 @@ class LLMProviderError(UpstreamError):
 
     Attributes:
         retryable: indica se repetir a chamada tem chance de sucesso. Orienta a
-            politica de retentativa do provedor concreto (``LLM_MAX_RETRIES``).
+            politica de retentativa do caso de uso
+            (``app.services.structuring_service``, ``LLM_MAX_RETRIES``).
     """
 
     code: ClassVar[str] = "LLM_ERROR"
