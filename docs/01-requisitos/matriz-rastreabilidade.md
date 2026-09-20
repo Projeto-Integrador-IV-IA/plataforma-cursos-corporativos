@@ -53,7 +53,7 @@ mostra, em uma tela, onde o MVP está.
 | RNF11 | Segredos fora do código | Essencial | | 1 | ✅ | `Settings` por ambiente + `SecretStr` + hash bcrypt + scanner na CI |
 | RNF12 | Operação em camada gratuita | Alta | | 3 | ⬜ | |
 | RNF13 | Serviços desacoplados | Alta | | 2 | 🟡 | [ADR-0001](../02-arquitetura/decisoes/ADR-0001-arquitetura-microsservicos.md) |
-| RNF14 | Fluxo Card → PR → Merge no GitHub | Alta | | 1 | ✅ | [CONTRIBUTING.md](../../CONTRIBUTING.md), templates, CI |
+| RNF14 | Fluxo Card → PR → Merge no GitHub | Alta | | 1 | ✅ | [CONTRIBUTING.md](../../CONTRIBUTING.md), templates e [CI](../../.github/workflows/ci.yml) disparando em PR para `main` **e `dev`** — antes só `main`, e nenhum PR do time passava pelo portão. A varredura de segredos passou a olhar as linhas adicionadas pela mudança, não todo o histórico |
 | RNF15 | Portabilidade como serviço web | Média | | 4 | ⬜ | |
 | RNF16 | Rastreabilidade no GitHub Projects | Média | | 1 | 🟡 | Este documento + templates de issue |
 
