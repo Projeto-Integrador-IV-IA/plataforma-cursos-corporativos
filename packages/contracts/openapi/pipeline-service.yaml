@@ -1,6 +1,6 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: EM CONSTRUCAO - a criacao de demandas (RF02) esta implementada e
+# Estado: EM CONSTRUCAO - a gestao do contexto de demandas (RF02) esta implementada e
 # verificada contra o openapi.json do servico; os demais caminhos vem na Fase 2.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
@@ -69,6 +69,79 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DemandErrorResponse'
+  /api/v1/demands/{demand_id}:
+    get:
+      tags:
+      - demands
+      summary: Consultar contexto da demanda
+      description: Retorna o contexto da demanda, o cliente, a etapa corrente e os artefatos vinculados com suas versoes.
+      operationId: get_demand_api_v1_demands__demand_id__get
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandDetail'
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
+    patch:
+      tags:
+      - demands
+      summary: Editar contexto da demanda
+      description: Altera somente os campos enviados. description e owner_id enviados como null sao limpos; etapa, situacao, cliente e artefatos permanecem inalterados.
+      operationId: update_demand_api_v1_demands__demand_id__patch
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandDetail'
+        '404':
+          description: Demanda ou responsavel inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
+        '422':
+          description: Dados de entrada invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandErrorResponse'
 # TODO(Fase 2): declarar os demais caminhos conforme docs/02-arquitetura/contratos-api.md
 
 components:
@@ -112,6 +185,231 @@ components:
       title: DemandCreate
       description: Dados da negociacao; situacao e etapa inicial sao definidas pelo
         servico.
+    DemandUpdate:
+      properties:
+        title:
+          anyOf:
+          - type: string
+            minLength: 1
+          - type: 'null'
+          title: Title
+          description: Titulo da negociacao.
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Contexto da negociacao.
+        owner_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+          description: Identificador do usuario responsavel.
+      additionalProperties: false
+      type: object
+      title: DemandUpdate
+      description: Campos de contexto editaveis sem substituir os demais dados da demanda.
+    DemandClientRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        cnpj:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cnpj
+        segment:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Segment
+        contact_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contact Name
+        contact_email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contact Email
+        contact_phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contact Phone
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        active:
+          type: boolean
+          title: Active
+      type: object
+      required:
+      - id
+      - name
+      - cnpj
+      - segment
+      - contact_name
+      - contact_email
+      - contact_phone
+      - notes
+      - active
+      title: DemandClientRead
+      description: Cliente incorporado ao detalhe para evitar uma segunda consulta da tela.
+    DemandArtifactVersionRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        number:
+          type: integer
+          title: Number
+        content:
+          additionalProperties: true
+          type: object
+          title: Content
+        origin:
+          type: string
+          title: Origin
+        ai_metadata:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Ai Metadata
+        author_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Author Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - number
+      - content
+      - origin
+      - ai_metadata
+      - author_id
+      - created_at
+      title: DemandArtifactVersionRead
+      description: Versao de artefato disponibilizada para a estrutura gerada no detalhe.
+    DemandArtifactRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        type:
+          type: string
+          title: Type
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        raw_input_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Raw Input Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        versions:
+          items:
+            $ref: '#/components/schemas/DemandArtifactVersionRead'
+          type: array
+          title: Versions
+      type: object
+      required:
+      - id
+      - type
+      - title
+      - raw_input_id
+      - created_at
+      - versions
+      title: DemandArtifactRead
+      description: Artefato vinculado com suas versoes em ordem crescente.
+    DemandDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        client_id:
+          type: string
+          format: uuid
+          title: Client Id
+        title:
+          type: string
+          title: Title
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        owner_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+        status:
+          $ref: '#/components/schemas/DemandStatus'
+        current_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        active:
+          type: boolean
+          title: Active
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        client:
+          $ref: '#/components/schemas/DemandClientRead'
+        artifacts:
+          items:
+            $ref: '#/components/schemas/DemandArtifactRead'
+          type: array
+          title: Artifacts
+      type: object
+      required:
+      - id
+      - client_id
+      - title
+      - description
+      - owner_id
+      - status
+      - current_stage
+      - active
+      - created_at
+      - updated_at
+      - client
+      - artifacts
+      title: DemandDetail
+      description: Agregado usado pela tela de detalhe da demanda.
     DemandErrorDetails:
       properties:
         code:
