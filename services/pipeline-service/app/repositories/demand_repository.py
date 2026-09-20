@@ -1,12 +1,15 @@
-"""Persistencia e consulta de demandas (RF02, RF03)."""
+"""Persistencia e consulta de demandas, sem encerrar a transacao (RF02, RF03)."""
 
+from collections.abc import Mapping
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.domain.enums import DemandStatus, PipelineStage
+from app.models.artifact import Artifact
 from app.models.demand import Demand
 
 
@@ -64,3 +67,25 @@ class DemandRepository:
         )
         items = list(self.session.scalars(items_statement).all())
         return items, total
+
+    def get_detail(self, demand_id: UUID) -> Demand | None:
+        """Carrega o agregado necessario pela tela em consultas agrupadas."""
+
+        statement = (
+            sa.select(Demand)
+            .where(Demand.id == demand_id)
+            .options(
+                selectinload(Demand.client),
+                selectinload(Demand.artifacts).selectinload(Artifact.versions),
+            )
+        )
+        return self.session.scalar(statement)
+
+    def update(self, demand: Demand, changes: Mapping[str, Any]) -> Demand:
+        """Aplica apenas campos explicitamente enviados no PATCH."""
+
+        for field, value in changes.items():
+            setattr(demand, field, value)
+        self.session.flush()
+        self.session.refresh(demand)
+        return demand

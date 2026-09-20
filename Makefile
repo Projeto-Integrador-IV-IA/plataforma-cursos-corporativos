@@ -69,9 +69,23 @@ fmt: ## Formata o codigo
 security: ## Reprova arquivos sensiveis ou credenciais aparentes versionadas
 	@proibidos=$$(git ls-files | grep -E '(^|/)\.env($$|\.)|\.(pem|key|p12|pfx)$$' | grep -vE '(^|/)\.env\.example$$' || true); \
 	 test -z "$$proibidos" || { echo "Arquivos sensiveis versionados:"; echo "$$proibidos"; exit 1; }
-	@padrao='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[a-z][a-z0-9+.-]*://[^[:space:]/]+:[^@[:space:]]+@)'; \
-	 if git grep -nEI "$$padrao" -- ':!*.example' ':!.github/workflows/*' ':!Makefile' ':!web/package-lock.json'; then exit 1; fi; \
-	 if git log --all -G"$$padrao" --format='%H' -- . ':(exclude)*.example' ':(exclude).github/workflows/**' ':(exclude)Makefile' ':(exclude)web/package-lock.json' | grep -q .; then exit 1; fi
+	@# No DSN, usuario e senha precisam ser literais: `$${VAR}` e `<placeholder>`
+	@# sao template, nao credencial.
+	@padrao='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[a-z][a-z0-9+.-]*://[^[:space:]/$$<{]+:[^@[:space:]$$<{]+@)'; \
+	 if git grep -nEI "$$padrao" -- ':!*.example' ':!.github/workflows/*' ':!Makefile' ':!web/package-lock.json'; then \
+	   echo "Credencial aparente na arvore de trabalho:"; exit 1; \
+	 fi
+	@# Historico: so o que esta branch acrescenta sobre a dev.
+	@padrao2='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[a-z][a-z0-9+.-]*://[^[:space:]/$$<{]+:[^@[:space:]$$<{]+@)'; \
+	 base=$$(git merge-base origin/dev HEAD 2>/dev/null); \
+	 if [ -z "$$base" ]; then \
+	   echo "sem origin/dev para comparar; varredura limitada a arvore"; exit 0; \
+	 fi; \
+	 adicionado=$$(git diff --unified=0 "$$base...HEAD" -- . ':(exclude)*.example' ':(exclude).github/workflows/**' ':(exclude)Makefile' ':(exclude)web/package-lock.json' | grep -E '^[+][^+]' || true); \
+	 if printf "%s\n" "$$adicionado" | grep -qE "$$padrao2"; then \
+	   echo "Credencial aparente nos commits desta branch:"; \
+	   printf "%s\n" "$$adicionado" | grep -E "$$padrao2"; exit 1; \
+	 fi
 
 check: security lint test ## Portao de qualidade local (rode antes de abrir PR)
 

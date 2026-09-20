@@ -15,8 +15,14 @@ from app.db.session import get_session
 from app.domain.enums import DemandStatus, PipelineStage
 from app.repositories.demand_repository import DemandRepository
 from app.schemas.common import PaginatedResponse
-from app.schemas.demand import DemandCreate, DemandErrorResponse, DemandRead
-from app.services.demand_service import DemandCreationError, DemandService
+from app.schemas.demand import (
+    DemandCreate,
+    DemandDetail,
+    DemandErrorResponse,
+    DemandRead,
+    DemandUpdate,
+)
+from app.services.demand_service import DemandCreationError, DemandNotFoundError, DemandService
 
 
 def _error_response(
@@ -171,3 +177,54 @@ def create_demand(
         return _error_response(request, exc.status_code, exc.code, exc.message, exc.details)
 
     return DemandRead.model_validate(demand)
+
+
+@router.get(
+    "/{demand_id}",
+    response_model=DemandDetail,
+    summary="Consultar contexto da demanda",
+    description=(
+        "Retorna o contexto da demanda, o cliente, a etapa corrente e os artefatos "
+        "vinculados com suas versoes."
+    ),
+    responses={
+        404: {"model": DemandErrorResponse, "description": "Demanda inexistente."},
+        422: {"model": DemandErrorResponse, "description": "Identificador invalido."},
+    },
+)
+def get_demand(
+    demand_id: UUID,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+) -> DemandDetail | JSONResponse:
+    try:
+        demand = DemandService(session).get(demand_id)
+    except DemandNotFoundError as exc:
+        return _error_response(request, exc.status_code, exc.code, exc.message, exc.details)
+    return DemandDetail.model_validate(demand)
+
+
+@router.patch(
+    "/{demand_id}",
+    response_model=DemandDetail,
+    summary="Editar contexto da demanda",
+    description=(
+        "Altera somente os campos enviados. description e owner_id enviados como null sao limpos; "
+        "etapa, situacao, cliente e artefatos permanecem inalterados."
+    ),
+    responses={
+        404: {"model": DemandErrorResponse, "description": "Demanda ou responsavel inexistente."},
+        422: {"model": DemandErrorResponse, "description": "Dados de entrada invalidos."},
+    },
+)
+def update_demand(
+    demand_id: UUID,
+    data: DemandUpdate,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+) -> DemandDetail | JSONResponse:
+    try:
+        demand = DemandService(session).update(demand_id, data)
+    except (DemandNotFoundError, DemandCreationError) as exc:
+        return _error_response(request, exc.status_code, exc.code, exc.message, exc.details)
+    return DemandDetail.model_validate(demand)
