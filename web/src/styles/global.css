@@ -313,6 +313,13 @@ body {
  */
 
 .demand-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+/*
  * Detalhe da demanda (RF02, card #72).
  *
  * Blocos empilhados com um indice de ancoras no topo: o conteudo inteiro fica
@@ -340,6 +347,13 @@ body {
 }
 
 .demand-list__state {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
 .demand-detail__headline {
   margin: 0;
   font-size: 1.25rem;
@@ -441,6 +455,11 @@ body {
 }
 
 .demand-list__position {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
 .demand-detail__artifacts {
   display: flex;
   flex-direction: column;
@@ -541,9 +560,127 @@ body {
 
 .demand-table__status--cancelada {
   color: var(--cor-texto-suave);
+}
+
 /* Acao secundaria (cancelar): mesma forma do botao principal, sem o peso. */
 .button--secondary {
   border-color: var(--cor-borda);
   background: var(--cor-superficie);
   color: var(--cor-texto);
+}
+
+/*
+ * Listagem de clientes (RF03).
+ *
+ * Os nomes sao prefixados por `client-` do mesmo modo que os da listagem de
+ * demandas sao por `demand-`: as duas tabelas se parecem, mas ainda nao o
+ * bastante para virarem um componente unico. Quando a terceira listagem
+ * chegar - e com ela a prova de que a forma e mesmo comum - estas regras e as
+ * de `demand-` viram a base de uma tabela generica em `src/components`.
+ */
+
+.client-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.client-list__state {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
+.client-list__state p {
+  margin: 0 0 0.5rem;
+}
+
+.client-list__state p:last-child {
+  margin-bottom: 0;
+}
+
+.client-list__state--error {
+  border-color: var(--cor-erro);
+}
+
+.client-list__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco);
+  flex-wrap: wrap;
+}
+
+.client-list__position {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.client-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  text-align: left;
+}
+
+.client-table__caption {
+  padding: 0.75rem var(--espaco);
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.client-table th,
+.client-table td {
+  padding: 0.6rem var(--espaco);
+  border-top: 1px solid var(--cor-borda);
+  vertical-align: top;
+  font-weight: 400;
+}
+
+.client-table thead th {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.client-table__client {
+  font-weight: 600;
+}
+
+.client-table__client a:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
+}
+
+/* Ausencia de dado opcional: presente na leitura, discreta no olhar. */
+.client-table__muted {
+  color: var(--cor-texto-suave);
+}
+
+.client-table__status {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.client-table__status--ativo {
+  border-color: var(--cor-sucesso);
+  background: var(--cor-sucesso-fundo);
+  color: var(--cor-sucesso);
+}
+
+/* Inativo nao e erro: sai do destaque, nao ganha cor de alarme. */
+.client-table__status--inativo {
+  color: var(--cor-texto-suave);
 }
