@@ -130,9 +130,23 @@ export interface DemandRead {
 export type DemandUpdate = Partial<Omit<DemandCreate, 'client_id'>>;
 
 /** PREVISTO. Filtros de listagem de demandas (RF03). */
-export interface DemandListParams extends PageParams {
+export interface OffsetParams {
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
+/**
+ * Filtros de `GET /api/v1/demands`, combinados com AND.
+ *
+ * A entrada pagina por `limit`/`offset`; a saida volta em `page`/`size`, no
+ * envelope `Page`. Os dois formatos convivem de proposito no contrato do
+ * servico, e nao e engano deste arquivo.
+ */
+export interface DemandListParams extends OffsetParams {
   readonly status?: DemandStatus;
   readonly client_id?: Uuid;
+  readonly stage?: PipelineStage;
+  readonly owner_id?: Uuid;
   readonly from?: IsoDateTime;
   readonly to?: IsoDateTime;
 }

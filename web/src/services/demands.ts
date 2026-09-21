@@ -30,7 +30,14 @@ export function createDemand(
   return api.post<DemandRead, DemandCreate>(RESOURCE, payload, context);
 }
 
-/** Lista demandas filtrando por situacao, cliente e periodo (RF03). */
+/**
+ * Lista demandas filtrando por situacao, cliente, etapa, responsavel e periodo
+ * (RF03).
+ *
+ * A paginacao vai em `limit`/`offset`, como o contrato declara - a resposta e
+ * que volta em `page`/`size`. Enquanto a operacao nao estava publicada, este
+ * modulo enviava `page`/`size` tambem na entrada, e o servidor ignorava.
+ */
 export function listDemands(
   params: DemandListParams = {},
   context: RequestContext = {},
@@ -38,10 +45,12 @@ export function listDemands(
   return api.get<Page<DemandRead>>(RESOURCE, {
     ...context,
     query: {
-      page: params.page,
-      size: params.size,
+      limit: params.limit,
+      offset: params.offset,
       status: params.status,
       client_id: params.client_id,
+      stage: params.stage,
+      owner_id: params.owner_id,
       from: params.from,
       to: params.to,
     },
