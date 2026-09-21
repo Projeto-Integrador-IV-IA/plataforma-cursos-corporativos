@@ -685,3 +685,125 @@ body {
 .client-table__status--inativo {
   color: var(--cor-texto-suave);
 }
+
+/*
+ * Detalhe do cliente (RF01, card #69).
+ *
+ * Mesma forma de cartao do detalhe da demanda, com nomes proprios: a listagem
+ * de clientes chega em outro card e as duas telas ainda nao compartilham
+ * estrutura o bastante para justificar um bloco generico.
+ */
+
+.client-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.client-detail__headline {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.client-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+.client-detail__section {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
+.client-detail__section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.client-detail__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 var(--espaco);
+}
+
+.client-detail__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.client-detail__term {
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+.client-detail__value {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.client-detail__note {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.client-detail__empty {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: var(--raio);
+  color: var(--cor-texto-suave);
+}
+
+.client-detail__empty p {
+  margin: 0 0 0.5rem;
+}
+
+.client-detail__empty p:last-child {
+  margin-bottom: 0;
+}
+
+.client-detail__failure {
+  margin-top: var(--espaco);
+  padding: 0.75rem var(--espaco);
+  border: 1px solid var(--cor-erro);
+  border-left-width: 4px;
+  border-radius: var(--raio);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.client-detail__demands {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0 0 var(--espaco);
+  padding: 0;
+}
+
+.client-detail__demand {
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.client-detail__demand-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.25rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
