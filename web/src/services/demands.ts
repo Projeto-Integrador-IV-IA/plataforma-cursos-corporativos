@@ -5,15 +5,23 @@
  * (packages/contracts/openapi/). Tipos de entrada e saida vivem em `src/types`
  * e derivam do mesmo contrato (RNF02).
  *
- * Estado do contrato: `createDemand` corresponde a `POST /api/v1/demands`, ja
- * declarada em `pipeline-service.yaml` - entrada e saida espelham
- * `DemandCreate` e `DemandRead`. As demais operacoes (RF03, RF04) seguem as
- * convencoes de docs/02-arquitetura/contratos-api.md e serao CONFIRMADAS
- * quando o contrato for publicado.
+ * Estado do contrato: `createDemand`, `getDemand` e `updateDemand` ja estao
+ * declaradas em `pipeline-service.yaml`, e entrada e saida espelham os schemas
+ * de la. Atencao ao retorno das duas ultimas: o contrato devolve `DemandDetail`
+ * - a demanda com o cliente e os artefatos aninhados -, e nao `DemandRead`,
+ * como este modulo prometia enquanto a operacao nao estava publicada.
  */
 
 import { api, type RequestContext } from '@/services/api';
-import type { DemandCreate, DemandListParams, DemandRead, DemandUpdate, Page, Uuid } from '@/types/api';
+import type {
+  DemandCreate,
+  DemandDetail,
+  DemandListParams,
+  DemandRead,
+  DemandUpdate,
+  Page,
+  Uuid,
+} from '@/types/api';
 
 const RESOURCE = '/demands';
 
@@ -57,21 +65,31 @@ export function listDemands(
   });
 }
 
-/** Busca uma demanda pelo identificador (RF04). */
-export function getDemand(demandId: Uuid, context: RequestContext = {}): Promise<DemandRead> {
-  return api.get<DemandRead>(`${RESOURCE}/${demandId}`, context);
+/**
+ * Busca o contexto de uma demanda pelo identificador (RF02, RF04).
+ *
+ * A resposta e o agregado `DemandDetail`: alem dos campos da demanda, traz o
+ * cliente e os artefatos com suas versoes, de proposito, para a tela de
+ * detalhe nao precisar de uma segunda consulta.
+ */
+export function getDemand(demandId: Uuid, context: RequestContext = {}): Promise<DemandDetail> {
+  return api.get<DemandDetail>(`${RESOURCE}/${demandId}`, context);
 }
 
 /**
- * Edita titulo, contexto ou responsavel da demanda.
+ * Edita titulo, contexto ou responsavel da demanda (RF02).
  *
- * Etapa e situacao nao passam por aqui: mudam pelas operacoes de pipeline
- * (RF05, RF06), que registram a transicao no historico.
+ * Altera somente os campos enviados; `description` e `owner_id` enviados como
+ * `null` sao limpos. Etapa e situacao nao passam por aqui: mudam pelas
+ * operacoes de pipeline (RF05, RF06), que registram a transicao no historico.
+ *
+ * Devolve o mesmo agregado de `getDemand`, ja atualizado - por isso a tela
+ * pode escrever a resposta direto no cache em vez de recarregar.
  */
 export function updateDemand(
   demandId: Uuid,
   payload: DemandUpdate,
   context: RequestContext = {},
-): Promise<DemandRead> {
-  return api.patch<DemandRead, DemandUpdate>(`${RESOURCE}/${demandId}`, payload, context);
+): Promise<DemandDetail> {
+  return api.patch<DemandDetail, DemandUpdate>(`${RESOURCE}/${demandId}`, payload, context);
 }

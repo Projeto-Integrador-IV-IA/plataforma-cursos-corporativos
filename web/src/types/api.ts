@@ -123,9 +123,13 @@ export interface DemandRead {
 }
 
 /**
- * PREVISTO. Edicao de demanda (RF02): campos opcionais sobre os mesmos nomes
- * de `DemandCreate`. Etapa e situacao nao entram aqui - mudam por operacao
- * propria do pipeline (RF05, RF06).
+ * Corpo de `PATCH /api/v1/demands/{demand_id}`: campos opcionais sobre os
+ * mesmos nomes de `DemandCreate`. Etapa e situacao nao entram aqui - mudam por
+ * operacao propria do pipeline (RF05, RF06).
+ *
+ * `title` fica `string` e nao `string | null`: o contrato declara o campo
+ * anulavel, mas com `minLength: 1`, entao `null` e recusado com 422. Tipar o
+ * que o servico aceita evita oferecer ao operador um caminho que sempre falha.
  */
 export type DemandUpdate = Partial<Omit<DemandCreate, 'client_id'>>;
 
@@ -149,6 +153,75 @@ export interface DemandListParams extends OffsetParams {
   readonly owner_id?: Uuid;
   readonly from?: IsoDateTime;
   readonly to?: IsoDateTime;
+}
+
+// ---------------------------------------------------------------------------
+// Detalhe da demanda - DERIVADO de packages/contracts/openapi/pipeline-service.yaml
+// (`DemandDetail` e seus agregados: resposta de GET e de PATCH
+//  /api/v1/demands/{demand_id})
+// ---------------------------------------------------------------------------
+
+/**
+ * Cliente embutido no detalhe, para a tela nao precisar de uma segunda
+ * consulta.
+ *
+ * E um recorte de `Client`, nao o mesmo tipo: o agregado nao devolve
+ * `created_at` nem `updated_at` do cliente. Reaproveitar `Client` faria a tela
+ * prometer campos que a resposta nao traz.
+ */
+export interface DemandClientRead {
+  readonly id: Uuid;
+  readonly name: string;
+  readonly cnpj: string | null;
+  readonly segment: string | null;
+  readonly contact_name: string | null;
+  readonly contact_email: string | null;
+  readonly contact_phone: string | null;
+  readonly notes: string | null;
+  readonly active: boolean;
+}
+
+/**
+ * Versao de artefato como o detalhe a entrega.
+ *
+ * `origin` e `ai_metadata` ficam abertos (`string` e objeto JSON) porque e
+ * assim que o contrato os declara neste agregado - e nao como
+ * `ArtifactVersionOrigin` e `ArtifactAiMetadata`. Estreitar aqui afirmaria uma
+ * garantia que a resposta nao da; quem exibe trata o valor desconhecido.
+ */
+export interface DemandArtifactVersionRead {
+  readonly id: Uuid;
+  readonly number: number;
+  readonly content: JsonObject;
+  readonly origin: string;
+  readonly ai_metadata: JsonObject | null;
+  readonly author_id: Uuid | null;
+  readonly created_at: IsoDateTime;
+}
+
+/** Artefato vinculado a demanda, com suas versoes em ordem crescente. */
+export interface DemandArtifactRead {
+  readonly id: Uuid;
+  readonly type: string;
+  readonly title: string | null;
+  readonly raw_input_id: Uuid | null;
+  readonly created_at: IsoDateTime;
+  readonly versions: readonly DemandArtifactVersionRead[];
+}
+
+/**
+ * Agregado da tela de detalhe: os campos de `DemandRead` mais o cliente e os
+ * artefatos. E o que `GET` e `PATCH /api/v1/demands/{demand_id}` devolvem -
+ * nao `DemandRead`, como este arquivo supunha enquanto a operacao nao estava
+ * publicada.
+ *
+ * As fontes captadas (`raw_inputs`) nao entram: o contrato ainda nao declara
+ * nenhuma operacao que as exponha.
+ * TODO(RF09): acrescentar as fontes quando a captacao for publicada.
+ */
+export interface DemandDetail extends DemandRead {
+  readonly client: DemandClientRead;
+  readonly artifacts: readonly DemandArtifactRead[];
 }
 
 // ---------------------------------------------------------------------------
