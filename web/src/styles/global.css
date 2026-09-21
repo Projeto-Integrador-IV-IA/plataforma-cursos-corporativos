@@ -313,6 +313,13 @@ body {
  */
 
 .demand-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+/*
  * Detalhe da demanda (RF02, card #72).
  *
  * Blocos empilhados com um indice de ancoras no topo: o conteudo inteiro fica
@@ -340,6 +347,13 @@ body {
 }
 
 .demand-list__state {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
 .demand-detail__headline {
   margin: 0;
   font-size: 1.25rem;
@@ -441,6 +455,11 @@ body {
 }
 
 .demand-list__position {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
 .demand-detail__artifacts {
   display: flex;
   flex-direction: column;
@@ -541,6 +560,8 @@ body {
 
 .demand-table__status--cancelada {
   color: var(--cor-texto-suave);
+}
+
 /* Acao secundaria (cancelar): mesma forma do botao principal, sem o peso. */
 .button--secondary {
   border-color: var(--cor-borda);
