@@ -27,8 +27,24 @@ class NotFoundError(PlatformError):
     status_code = status.HTTP_404_NOT_FOUND
 
 
+class ValidationError(PlatformError):
+    """Entrada invalida que o Pydantic nao pega sozinho, como faixa de datas.
+
+    Emite o mesmo ``details`` do handler de ``RequestValidationError`` para que
+    o consumidor trate um formato so (RNF02) - ver ``issue_de_validacao``.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
 class ConflictError(PlatformError):
     status_code = status.HTTP_409_CONFLICT
+
+
+def issue_de_validacao(*, localizacao: list[str], mensagem: str, tipo: str) -> dict[str, Any]:
+    """Monta uma entrada de ``details.issues`` no formato do handler global."""
+
+    return {"location": localizacao, "message": mensagem, "type": tipo}
 
 
 def _error_content(

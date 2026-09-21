@@ -102,18 +102,3 @@ class DemandDetail(DemandRead):
 
     client: DemandClientRead
     artifacts: list[DemandArtifactRead]
-
-
-class DemandErrorDetails(BaseModel):
-    """Erro previsivel, sem detalhes internos do banco."""
-
-    code: str
-    message: str
-    details: dict[str, str] = Field(default_factory=dict)
-    request_id: str | None = None
-
-
-class DemandErrorResponse(BaseModel):
-    """Envelope de erro acordado para a plataforma (RNF02)."""
-
-    error: DemandErrorDetails

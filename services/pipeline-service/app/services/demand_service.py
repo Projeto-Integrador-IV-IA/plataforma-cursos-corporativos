@@ -11,32 +11,11 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import ConflictError, NotFoundError
 from app.domain.enums import DemandStatus, PipelineStage
 from app.models import Client, Demand, User
 from app.repositories.demand_repository import DemandRepository
 from app.schemas.demand import DemandCreate, DemandUpdate
-
-
-class DemandCreationError(Exception):
-    """Falha previsivel de referencia, traduzida pela fronteira HTTP."""
-
-    def __init__(self, status_code: int, code: str, message: str, details: dict[str, str]) -> None:
-        super().__init__(message)
-        self.status_code = status_code
-        self.code = code
-        self.message = message
-        self.details = details
-
-
-class DemandNotFoundError(Exception):
-    """Identificador de demanda inexistente."""
-
-    def __init__(self, demand_id: UUID) -> None:
-        super().__init__("Demanda nao encontrada.")
-        self.status_code = 404
-        self.code = "DEMAND_NOT_FOUND"
-        self.message = "Demanda nao encontrada."
-        self.details = {"demand_id": str(demand_id)}
 
 
 class DemandService:
@@ -50,18 +29,16 @@ class DemandService:
         """Valida referencias e persiste; a FK protege tambem contra concorrencia."""
 
         if self.session.get(Client, data.client_id) is None:
-            raise DemandCreationError(
-                404,
-                "CLIENT_NOT_FOUND",
-                "Cliente nao encontrado.",
-                {"client_id": str(data.client_id)},
+            raise NotFoundError(
+                code="CLIENT_NOT_FOUND",
+                message="Cliente nao encontrado.",
+                details={"client_id": str(data.client_id)},
             )
         if data.owner_id is not None and self.session.get(User, data.owner_id) is None:
-            raise DemandCreationError(
-                404,
-                "USER_NOT_FOUND",
-                "Responsavel nao encontrado.",
-                {"owner_id": str(data.owner_id)},
+            raise NotFoundError(
+                code="USER_NOT_FOUND",
+                message="Responsavel nao encontrado.",
+                details={"owner_id": str(data.owner_id)},
             )
 
         demand = Demand(
@@ -81,11 +58,10 @@ class DemandService:
             )
             if not is_foreign_key_error:
                 raise
-            raise DemandCreationError(
-                409,
-                "DEMAND_REFERENCE_CONFLICT",
-                "Cliente ou responsavel deixou de existir durante a criacao da demanda.",
-                {"client_id": str(data.client_id)},
+            raise ConflictError(
+                code="DEMAND_REFERENCE_CONFLICT",
+                message="Cliente ou responsavel deixou de existir durante a criacao da demanda.",
+                details={"client_id": str(data.client_id)},
             ) from exc
 
     def get(self, demand_id: UUID) -> Demand:
@@ -93,7 +69,11 @@ class DemandService:
 
         demand = self.repository.get_detail(demand_id)
         if demand is None:
-            raise DemandNotFoundError(demand_id)
+            raise NotFoundError(
+                code="DEMAND_NOT_FOUND",
+                message="Demanda nao encontrada.",
+                details={"demand_id": str(demand_id)},
+            )
         return demand
 
     def update(self, demand_id: UUID, data: DemandUpdate) -> Demand:
@@ -105,11 +85,10 @@ class DemandService:
             return demand
         owner_id = changes.get("owner_id")
         if owner_id is not None and self.session.get(User, owner_id) is None:
-            raise DemandCreationError(
-                404,
-                "USER_NOT_FOUND",
-                "Responsavel nao encontrado.",
-                {"owner_id": str(owner_id)},
+            raise NotFoundError(
+                code="USER_NOT_FOUND",
+                message="Responsavel nao encontrado.",
+                details={"owner_id": str(owner_id)},
             )
         changes["updated_at"] = datetime.now(UTC)
         return self.repository.update(demand, changes)
