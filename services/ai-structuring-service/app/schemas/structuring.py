@@ -41,7 +41,7 @@ EXEMPLO_DE_REQUISICAO: Final[dict[str, Any]] = {
         "pessoal da manutencao da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias "
         "de 8 horas, no proprio site. Fico no aguardo da proposta."
     ),
-    "prompt_version": "v2",
+    "prompt_version": "v3",
 }
 
 #: Resposta de exemplo exibida no Swagger, na ordem canonica dos campos.
@@ -56,7 +56,18 @@ EXEMPLO_DE_RESPOSTA: Final[dict[str, Any]] = {
         "formato": "presencial",
         "objetivos_aprendizagem": [],
         "ementa": [],
-        "campos_ausentes": ["ementa", "objetivos_aprendizagem"],
+        "campos_ausentes": [
+            {
+                "campo": "ementa",
+                "tipo": "ausente",
+                "motivo": "O cliente nao descreveu o conteudo do treinamento.",
+            },
+            {
+                "campo": "objetivos_aprendizagem",
+                "tipo": "ausente",
+                "motivo": "O texto nao diz o que o participante deve saber fazer ao final.",
+            },
+        ],
         "observacoes": [
             "O cliente nao descreveu o conteudo nem os objetivos do treinamento.",
         ],
@@ -64,7 +75,7 @@ EXEMPLO_DE_RESPOSTA: Final[dict[str, Any]] = {
     "execution": {
         "provider": "mock",
         "model": "mock",
-        "prompt": "extract-requirements.v1",
+        "prompt": "extract-requirements.v3",
         "attempts": 1,
         "prompt_tokens": 940,
         "completion_tokens": 210,
@@ -131,7 +142,7 @@ class ExecutionMetadata(BaseModel):
     Attributes:
         provider: provedor que atendeu a chamada (``LLM_PROVIDER``).
         model: modelo que efetivamente respondeu.
-        prompt: prompt versionado usado, ex.: ``extract-requirements.v1``.
+        prompt: prompt versionado usado, ex.: ``extract-requirements.v3``.
         attempts: tentativas gastas, contando a primeira (RNF05).
         prompt_tokens: tokens de entrada consumidos.
         completion_tokens: tokens gerados.

@@ -16,6 +16,7 @@ from app.domain.course import (
     CAMPOS_INFERIVEIS,
     CHAVES_CANONICAS,
     CHAVES_OBRIGATORIAS,
+    GapKind,
     schema_do_curso_estruturado,
     validar_curso_estruturado,
 )
@@ -30,7 +31,7 @@ da planta 2, uns 25 tecnicos, em dois dias de 8 horas.
 
 
 async def test_resposta_do_provedor_e_validada_na_forma_canonica() -> None:
-    prompt = carregar_prompt("extract-requirements", "v2")
+    prompt = carregar_prompt("extract-requirements", "v3")
 
     resultado = await MockLLMProvider().complete(
         prompt.render(texto_normalizado=DEMANDA),
@@ -50,7 +51,7 @@ async def test_duas_execucoes_produzem_curso_de_mesma_forma() -> None:
     """Criterio do card: a forma da saida nao depende da execucao."""
 
     provider = MockLLMProvider()
-    prompt = carregar_prompt("extract-requirements", "v2")
+    prompt = carregar_prompt("extract-requirements", "v3")
 
     primeira = validar_curso_estruturado(
         (await provider.complete(prompt.render(texto_normalizado=DEMANDA))).text
@@ -98,7 +99,7 @@ async def test_resposta_em_texto_livre_e_falha() -> None:
 def test_prompt_ativo_declara_as_chaves_obrigatorias_do_contrato() -> None:
     """Prompt e schema andam juntos: divergir aqui quebra a extracao (RF13, RNF03)."""
 
-    corpo = carregar_prompt("extract-requirements", "v2").corpo
+    corpo = carregar_prompt("extract-requirements", "v3").corpo
 
     for chave in CHAVES_OBRIGATORIAS:
         assert f'"{chave}"' in corpo, chave
@@ -119,11 +120,16 @@ async def test_resposta_sem_carga_horaria_chega_ao_dominio_como_ausencia() -> No
             "carga_horaria": None,
             "ementa": [],
             "objetivos_aprendizagem": [],
-            "campos_ausentes": [],
-            "observacoes": [
-                "carga_horaria: o cliente adiou a definicao da duracao "
-                "('ainda nao fechou quantas horas')."
+            "campos_ausentes": [
+                {
+                    "campo": "carga_horaria",
+                    "tipo": "ausente",
+                    "motivo": (
+                        "o cliente adiou a definicao da duracao ('ainda nao fechou quantas horas')."
+                    ),
+                }
             ],
+            "observacoes": [],
         }
     )
     provider = MockLLMProvider(response_text=incompleta)
@@ -132,8 +138,51 @@ async def test_resposta_sem_carga_horaria_chega_ao_dominio_como_ausencia() -> No
     curso = validar_curso_estruturado(resultado.text)
 
     assert curso.carga_horaria is None
-    assert curso.campos_ausentes == ["carga_horaria", "objetivos_aprendizagem", "ementa"]
+    assert curso.nomes_dos_campos_ausentes == (
+        "carga_horaria",
+        "objetivos_aprendizagem",
+        "ementa",
+    )
     assert curso.motivos_dos_campos_ausentes()["carga_horaria"]
+
+
+async def test_fonte_contraditoria_chega_ao_dominio_como_apontamento_classificado() -> None:
+    """Criterio do card: trecho em conflito vira lacuna contraditoria (RNF03).
+
+    RF15.1 no Documento Consolidado de Requisitos v1.0. A fonte traz duas
+    duracoes para o mesmo treinamento; o servico nao escolhe nenhuma - aponta o
+    conflito para o revisor (RF14).
+    """
+
+    contraditoria = json.dumps(
+        {
+            "tema": "Reciclagem de NR-10",
+            "publico_alvo": "Eletricistas da manutencao (15 pessoas)",
+            "carga_horaria": None,
+            "ementa": [],
+            "objetivos_aprendizagem": [],
+            "campos_ausentes": [
+                {
+                    "campo": "carga_horaria",
+                    "tipo": "contraditoria",
+                    "motivo": (
+                        "a manutencao diz '8 horas, num sabado so' e a seguranca do "
+                        "trabalho diz '16 horas, dois dias'."
+                    ),
+                }
+            ],
+            "observacoes": [],
+        }
+    )
+    provider = MockLLMProvider(response_text=contraditoria)
+
+    resultado = await provider.complete("prompt de extracao")
+    curso = validar_curso_estruturado(resultado.text)
+
+    (conflito,) = curso.lacunas_por_tipo(GapKind.CONTRADITORIA)
+    assert conflito.campo == "carga_horaria"
+    assert curso.carga_horaria is None
+    assert curso.to_canonical_dict()["campos_ausentes"][0]["tipo"] == "contraditoria"
 
 
 async def test_nenhum_campo_ganha_valor_plausivel_ao_passar_pela_validacao() -> None:
@@ -156,10 +205,11 @@ async def test_nenhum_campo_ganha_valor_plausivel_ao_passar_pela_validacao() -> 
     canonico = validar_curso_estruturado(resultado.text).to_canonical_dict()
 
     assert all(canonico[campo] in (None, []) for campo in CAMPOS_INFERIVEIS)
-    assert canonico["campos_ausentes"] == [
+    assert [lacuna["campo"] for lacuna in canonico["campos_ausentes"]] == [
         "tema",
         "publico_alvo",
         "carga_horaria",
         "objetivos_aprendizagem",
         "ementa",
     ]
+    assert {lacuna["tipo"] for lacuna in canonico["campos_ausentes"]} == {"ausente"}

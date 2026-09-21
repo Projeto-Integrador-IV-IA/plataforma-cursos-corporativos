@@ -128,7 +128,7 @@ def test_resposta_carrega_a_proveniencia_da_execucao(montar_cliente: MontarClien
 
     assert execucao["provider"] == "mock"
     assert execucao["model"] == "mock"
-    assert execucao["prompt"] == "extract-requirements.v2"
+    assert execucao["prompt"] == "extract-requirements.v3"
     assert execucao["attempts"] == 1
     assert execucao["total_tokens"] == execucao["prompt_tokens"] + execucao["completion_tokens"]
     assert execucao["total_tokens"] > 0
@@ -226,7 +226,7 @@ def test_resposta_fora_do_schema_e_recusada_e_nao_devolve_curso_pela_metade(
     erro = resposta.json()["error"]
     assert resposta.status_code == 502
     assert erro["code"] == "LLM_INVALID_RESPONSE"
-    assert erro["details"]["prompt"] == "extract-requirements.v2"
+    assert erro["details"]["prompt"] == "extract-requirements.v3"
     assert erro["details"]["retryable"] is False
     assert erro["details"]["violacoes"]
     assert "course" not in resposta.json()
@@ -270,3 +270,27 @@ def test_entrada_invalida_e_recusada_antes_de_chamar_o_provedor(
 
     assert resposta.status_code == 422, rotulo
     assert provider.chamadas == [], rotulo
+
+
+def test_exemplo_do_swagger_obedece_ao_dominio() -> None:
+    """O exemplo da documentacao tem de ser uma resposta que o dominio aceita.
+
+    Sem esta trava o exemplo envelhece calado: ele nao passa por validacao em
+    nenhum outro lugar, e foi assim que ficou com a forma antiga de
+    ``campos_ausentes`` depois que o dominio mudou.
+    """
+
+    from app.domain.course import StructuredCourse
+    from app.prompts import carregar_prompt
+    from app.schemas.structuring import EXEMPLO_DE_REQUISICAO, EXEMPLO_DE_RESPOSTA
+    from app.services.structuring_service import DEFAULT_PROMPT_VERSION, EXTRACTION_PROMPT_NAME
+
+    curso = StructuredCourse.model_validate(EXEMPLO_DE_RESPOSTA["course"])
+    assert list(curso.to_canonical_dict()) == list(EXEMPLO_DE_RESPOSTA["course"])
+
+    prompt_do_exemplo = EXEMPLO_DE_RESPOSTA["execution"]["prompt"]
+    assert prompt_do_exemplo == f"{EXTRACTION_PROMPT_NAME}.{DEFAULT_PROMPT_VERSION}"
+    assert EXEMPLO_DE_REQUISICAO["prompt_version"] == DEFAULT_PROMPT_VERSION
+    assert carregar_prompt(EXTRACTION_PROMPT_NAME, DEFAULT_PROMPT_VERSION).metadados["status"] == (
+        "ativo"
+    )
