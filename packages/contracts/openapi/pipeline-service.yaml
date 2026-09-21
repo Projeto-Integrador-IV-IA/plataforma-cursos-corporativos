@@ -296,7 +296,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
       - demands
@@ -322,19 +322,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Referencia removida durante a criacao.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Dados de entrada invalidos.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/demands/{demand_id}:
     get:
       tags:
@@ -363,13 +363,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Identificador invalido.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
     patch:
       tags:
       - demands
@@ -403,13 +403,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Dados de entrada invalidos.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DemandErrorResponse'
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:
@@ -823,39 +823,6 @@ components:
       - artifacts
       title: DemandDetail
       description: Agregado usado pela tela de detalhe da demanda.
-    DemandErrorDetails:
-      properties:
-        code:
-          type: string
-          title: Code
-        message:
-          type: string
-          title: Message
-        details:
-          additionalProperties:
-            type: string
-          type: object
-          title: Details
-        request_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Request Id
-      type: object
-      required:
-      - code
-      - message
-      title: DemandErrorDetails
-      description: Erro previsivel, sem detalhes internos do banco.
-    DemandErrorResponse:
-      properties:
-        error:
-          $ref: '#/components/schemas/DemandErrorDetails'
-      type: object
-      required:
-      - error
-      title: DemandErrorResponse
-      description: Envelope de erro acordado para a plataforma (RNF02).
     DemandRead:
       properties:
         id:
