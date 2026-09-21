@@ -5,11 +5,11 @@
  * (packages/contracts/openapi/). Tipos de entrada e saida vivem em `src/types`
  * e derivam do mesmo contrato (RNF02).
  *
- * Estado do contrato: `pipeline-service.yaml` ainda nao declara os caminhos de
- * cliente (RF01). Os caminhos abaixo seguem as convencoes de
- * docs/02-arquitetura/contratos-api.md e os campos seguem o dicionario de
- * dados; ambos serao CONFIRMADOS quando o contrato for publicado - so os nomes
- * mudam, a forma das funcoes nao.
+ * Estado do contrato: `pipeline-service.yaml` ja declara `POST`, `GET`,
+ * `GET /{id}` e `PATCH` de cliente (RF01), e os tipos abaixo espelham
+ * `ClientCreate`, `ClientRead`, `ClientPage` e `ClientUpdate`. A listagem
+ * aceita somente `page` e `size` no contrato de hoje; os demais filtros
+ * acompanham a tela de listagem (RF03).
  */
 
 import { api, type RequestContext } from '@/services/api';
