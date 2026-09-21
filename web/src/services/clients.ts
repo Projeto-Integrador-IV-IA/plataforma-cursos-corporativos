@@ -33,7 +33,13 @@ export function listClients(
   });
 }
 
-/** Busca um cliente pelo identificador. */
+/**
+ * Busca um cliente pelo identificador (RF01).
+ *
+ * Identificador inexistente devolve 404 com o envelope de erro da plataforma,
+ * que o cliente HTTP entrega como `ApiError` - e a tela de detalhe o trata como
+ * estado de vazio, nao como falha.
+ */
 export function getClient(clientId: Uuid, context: RequestContext = {}): Promise<Client> {
   return api.get<Client>(`${RESOURCE}/${clientId}`, context);
 }
@@ -43,7 +49,17 @@ export function createClient(payload: ClientCreate, context: RequestContext = {}
   return api.post<Client, ClientCreate>(RESOURCE, payload, context);
 }
 
-/** Edita um cliente. Desativacao e logica, pelo campo `active` - nada e apagado. */
+/**
+ * Edita os dados cadastrais de um cliente (RF01).
+ *
+ * Altera somente os campos enviados; campo opcional enviado como `null` e
+ * limpo. Devolve o cadastro ja atualizado, por isso a tela de detalhe pode
+ * escrever a resposta no cache em vez de recarregar.
+ *
+ * A inativacao NAO passa por aqui: o schema recusa propriedade desconhecida
+ * (`additionalProperties: false`) e reserva `active` a operacao propria do
+ * RF01.3 - enviar o campo nesta chamada devolveria 422.
+ */
 export function updateClient(
   clientId: Uuid,
   payload: ClientUpdate,
