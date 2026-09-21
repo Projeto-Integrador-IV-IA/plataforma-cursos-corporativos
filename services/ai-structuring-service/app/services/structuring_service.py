@@ -47,6 +47,34 @@ dizem qual demanda falhou, quantas tentativas houve e se repetir tem chance de
 sucesso (``retryable``). Nada disso expoe credencial (RNF11) nem dado pessoal
 do cliente (RNF10).
 
+Diagnostico da resposta recusada (RNF05)
+----------------------------------------
+
+Resposta que nao passa no schema e recusada antes de virar resultado, e a
+recusa e registrada em log - sem ela, o operador ve um 502 e ninguem consegue
+dizer o que o modelo devolveu de errado.
+
+O registro sai em dois niveis, porque o texto recusado e produto da demanda do
+cliente e nao pode circular em log de rotina (RNF10):
+
+``WARNING``
+    sempre. Diz qual demanda falhou, qual prompt foi usado, quantas tentativas
+    houve, **quais campos violaram o contrato** e o tamanho da resposta. Sao
+    nomes de campo do contrato e numeros - nada do que o cliente escreveu, nada
+    de credencial (RNF11).
+
+``DEBUG``
+    apenas quando ``LOG_LEVEL=DEBUG`` for ligado de proposito para investigar.
+    Traz a resposta bruta truncada em ``RAW_RESPONSE_LOG_LIMIT`` caracteres.
+
+O corpo de erro devolvido ao operador nao repete nada disso: leva o codigo, a
+demanda e o resumo das violacoes por campo, montado pelo dominio sem o valor
+recusado.
+
+Este modulo usa ``logging`` da biblioteca padrao. O log estruturado em JSON,
+com ``request_id`` correlacionado entre servicos, e de ``app.core.logging``,
+que segue como stub e tem card proprio.
+
 Politica de retentativa
 -----------------------
 
@@ -63,6 +91,7 @@ que e respeitado como veio.
 """
 
 import asyncio
+import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
@@ -79,6 +108,15 @@ from app.domain.course import (
 )
 from app.prompts import carregar_prompt
 from app.providers.base import CompletionParams, CompletionResult, LLMProvider
+
+#: Log deste modulo. A configuracao (formato, nivel, correlacao) e do processo,
+#: nunca fixada aqui - ver ``app.core.logging``.
+_logger = logging.getLogger(__name__)
+
+#: Teto de caracteres da resposta recusada registrada em nivel ``DEBUG``. O
+#: texto e produto da demanda do cliente: o bastante para diagnosticar a
+#: malformacao, nao o email inteiro de volta no arquivo de log (RNF10).
+RAW_RESPONSE_LOG_LIMIT: Final[int] = 500
 
 #: Base do backoff exponencial entre retentativas, em segundos.
 BACKOFF_BASE_SECONDS: Final[float] = 0.5
@@ -309,8 +347,10 @@ class StructuringService:
         Nao levanta excecao, pela mesma razao que ``structure`` nao levanta: o
         chamador sempre recebe o desfecho com a demanda bruta em maos (RNF05).
         Resposta fora do schema vira ``LLMInvalidResponseError`` no desfecho -
-        nao e aceita como "quase certa" (ADR-0006). A fronteira HTTP chama
-        ``raise_for_course`` e deixa o handler de ``app.main`` traduzir o erro.
+        nao e aceita como "quase certa" (ADR-0006) - e a recusa e registrada em
+        log para diagnostico, sem devolver o texto recusado a quem chamou. A
+        fronteira HTTP chama ``raise_for_course`` e deixa o handler de
+        ``app.main`` traduzir o erro.
 
         Args:
             demand: demanda bruta ja persistida pelo ingestion-service.
@@ -340,6 +380,13 @@ class StructuringService:
         try:
             curso = validar_curso_estruturado(outcome.completion.text)
         except LLMInvalidResponseError as erro:
+            _registrar_resposta_recusada(
+                demand=demand,
+                prompt_id=prompt.identificador,
+                attempts=outcome.attempts,
+                erro=erro,
+                bruto=outcome.completion.text,
+            )
             erro.add_context(
                 demand_id=demand.demand_id,
                 attempts=outcome.attempts,
@@ -384,6 +431,63 @@ class StructuringService:
         if parametros.timeout_seconds is not None:
             return parametros
         return replace(parametros, timeout_seconds=self._settings.llm_timeout_seconds)
+
+
+def _registrar_resposta_recusada(
+    *,
+    demand: RawDemand,
+    prompt_id: str,
+    attempts: int,
+    erro: LLMInvalidResponseError,
+    bruto: str,
+) -> None:
+    """Registra em log a resposta recusada pelo schema, para diagnostico (RNF05).
+
+    Dois registros, com finalidades diferentes: o de ``WARNING`` da o suficiente
+    para saber que houve recusa e onde o contrato quebrou, e pode ficar ligado
+    sempre; o de ``DEBUG`` guarda a resposta bruta truncada e so aparece quando
+    alguem liga ``LOG_LEVEL=DEBUG`` para investigar um caso especifico.
+
+    Nenhum dos dois expoe credencial (RNF11), e o de rotina nao repete o que o
+    cliente escreveu (RNF10).
+
+    Args:
+        demand: demanda em processamento, para correlacionar log e reprocessamento.
+        prompt_id: prompt versionado usado na chamada, ex.: ``extract-requirements.v2``.
+        attempts: tentativas gastas ate a resposta recusada.
+        erro: falha tipada levantada pela validacao de schema.
+        bruto: texto devolvido pelo provedor, exatamente como chegou.
+    """
+
+    campos = erro.violated_fields()
+    _logger.warning(
+        "Resposta do provedor recusada pelo schema do curso estruturado "
+        "(demand_id=%s, prompt=%s, tentativas=%d, campos=%s, caracteres=%d).",
+        demand.demand_id,
+        prompt_id,
+        attempts,
+        ", ".join(campos) if campos else "nao identificados",
+        len(bruto),
+    )
+    _logger.debug(
+        "Resposta bruta recusada (demand_id=%s, truncada em %d caracteres): %s",
+        demand.demand_id,
+        RAW_RESPONSE_LOG_LIMIT,
+        _truncar_para_log(bruto),
+    )
+
+
+def _truncar_para_log(bruto: str) -> str:
+    """Corta o texto em ``RAW_RESPONSE_LOG_LIMIT`` caracteres e avisa o corte.
+
+    O aviso importa no diagnostico: sem ele nao da para distinguir resposta que
+    terminou torta de resposta que foi cortada aqui.
+    """
+
+    if len(bruto) <= RAW_RESPONSE_LOG_LIMIT:
+        return bruto
+    restante = len(bruto) - RAW_RESPONSE_LOG_LIMIT
+    return f"{bruto[:RAW_RESPONSE_LOG_LIMIT]}... [+{restante} caracteres truncados]"
 
 
 def _e_retentavel(erro: BaseException) -> bool:
