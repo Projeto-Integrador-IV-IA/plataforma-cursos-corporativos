@@ -128,7 +128,7 @@ def test_resposta_carrega_a_proveniencia_da_execucao(montar_cliente: MontarClien
 
     assert execucao["provider"] == "mock"
     assert execucao["model"] == "mock"
-    assert execucao["prompt"] == "extract-requirements.v2"
+    assert execucao["prompt"] == "extract-requirements.v3"
     assert execucao["attempts"] == 1
     assert execucao["total_tokens"] == execucao["prompt_tokens"] + execucao["completion_tokens"]
     assert execucao["total_tokens"] > 0
@@ -226,7 +226,7 @@ def test_resposta_fora_do_schema_e_recusada_e_nao_devolve_curso_pela_metade(
     erro = resposta.json()["error"]
     assert resposta.status_code == 502
     assert erro["code"] == "LLM_INVALID_RESPONSE"
-    assert erro["details"]["prompt"] == "extract-requirements.v2"
+    assert erro["details"]["prompt"] == "extract-requirements.v3"
     assert erro["details"]["retryable"] is False
     assert erro["details"]["violacoes"]
     assert "course" not in resposta.json()

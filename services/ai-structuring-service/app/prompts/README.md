@@ -24,7 +24,8 @@ Cada arquivo contém, nesta ordem:
 | Arquivo | Função | Requisito |
 |---|---|---|
 | `extract-requirements.v1.md` | Extrair os cinco campos pedagógicos — tema, público-alvo, carga horária, ementa e objetivos de aprendizagem — do texto normalizado. **Substituído** pela `v2` (card #5). | RF13 (RF11 na matriz) |
-| `extract-requirements.v2.md` | Mesma extração, com a política de campo não inferível reforçada: valor plausível é proibido, cada nome em `campos_ausentes` tem motivo em `observacoes` (`campo: motivo`) e nenhum campo é preenchido e declarado ausente ao mesmo tempo. **Ativo** (card #8). | RNF03 (RF14.2 no Documento Consolidado v1.0) |
+| `extract-requirements.v2.md` | Mesma extração, com a política de campo não inferível reforçada: valor plausível é proibido, cada nome em `campos_ausentes` tem motivo em `observacoes` (`campo: motivo`) e nenhum campo é preenchido e declarado ausente ao mesmo tempo. **Substituído** pela `v3` (card #8). | RNF03 (RF14.2 no Documento Consolidado v1.0) |
+| `extract-requirements.v3.md` | Mesma extração, com a lacuna classificada: cada item de `campos_ausentes` é um objeto `{campo, tipo, motivo}`, com `tipo` em `ausente`, `ambigua` ou `contraditoria`, e o prompt instrui a detecção de contradição entre trechos da mesma fonte. **Ativo** (card #12). | RNF03 (RF15.1 no Documento Consolidado v1.0) |
 | `generate-syllabus.v1.md` | Gerar ementa com objetivos de aprendizagem a partir dos requisitos extraídos. | RF12 |
 
 ## Regras
@@ -40,7 +41,7 @@ O prompt é lido do arquivo pelo nome e pela versão — nunca embutido como str
 ```python
 from app.prompts import carregar_prompt
 
-prompt = carregar_prompt("extract-requirements", "v2")
+prompt = carregar_prompt("extract-requirements", "v3")
 texto = prompt.render(texto_normalizado=demanda)
 ```
 
@@ -53,5 +54,10 @@ A versão em uso é a mais recente com `status: ativo` nos metadados. A anterior
 marcada como `substituido`: prompt não é apagado — medição feita com ele precisa continuar
 reproduzível (RNF04).
 
-> Estado: `extract-requirements.v2` **ativo**, `extract-requirements.v1` **substituído**;
-> `generate-syllabus.v1` pendente, construído na PoC da Fase 2 (05–15/09).
+> Estado: `extract-requirements.v3` **ativo**, `extract-requirements.v2` e
+> `extract-requirements.v1` **substituídos**; `generate-syllabus.v1` pendente, construído na PoC da
+> Fase 2 (05–15/09).
+
+A versão ativa é a que o caso de uso carrega por padrão (`DEFAULT_PROMPT_VERSION`, em
+`app/services/structuring_service.py`): publicar versão nova é mover esse padrão junto, e um teste
+reprova se as duas saírem de sincronia.

@@ -297,6 +297,29 @@ export interface ArtifactVersionCreate {
 }
 
 /**
+ * Tipo de lacuna apontada pela estruturacao para um campo (RNF03).
+ *
+ * Cada tipo pede uma conversa diferente com o cliente: o que esta `ausente` se
+ * pergunta, o que esta `ambigua` se esclarece e o que esta `contraditoria` se
+ * confronta. E por isso que a tela de revisao (RF14) destaca o tipo, nao so o
+ * nome do campo.
+ */
+export const GAP_KINDS = ['ausente', 'ambigua', 'contraditoria'] as const;
+
+export type GapKind = (typeof GAP_KINDS)[number];
+
+/**
+ * PREVISTO. Apontamento de um campo que ficou sem valor utilizavel. `motivo` e
+ * nulo quando o modelo nao registrou explicacao - a lacuna continua visivel na
+ * revisao, so sem o porque.
+ */
+export interface FieldGap {
+  readonly campo: string;
+  readonly tipo: GapKind;
+  readonly motivo: string | null;
+}
+
+/**
  * PREVISTO. Saida canonica da estruturacao por IA (RF11, RF12).
  * `structured-course.schema.json` ainda e esqueleto: os campos abaixo sao os
  * previstos na PoC e serao confirmados quando o schema for publicado. Por isso
@@ -312,9 +335,12 @@ export type StructuredCourse = {
   readonly formato?: string;
   readonly objetivos_aprendizagem?: readonly string[];
   readonly ementa?: readonly string[];
-  /** Campo sem base no texto de entrada e reportado aqui, nunca inferido (RF14). */
-  readonly campos_ausentes?: readonly string[];
-  readonly observacoes?: string;
+  /**
+   * Campo sem valor utilizavel no texto de entrada e apontado aqui, nunca
+   * inferido (RF14). Cada item traz o campo, o tipo da lacuna e o motivo.
+   */
+  readonly campos_ausentes?: readonly FieldGap[];
+  readonly observacoes?: readonly string[];
 };
 
 /** Pedido de estruturacao de uma demanda bruta pela IA (RF11). */

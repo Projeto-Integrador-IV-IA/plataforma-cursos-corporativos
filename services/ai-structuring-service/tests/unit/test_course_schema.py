@@ -218,6 +218,17 @@ def test_schema_json_declara_campos_obrigatoriedades_e_forma_fechada() -> None:
     assert tuple(schema["properties"]) == CHAVES_CANONICAS
     assert set(schema["required"]) == set(CHAVES_OBRIGATORIAS)
     assert schema["$defs"]["SyllabusModule"]["additionalProperties"] is False
+    assert schema["$defs"]["FieldGap"]["additionalProperties"] is False
+
+
+def test_schema_json_declara_a_lacuna_classificada_de_campos_ausentes() -> None:
+    """A classificacao faz parte do contrato de saida (RNF03, RF15.1)."""
+
+    schema = schema_do_curso_estruturado()
+
+    assert schema["properties"]["campos_ausentes"]["items"] == {"$ref": "#/$defs/FieldGap"}
+    assert tuple(schema["$defs"]["FieldGap"]["properties"]) == ("campo", "tipo", "motivo")
+    assert schema["$defs"]["GapKind"]["enum"] == ["ausente", "ambigua", "contraditoria"]
 
 
 def test_curso_pode_ser_construido_em_codigo_com_a_mesma_forma() -> None:
@@ -232,3 +243,4 @@ def test_curso_pode_ser_construido_em_codigo_com_a_mesma_forma() -> None:
     )
 
     assert tuple(curso.to_canonical_dict()) == CHAVES_CANONICAS
+    assert curso.nomes_dos_campos_ausentes == ("carga_horaria", "objetivos_aprendizagem", "ementa")
