@@ -209,3 +209,29 @@ class LLMInvalidResponseError(LLMProviderError):
     http_status: ClassVar[int] = 502
     default_message: ClassVar[str] = "Resposta do provedor de LLM fora do formato esperado."
     retryable: ClassVar[bool] = False
+
+    def violated_fields(self) -> tuple[str, ...]:
+        """Nomes dos campos que violaram o contrato, na ordem em que foram reportados.
+
+        Le o resumo de violacoes que a validacao do dominio deixa em
+        ``details["violacoes"]`` - cada item traz o caminho do campo, o tipo do
+        erro e a mensagem. Aqui sai apenas o caminho: e o que identifica onde o
+        contrato foi rompido, sem repetir o valor recusado, que carrega texto da
+        demanda do cliente (RNF10).
+
+        Returns:
+            Tupla com os caminhos dos campos, sem repeticao. Vazia quando a
+            falha nao veio da validacao de schema - resposta ilegivel ou
+            requisicao recusada pelo fornecedor nao tem campo a apontar.
+        """
+
+        violacoes = self.details.get("violacoes")
+        if not isinstance(violacoes, list):
+            return ()
+        campos: dict[str, None] = {}
+        for violacao in violacoes:
+            if isinstance(violacao, Mapping):
+                campo = violacao.get("campo")
+                if isinstance(campo, str) and campo:
+                    campos.setdefault(campo, None)
+        return tuple(campos)
