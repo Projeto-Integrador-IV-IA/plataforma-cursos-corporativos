@@ -6,6 +6,7 @@
  *   /clientes                     lista e cadastro de clientes (RF01, RF03)
  *   /clientes/:clientId           detalhe do cliente
  *   /demandas                     lista com filtro por status, cliente, periodo (RF02, RF03)
+ *   /demandas/nova                abertura de negociacao vinculada a cliente (RF02)
  *   /demandas/:demandId           detalhe: pipeline, historico e artefatos (RF04, RF05, RF06)
  *   /demandas/:demandId/ingestao  entrada de demanda bruta (RF09)
  *   /demandas/:demandId/estruturacao  revisao da saida da IA antes de uso externo (RF14)
@@ -30,6 +31,7 @@ import { ClientsPage } from '@/pages/clients/ClientsPage';
 import { DemandDetailPage } from '@/pages/demand-detail/DemandDetailPage';
 import { DemandIngestionPage } from '@/pages/demand-ingestion/DemandIngestionPage';
 import { DemandStructuringPage } from '@/pages/demand-structuring/DemandStructuringPage';
+import { DemandNewPage } from '@/pages/demand-new/DemandNewPage';
 import { DemandsPage } from '@/pages/demands/DemandsPage';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
@@ -47,6 +49,7 @@ export const routes: RouteObject[] = [
       { path: PATHS.clients, element: <ClientsPage /> },
       { path: PATHS.clientDetail, element: <ClientDetailPage /> },
       { path: PATHS.demands, element: <DemandsPage /> },
+      { path: PATHS.demandNew, element: <DemandNewPage /> },
       { path: PATHS.demandDetail, element: <DemandDetailPage /> },
       { path: PATHS.demandIngestion, element: <DemandIngestionPage /> },
       { path: PATHS.demandStructuring, element: <DemandStructuringPage /> },

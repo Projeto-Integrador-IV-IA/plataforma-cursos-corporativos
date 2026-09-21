@@ -102,12 +102,18 @@ describe('listDemands', () => {
     vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
     stubFetch({ items: [DEMANDA], total: 1, page: 1, size: 20 });
 
-    const pagina = await listDemands({ status: 'ABERTA', client_id: DEMANDA.client_id, page: 2 });
+    const pagina = await listDemands({
+      status: 'ABERTA',
+      client_id: DEMANDA.client_id,
+      limit: 20,
+      offset: 20,
+    });
 
     expectTypeOf(pagina).toEqualTypeOf<Page<DemandRead>>();
     expect(pagina.items).toHaveLength(1);
+    // Entrada em limit/offset, como o contrato declara; a resposta e que volta paginada.
     expect(lastCall().url).toBe(
-      `${BASE_URL}/demands?page=2&status=ABERTA&client_id=${DEMANDA.client_id}`,
+      `${BASE_URL}/demands?limit=20&offset=20&status=ABERTA&client_id=${DEMANDA.client_id}`,
     );
   });
 });
