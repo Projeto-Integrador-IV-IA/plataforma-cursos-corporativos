@@ -8,8 +8,9 @@
  * Estado do contrato: `pipeline-service.yaml` ja declara `POST`, `GET`,
  * `GET /{id}` e `PATCH` de cliente (RF01), e os tipos abaixo espelham
  * `ClientCreate`, `ClientRead`, `ClientPage` e `ClientUpdate`. A listagem
- * aceita somente `page` e `size` no contrato de hoje; os demais filtros
- * acompanham a tela de listagem (RF03).
+ * aceita somente `page` e `size`, e e so isso que `listClients` envia: filtro
+ * que o servico ignora nao e filtro, e ruido que faz a tela prometer uma busca
+ * inexistente (RF03).
  */
 
 import { api, type RequestContext } from '@/services/api';
@@ -17,7 +18,13 @@ import type { Client, ClientCreate, ClientListParams, ClientUpdate, Page, Uuid }
 
 const RESOURCE = '/clients';
 
-/** Lista clientes com paginacao e filtro (RF01, RF03). */
+/**
+ * Lista clientes com a paginacao do contrato (RF01, RF03).
+ *
+ * `page` comeca em 1 e `size` vai ate 100; omitidos, o servico usa 1 e 20. A
+ * ordenacao e fixa no servidor (`created_at DESC, id ASC`) e nao e
+ * parametrizavel - quem lista nao escolhe a ordem, so o recorte.
+ */
 export function listClients(
   params: ClientListParams = {},
   context: RequestContext = {},
@@ -27,8 +34,6 @@ export function listClients(
     query: {
       page: params.page,
       size: params.size,
-      search: params.search,
-      active: params.active,
     },
   });
 }

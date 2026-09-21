@@ -269,16 +269,21 @@ export interface ClientCreate {
 export type ClientUpdate = Partial<ClientCreate>;
 
 /**
- * Filtros de listagem de clientes (RF03).
+ * Parametros de listagem de clientes (RF03).
  *
- * PREVISTO quanto a `search` e `active`: o contrato de `GET /api/v1/clients`
- * hoje declara apenas `page` e `size`, e o servico ignora o resto. Confirmar
- * junto com a tela de listagem, que e quem precisa do filtro.
+ * DERIVADO: `GET /api/v1/clients` declara somente `page` e `size`, e o tipo
+ * para aqui. Ate a tela de listagem existir, este tipo previa tambem `search` e
+ * `active`; a tela chegou e a previsao nao se confirmou. Mante-los custaria
+ * mais do que a busca que prometem: o servico descarta parametro desconhecido,
+ * entao `listClients({ search })` devolveria a base inteira paginada, e a tela
+ * mostraria a primeira pagina como se fosse o resultado da busca. Filtrar as 20
+ * linhas ja recebidas seria a mesma mentira, so que mais convincente.
+ *
+ * Busca por nome e recorte por situacao sao desejaveis nesta tela. Entram aqui
+ * depois de entrarem em `packages/contracts/openapi/pipeline-service.yaml` e no
+ * servico (RNF02) - contrato antes de codigo, nao o contrario.
  */
-export interface ClientListParams extends PageParams {
-  readonly search?: string;
-  readonly active?: boolean;
-}
+export type ClientListParams = PageParams;
 
 // ---------------------------------------------------------------------------
 // Ingestao - PREVISTO (RF09, RF10), conforme `raw_inputs` no dicionario

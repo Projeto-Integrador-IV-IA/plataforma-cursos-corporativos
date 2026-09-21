@@ -53,12 +53,18 @@ afterEach(() => {
 });
 
 describe('modulos de dominio', () => {
-  it('clientes: lista com filtro e cadastra (RF01, RF03)', async () => {
+  it('clientes: lista paginada e cadastra (RF01, RF03)', async () => {
     vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
     stubFetch({ items: [], total: 0, page: 1, size: 20 });
 
-    await listClients({ search: 'acme', active: true });
-    expect(lastCall().url).toBe(`${BASE_URL}/clients?search=acme&active=true`);
+    // O contrato declara `page` e `size` e mais nada. A assercao existe para
+    // travar isso: parametro de busca inventado aqui voltaria a base inteira
+    // com cara de resultado filtrado.
+    await listClients({ page: 2, size: 50 });
+    expect(lastCall().url).toBe(`${BASE_URL}/clients?page=2&size=50`);
+
+    await listClients();
+    expect(lastCall().url).toBe(`${BASE_URL}/clients`);
 
     await createClient({ name: 'Acme' });
     expect(lastCall().url).toBe(`${BASE_URL}/clients`);
