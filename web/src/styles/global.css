@@ -302,3 +302,142 @@ body {
   outline: 2px solid var(--cor-texto);
   outline-offset: 2px;
 }
+
+/*
+ * Listagem de demandas (RF03).
+ *
+ * Os nomes sao prefixados por `demand-` de proposito: a tabela de clientes
+ * chega em outro card e as duas ainda nao compartilham forma o bastante para
+ * justificar um componente de tabela generico. Quando compartilharem, estas
+ * regras viram a base dele.
+ */
+
+.demand-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.demand-list__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco);
+  align-items: flex-end;
+}
+
+.demand-list__filters .form__field {
+  min-width: 14rem;
+}
+
+.demand-list__state {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
+.demand-list__state p {
+  margin: 0 0 0.5rem;
+}
+
+.demand-list__state p:last-child {
+  margin-bottom: 0;
+}
+
+.demand-list__state--error {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.demand-list__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espaco);
+  flex-wrap: wrap;
+}
+
+.demand-list__position {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.demand-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  text-align: left;
+}
+
+.demand-table__caption {
+  padding: 0.75rem var(--espaco);
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.demand-table th,
+.demand-table td {
+  padding: 0.6rem var(--espaco);
+  border-top: 1px solid var(--cor-borda);
+  vertical-align: top;
+  font-weight: 400;
+}
+
+.demand-table thead th {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--cor-texto-suave);
+  white-space: nowrap;
+}
+
+.demand-table__demand {
+  font-weight: 600;
+}
+
+.demand-table__demand a:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
+}
+
+.demand-table__muted {
+  color: var(--cor-texto-suave);
+  text-decoration: none;
+}
+
+.demand-table__stage,
+.demand-table__status {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.demand-table__status--aberta {
+  border-color: var(--cor-destaque);
+  color: var(--cor-destaque);
+}
+
+.demand-table__status--ganha {
+  border-color: var(--cor-sucesso);
+  background: var(--cor-sucesso-fundo);
+  color: var(--cor-sucesso);
+}
+
+.demand-table__status--perdida {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.demand-table__status--cancelada {
+  color: var(--cor-texto-suave);
+}
