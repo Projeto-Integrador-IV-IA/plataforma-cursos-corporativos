@@ -270,3 +270,27 @@ def test_entrada_invalida_e_recusada_antes_de_chamar_o_provedor(
 
     assert resposta.status_code == 422, rotulo
     assert provider.chamadas == [], rotulo
+
+
+def test_exemplo_do_swagger_obedece_ao_dominio() -> None:
+    """O exemplo da documentacao tem de ser uma resposta que o dominio aceita.
+
+    Sem esta trava o exemplo envelhece calado: ele nao passa por validacao em
+    nenhum outro lugar, e foi assim que ficou com a forma antiga de
+    ``campos_ausentes`` depois que o dominio mudou.
+    """
+
+    from app.domain.course import StructuredCourse
+    from app.prompts import carregar_prompt
+    from app.schemas.structuring import EXEMPLO_DE_REQUISICAO, EXEMPLO_DE_RESPOSTA
+    from app.services.structuring_service import DEFAULT_PROMPT_VERSION, EXTRACTION_PROMPT_NAME
+
+    curso = StructuredCourse.model_validate(EXEMPLO_DE_RESPOSTA["course"])
+    assert list(curso.to_canonical_dict()) == list(EXEMPLO_DE_RESPOSTA["course"])
+
+    prompt_do_exemplo = EXEMPLO_DE_RESPOSTA["execution"]["prompt"]
+    assert prompt_do_exemplo == f"{EXTRACTION_PROMPT_NAME}.{DEFAULT_PROMPT_VERSION}"
+    assert EXEMPLO_DE_REQUISICAO["prompt_version"] == DEFAULT_PROMPT_VERSION
+    assert carregar_prompt(EXTRACTION_PROMPT_NAME, DEFAULT_PROMPT_VERSION).metadados["status"] == (
+        "ativo"
+    )

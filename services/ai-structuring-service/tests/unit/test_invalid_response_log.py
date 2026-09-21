@@ -27,6 +27,8 @@ import pytest
 from app.core.exceptions import LLMInvalidResponseError
 from app.providers import HttpLLMProvider, MockLLMProvider
 from app.services.structuring_service import (
+    DEFAULT_PROMPT_VERSION,
+    EXTRACTION_PROMPT_NAME,
     RAW_RESPONSE_LOG_LIMIT,
     RawDemand,
     StructuringService,
@@ -95,7 +97,8 @@ async def test_resposta_fora_do_schema_e_registrada_em_log(
     assert len(alertas) == 1
     registro = alertas[0].getMessage()
     assert "dem-2026-0042" in registro
-    assert "extract-requirements.v2" in registro
+    # Derivado do catalogo: fixar o numero quebraria a cada prompt novo.
+    assert f"{EXTRACTION_PROMPT_NAME}.{DEFAULT_PROMPT_VERSION}" in registro
     assert "sobrando" in registro
 
 
