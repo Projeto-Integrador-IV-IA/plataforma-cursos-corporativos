@@ -319,22 +319,6 @@ body {
   margin-top: var(--espaco);
 }
 
-/*
- * Detalhe da demanda (RF02, card #72).
- *
- * Blocos empilhados com um indice de ancoras no topo: o conteudo inteiro fica
- * no DOM, e o indice so leva ate ele. Cada bloco e um cartao com borda, para a
- * leitura separar contexto, cliente, etapa, fontes e artefatos sem depender de
- * cor.
- */
-
-.demand-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espaco);
-  margin-top: var(--espaco);
-}
-
 .demand-list__filters {
   display: flex;
   flex-wrap: wrap;
@@ -354,39 +338,6 @@ body {
   color: var(--cor-texto-suave);
 }
 
-.demand-detail__headline {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.demand-detail__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin: 0;
-}
-
-.demand-detail__index-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  list-style: none;
-  margin: 0;
-  padding: 0.5rem 0;
-  border-top: 1px solid var(--cor-borda);
-  border-bottom: 1px solid var(--cor-borda);
-  font-size: 0.875rem;
-}
-
-.demand-detail__section {
-  padding: var(--espaco);
-  border: 1px solid var(--cor-borda);
-  border-radius: var(--raio);
-  background: var(--cor-superficie);
-  color: var(--cor-texto-suave);
-}
-
 .demand-list__state p {
   margin: 0 0 0.5rem;
 }
@@ -397,51 +348,6 @@ body {
 
 .demand-list__state--error {
   border-color: var(--cor-erro);
-}
-
-.demand-detail__section-title {
-  margin: 0 0 0.75rem;
-  font-size: 1.05rem;
-}
-
-.demand-detail__fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.75rem;
-  margin: 0 0 var(--espaco);
-}
-
-.demand-detail__field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.demand-detail__term {
-  color: var(--cor-texto-suave);
-  font-size: 0.8125rem;
-}
-
-.demand-detail__value {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.demand-detail__empty {
-  margin: 0;
-  padding: 0.75rem;
-  border: 1px dashed var(--cor-borda);
-  border-radius: var(--raio);
-  color: var(--cor-texto-suave);
-}
-
-.demand-detail__failure {
-  margin-top: var(--espaco);
-  padding: 0.75rem var(--espaco);
-  border: 1px solid var(--cor-erro);
-  border-left-width: 4px;
-  border-radius: var(--raio);
   background: var(--cor-erro-fundo);
   color: var(--cor-erro);
 }
@@ -455,32 +361,6 @@ body {
 }
 
 .demand-list__position {
-  margin: 0;
-  color: var(--cor-texto-suave);
-  font-size: 0.875rem;
-}
-
-.demand-detail__artifacts {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.demand-detail__artifact {
-  padding: 0.75rem;
-  border: 1px solid var(--cor-borda);
-  border-radius: var(--raio);
-}
-
-.demand-detail__artifact-title {
-  margin: 0 0 0.25rem;
-  font-weight: 600;
-}
-
-.demand-detail__artifact-meta {
   margin: 0;
   color: var(--cor-texto-suave);
   font-size: 0.875rem;
@@ -560,6 +440,127 @@ body {
 
 .demand-table__status--cancelada {
   color: var(--cor-texto-suave);
+}
+
+/*
+ * Detalhe da demanda (RF02, card #72).
+ *
+ * Blocos empilhados com um indice de ancoras no topo: o conteudo inteiro fica
+ * no DOM, e o indice so leva ate ele. Cada bloco e um cartao com borda, para a
+ * leitura separar contexto, cliente, etapa, fontes e artefatos sem depender de
+ * cor.
+ */
+
+.demand-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.demand-detail__headline {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.demand-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+.demand-detail__index-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--cor-borda);
+  border-bottom: 1px solid var(--cor-borda);
+  font-size: 0.875rem;
+}
+
+.demand-detail__section {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.demand-detail__section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.demand-detail__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 var(--espaco);
+}
+
+.demand-detail__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.demand-detail__term {
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+.demand-detail__value {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.demand-detail__empty {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: var(--raio);
+  color: var(--cor-texto-suave);
+}
+
+.demand-detail__failure {
+  margin-top: var(--espaco);
+  padding: 0.75rem var(--espaco);
+  border: 1px solid var(--cor-erro);
+  border-left-width: 4px;
+  border-radius: var(--raio);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.demand-detail__artifacts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.demand-detail__artifact {
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.demand-detail__artifact-title {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.demand-detail__artifact-meta {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
 }
 
 /* Acao secundaria (cancelar): mesma forma do botao principal, sem o peso. */
