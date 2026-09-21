@@ -3,7 +3,8 @@
  *
  * Rotas previstas:
  *   /login                        autenticacao (RF16)
- *   /clientes                     lista e cadastro de clientes (RF01, RF03)
+ *   /clientes                     lista de clientes (RF01, RF03)
+ *   /clientes/novo                cadastro de empresa cliente (RF01)
  *   /clientes/:clientId           detalhe do cliente
  *   /demandas                     lista com filtro por status, cliente, periodo (RF02, RF03)
  *   /demandas/nova                abertura de negociacao vinculada a cliente (RF02)
@@ -27,6 +28,7 @@ import { App } from '@/app/App';
 import { PATHS } from '@/app/paths';
 import { ArtifactVersionsPage } from '@/pages/artifact-versions/ArtifactVersionsPage';
 import { ClientDetailPage } from '@/pages/client-detail/ClientDetailPage';
+import { ClientNewPage } from '@/pages/client-new/ClientNewPage';
 import { ClientsPage } from '@/pages/clients/ClientsPage';
 import { DemandDetailPage } from '@/pages/demand-detail/DemandDetailPage';
 import { DemandIngestionPage } from '@/pages/demand-ingestion/DemandIngestionPage';
@@ -47,6 +49,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to={PATHS.clients} replace /> },
       { path: PATHS.clients, element: <ClientsPage /> },
+      { path: PATHS.clientNew, element: <ClientNewPage /> },
       { path: PATHS.clientDetail, element: <ClientDetailPage /> },
       { path: PATHS.demands, element: <DemandsPage /> },
       { path: PATHS.demandNew, element: <DemandNewPage /> },

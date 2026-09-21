@@ -1,29 +1,34 @@
 /**
- * Lista de demandas com filtro por status, cliente e periodo (RF02, RF03).
+ * Lista de demandas com filtro por situacao e cliente (RF02, RF03).
  *
- * A abertura de negociacao ja existe, em `/demandas/nova` (RF02). O que falta
- * aqui e a listagem em si.
+ * A tela e a moldura: titulo, o acesso a abertura de negociacao (RF02, que ja
+ * existe em `/demandas/nova`) e a listagem em si, que mora em
+ * `features/demands/DemandList`.
  *
- * TODO(RF03): consumir GET /api/v1/demands com os filtros do contrato
- * (?status=, ?client_id=, ?stage=, ?owner_id=, ?from=, ?to=, ?limit=, ?offset=).
+ * TODO(RF03): oferecer tambem o filtro por periodo (`?from=`, `?to=`), que o
+ * contrato ja aceita.
  */
 
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
-import { PagePlaceholder } from '@/components/PagePlaceholder';
+import { DemandList } from '@/features/demands/DemandList';
 
 export function DemandsPage() {
   return (
-    <>
-      <PagePlaceholder
-        title="Demandas"
-        requirements={['RF02', 'RF03']}
-        description="Demandas vinculadas a cliente, com filtro por status, cliente e periodo."
-      />
+    <section className="page">
+      <header className="page__header">
+        <h1 className="page__title">Demandas</h1>
+        <p className="page__requirements">
+          <span className="tag">RF02</span>
+          <span className="tag">RF03</span>
+        </p>
+      </header>
       <p className="page__description">
+        Demandas vinculadas a cliente, da mais recente para a mais antiga.{' '}
         <Link to={PATHS.demandNew}>Abrir nova demanda</Link>
       </p>
-    </>
+      <DemandList />
+    </section>
   );
 }

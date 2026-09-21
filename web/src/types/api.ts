@@ -225,10 +225,13 @@ export interface DemandDetail extends DemandRead {
 }
 
 // ---------------------------------------------------------------------------
-// Clientes - PREVISTO (RF01), conforme `clients` no dicionario de dados
+// Clientes - DERIVADO de packages/contracts/openapi/pipeline-service.yaml
 // ---------------------------------------------------------------------------
 
-/** Empresa cliente. `segment` e insumo da estruturacao por IA (RF11). */
+/**
+ * Empresa cliente, espelho de `ClientRead`. `segment` e insumo da estruturacao
+ * por IA (RF11).
+ */
 export interface Client {
   readonly id: Uuid;
   readonly name: string;
@@ -243,7 +246,7 @@ export interface Client {
   readonly updated_at: IsoDateTime;
 }
 
-/** Cadastro de cliente: so `name` e obrigatorio. */
+/** Corpo de `POST /api/v1/clients`: so `name` e obrigatorio. */
 export interface ClientCreate {
   readonly name: string;
   readonly cnpj?: string | null;
@@ -254,10 +257,24 @@ export interface ClientCreate {
   readonly notes?: string | null;
 }
 
-/** Edicao de cliente. Desativacao e logica, por `active`. */
-export type ClientUpdate = Partial<ClientCreate> & { readonly active?: boolean };
+/**
+ * Corpo de `PATCH /api/v1/clients/{id}`: campos omitidos permanecem
+ * inalterados, e campo opcional enviado como `null` e limpo.
+ *
+ * `active` NAO entra aqui. O schema do contrato recusa propriedade
+ * desconhecida (`additionalProperties: false`) e declara que a inativacao
+ * pertence ao RF01.3, em operacao propria - enviar `active` nesta chamada
+ * devolveria 422.
+ */
+export type ClientUpdate = Partial<ClientCreate>;
 
-/** Filtros de listagem de clientes (RF03). */
+/**
+ * Filtros de listagem de clientes (RF03).
+ *
+ * PREVISTO quanto a `search` e `active`: o contrato de `GET /api/v1/clients`
+ * hoje declara apenas `page` e `size`, e o servico ignora o resto. Confirmar
+ * junto com a tela de listagem, que e quem precisa do filtro.
+ */
 export interface ClientListParams extends PageParams {
   readonly search?: string;
   readonly active?: boolean;
