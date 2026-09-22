@@ -24,9 +24,14 @@ TEXTO = "Oi! Queremos formar 25 tecnicos na NR-12 ate marco.\n-- enviado do meu 
 class PipelineDublado:
     """Registra o que recebeu para que o teste possa afirmar o que foi enviado."""
 
-    def __init__(self, erro: Exception | None = None) -> None:
+    def __init__(
+        self, erro: Exception | None = None, erro_na_sanitizacao: Exception | None = None
+    ) -> None:
         self.erro = erro
+        self.erro_na_sanitizacao = erro_na_sanitizacao
         self.chamadas: list[tuple[RawDemand, UUID]] = []
+        self.sanitizacoes: list[tuple[UUID, str]] = []
+        self.ordem: list[str] = []
 
     def persist_raw_demand(
         self,
@@ -35,6 +40,7 @@ class PipelineDublado:
         author_id: UUID,
         request_id: str | None = None,
     ) -> PersistedRawDemand:
+        self.ordem.append("original")
         self.chamadas.append((raw_demand, author_id))
         if self.erro is not None:
             raise self.erro
@@ -44,6 +50,14 @@ class PipelineDublado:
             source_type=raw_demand.source_type,
             created_at=datetime.now(UTC),
         )
+
+    def persist_normalization(
+        self, raw_input_id: UUID, normalized_content: str, *, request_id: str | None = None
+    ) -> None:
+        self.ordem.append("sanitizado")
+        self.sanitizacoes.append((raw_input_id, normalized_content))
+        if self.erro_na_sanitizacao is not None:
+            raise self.erro_na_sanitizacao
 
 
 @pytest.fixture
@@ -135,3 +149,70 @@ def test_capture_without_operator_header_is_refused(
 
     assert resposta.status_code == 422
     assert pipeline.chamadas == []
+
+
+def test_the_original_is_persisted_before_the_sanitized_copy(
+    api: TestClient, pipeline: PipelineDublado
+) -> None:
+    """A ordem e o requisito: sanitizar antes de gravar arriscaria perder o bruto."""
+
+    captar(api)
+
+    assert pipeline.ordem == ["original", "sanitizado"]
+
+
+def test_the_sanitized_copy_goes_to_the_record_just_created(
+    api: TestClient, pipeline: PipelineDublado
+) -> None:
+    resposta = captar(api)
+
+    raw_input_id, conteudo = pipeline.sanitizacoes[0]
+    assert str(raw_input_id) == resposta.json()["raw_input_id"]
+    assert conteudo != ""
+
+
+def test_failure_to_save_the_sanitized_copy_does_not_lose_the_capture() -> None:
+    """Criterio de aceite do #30: falha em etapa seguinte nao derruba o bruto.
+
+    Responder erro aqui faria o operador colar o texto outra vez e duplicar a
+    fonte, justamente o oposto do que o requisito protege. A captacao confirma,
+    e o registro fica com ``normalized_content`` nulo para o reprocessamento.
+    """
+
+    pipeline = PipelineDublado(
+        erro_na_sanitizacao=UpstreamError(
+            status_code=504, code="PIPELINE_TIMEOUT", message="demorou"
+        )
+    )
+    application = create_app()
+    application.dependency_overrides[get_pipeline_client] = lambda: pipeline
+    with TestClient(application, raise_server_exceptions=False) as api:
+        resposta = captar(api)
+
+    assert resposta.status_code == 201
+    assert resposta.json()["status"] == "RECEBIDA"
+    assert len(pipeline.chamadas) == 1
+
+
+def test_failure_to_save_the_sanitized_copy_is_logged_without_client_text(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """O alerta precisa achar o registro depois, sem vazar o texto do cliente (RNF11)."""
+
+    pipeline = PipelineDublado(
+        erro_na_sanitizacao=UpstreamError(
+            status_code=502, code="PIPELINE_UNAVAILABLE", message="fora do ar"
+        )
+    )
+    application = create_app()
+    application.dependency_overrides[get_pipeline_client] = lambda: pipeline
+    with (
+        caplog.at_level("WARNING"),
+        TestClient(application, raise_server_exceptions=False) as api,
+    ):
+        resposta = captar(api)
+
+    registro = chr(10).join(caplog.messages)
+    assert "PIPELINE_UNAVAILABLE" in registro
+    assert resposta.json()["raw_input_id"] in registro
+    assert TEXTO not in registro

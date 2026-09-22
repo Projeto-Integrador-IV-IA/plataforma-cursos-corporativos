@@ -18,8 +18,7 @@ def test_removes_email_headers_signature_html_and_redundant_spacing() -> None:
     result = normalize_text(original, SourceKind.EMAIL)
 
     assert result == (
-        "Precisamos de um curso de liderança para 20 gestores.\n\n"
-        "Carga horária desejada: 8 horas."
+        "Precisamos de um curso de liderança para 20 gestores.\n\nCarga horária desejada: 8 horas."
     )
     assert original.startswith("From: cliente@example.com\r\n")
 

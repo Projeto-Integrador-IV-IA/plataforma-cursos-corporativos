@@ -468,6 +468,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}/normalization:
+    patch:
+      tags:
+      - raw-inputs
+      summary: Persistir texto sanitizado
+      description: Preenche normalized_content depois da persistencia do original. Esta operacao nunca
+        altera original_content.
+      operationId: normalize_raw_input_api_v1_raw_inputs__raw_input_id__normalization_patch
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RawInputNormalization'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputRead'
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Conteudo normalizado ou identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -1132,6 +1173,17 @@ components:
       required:
       - error
       title: RawInputErrorResponse
+    RawInputNormalization:
+      properties:
+        normalized_content:
+          type: string
+          title: Normalized Content
+      additionalProperties: false
+      type: object
+      required:
+      - normalized_content
+      title: RawInputNormalization
+      description: Copia sanitizada; o contrato nao aceita o conteudo original nesta operacao.
     RawInputRead:
       properties:
         id:
@@ -1145,12 +1197,20 @@ components:
         original_content:
           type: string
           title: Original Content
+        normalized_content:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Normalized Content
         source:
           $ref: '#/components/schemas/RawInputSource'
         author_id:
           type: string
           format: uuid
           title: Author Id
+        truncated:
+          type: boolean
+          title: Truncated
         created_at:
           type: string
           format: date-time
@@ -1160,8 +1220,10 @@ components:
       - id
       - demand_id
       - original_content
+      - normalized_content
       - source
       - author_id
+      - truncated
       - created_at
       title: RawInputRead
       description: Fonte confirmada pelo banco antes de qualquer processamento posterior.

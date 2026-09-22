@@ -4,6 +4,7 @@ import html
 import re
 import unicodedata
 from html.parser import HTMLParser
+from typing import ClassVar
 
 from app.domain.raw_demand import SourceKind
 
@@ -25,9 +26,13 @@ _SIGNATURE_START = re.compile(
 _WHATSAPP_PREFIXES = (
     re.compile(
         r"^\[?\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?[, ]+\d{1,2}:\d{2}"
-        r"(?::\d{2})?\]?\s*(?:[-–—]\s*)?(?:[^:]{1,80}:\s*)?"
+        # Os travessoes nao sao engano: o proprio aplicativo separa carimbo e autor
+        # com hifen, travessao curto ou travessao longo, conforme a exportacao.
+        r"(?::\d{2})?\]?\s*(?:[-–—]\s*)?(?:[^:]{1,80}:\s*)?"  # noqa: RUF001
     ),
-    re.compile(r"^\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*(?:[-–—]\s*)?(?:[^:]{1,80}:\s*)?"),
+    re.compile(
+        r"^\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*(?:[-–—]\s*)?(?:[^:]{1,80}:\s*)?"  # noqa: RUF001
+    ),
 )
 _MARKDOWN_LINK = re.compile(r"!?\[([^\]]+)]\(([^)]+)\)")
 _MARKDOWN_DECORATION = re.compile(r"(?<!\w)(?:\*\*|__|~~|`)(.+?)(?:\*\*|__|~~|`)(?!\w)")
@@ -40,7 +45,19 @@ _BLANK_LINES = re.compile(r"\n{3,}")
 class _TextExtractor(HTMLParser):
     """Extrai texto visivel e conserva separacao entre blocos HTML."""
 
-    _BLOCK_TAGS = {"br", "div", "p", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6"}
+    _BLOCK_TAGS: ClassVar[set[str]] = {
+        "br",
+        "div",
+        "p",
+        "li",
+        "tr",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+    }
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
