@@ -27,19 +27,22 @@ class DemandRepository:
         self.session.refresh(demand)
         return demand
 
-    def list(
-        self,
+    @staticmethod
+    def _filters(
         *,
-        client_id: UUID | None = None,
-        stage: PipelineStage | None = None,
-        owner_id: UUID | None = None,
-        created_from: datetime | None = None,
-        created_to: datetime | None = None,
-        status: DemandStatus | None = None,
-        limit: int,
-        offset: int,
-    ) -> tuple[list[Demand], int]:
-        """Lista demandas com filtros em AND e total antes do recorte da pagina."""
+        client_id: UUID | None,
+        stage: PipelineStage | None,
+        owner_id: UUID | None,
+        created_from: datetime | None,
+        created_to: datetime | None,
+        status: DemandStatus | None,
+    ) -> list["sa.ColumnElement[bool]"]:
+        """Monta os filtros em AND usados pela listagem (RF03) e pelo quadro (RF05).
+
+        Um lugar so: se a listagem e o quadro filtrassem por caminhos
+        diferentes, o total de uma etapa no quadro poderia discordar do total
+        que a listagem devolve para a mesma etapa.
+        """
 
         filters: list[sa.ColumnElement[bool]] = []
         if client_id is not None:
@@ -54,6 +57,69 @@ class DemandRepository:
             filters.append(Demand.created_at <= created_to)
         if status is not None:
             filters.append(Demand.status == status.value)
+        return filters
+
+    # Definido antes de ``list`` de proposito: o metodo ``list`` sombreia o
+    # builtin dentro do corpo da classe, e uma anotacao ``list[...]`` escrita
+    # depois dele resolveria para o metodo em vez do tipo.
+    def list_for_board(
+        self,
+        *,
+        stage: PipelineStage,
+        client_id: UUID | None = None,
+        owner_id: UUID | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+        status: DemandStatus | None = None,
+        limit: int,
+    ) -> tuple[list[Demand], int]:
+        """Cartoes de uma etapa do quadro, com o total antes do recorte (RF05).
+
+        Carrega cliente e responsavel junto: o cartao mostra os dois nomes, e
+        sem isso a montagem do quadro faria uma consulta por demanda.
+        """
+
+        filters = self._filters(
+            client_id=client_id,
+            stage=stage,
+            owner_id=owner_id,
+            created_from=created_from,
+            created_to=created_to,
+            status=status,
+        )
+
+        total = self.session.scalar(sa.select(sa.func.count(Demand.id)).where(*filters)) or 0
+        items_statement = (
+            sa.select(Demand)
+            .where(*filters)
+            .options(selectinload(Demand.client), selectinload(Demand.owner))
+            .order_by(Demand.created_at.desc(), Demand.id.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(items_statement).all()), total
+
+    def list(
+        self,
+        *,
+        client_id: UUID | None = None,
+        stage: PipelineStage | None = None,
+        owner_id: UUID | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+        status: DemandStatus | None = None,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[Demand], int]:
+        """Lista demandas com filtros em AND e total antes do recorte da pagina."""
+
+        filters = self._filters(
+            client_id=client_id,
+            stage=stage,
+            owner_id=owner_id,
+            created_from=created_from,
+            created_to=created_to,
+            status=status,
+        )
 
         total_statement = sa.select(sa.func.count(Demand.id)).where(*filters)
         total = self.session.scalar(total_statement) or 0

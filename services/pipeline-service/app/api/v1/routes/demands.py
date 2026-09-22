@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ValidationError, issue_de_validacao
+from app.api.v1._validation import validate_period
 from app.db.session import get_session
 from app.domain.enums import DemandStatus, PipelineStage
 from app.repositories.demand_repository import DemandRepository
@@ -64,7 +64,7 @@ def list_demands(
 ) -> PaginatedResponse[DemandRead]:
     """Aplica filtros combinaveis e devolve o total antes da paginacao."""
 
-    _validate_period(created_from, created_to)
+    validate_period(created_from, created_to)
 
     items, total = DemandRepository(session).list(
         client_id=client_id,
@@ -82,52 +82,6 @@ def list_demands(
         page=(offset // limit) + 1,
         size=limit,
     )
-
-
-def _validate_period(created_from: datetime | None, created_to: datetime | None) -> None:
-    """Exige fuso e uma faixa cronologica coerente para o filtro de periodo.
-
-    Levanta ``ValidationError`` para que a resposta saia pelo mesmo handler do
-    restante do servico, com o ``details.issues`` de sempre.
-    """
-
-    issues: list[dict[str, object]] = []
-    if created_from is not None and created_from.utcoffset() is None:
-        issues.append(
-            issue_de_validacao(
-                localizacao=["query", "from"],
-                mensagem="A data inicial deve informar o fuso horario.",
-                tipo="value_error.timezone",
-            )
-        )
-    if created_to is not None and created_to.utcoffset() is None:
-        issues.append(
-            issue_de_validacao(
-                localizacao=["query", "to"],
-                mensagem="A data final deve informar o fuso horario.",
-                tipo="value_error.timezone",
-            )
-        )
-    if (
-        not issues
-        and created_from is not None
-        and created_to is not None
-        and created_from > created_to
-    ):
-        issues.append(
-            issue_de_validacao(
-                localizacao=["query", "to"],
-                mensagem="A data final deve ser maior ou igual a data inicial.",
-                tipo="value_error.period",
-            )
-        )
-
-    if issues:
-        raise ValidationError(
-            code="VALIDATION_ERROR",
-            message="Os dados informados sao invalidos.",
-            details={"issues": issues},
-        )
 
 
 @router.post(

@@ -497,6 +497,103 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/pipeline:
+    get:
+      tags:
+      - pipeline
+      summary: Consultar demandas agrupadas por etapa
+      description: Devolve as cinco etapas do pipeline, cada uma com os cartoes da etapa e o total de
+        demandas que a atendem. As etapas vazias tambem vem, porque o quadro tem colunas fixas. Aceita
+        os mesmos filtros da listagem de demandas, combinados com AND; o filtro por etapa nao se aplica
+        aqui, ja que o agrupamento e por etapa.
+      operationId: get_pipeline_board_api_v1_pipeline_get
+      parameters:
+      - name: client_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Client Id
+      - name: owner_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Owner Id
+      - name: from
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          description: Inicio inclusivo do periodo de criacao, com fuso.
+          title: From
+        description: Inicio inclusivo do periodo de criacao, com fuso.
+      - name: to
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          description: Fim inclusivo do periodo de criacao, com fuso.
+          title: To
+        description: Fim inclusivo do periodo de criacao, com fuso.
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DemandStatus'
+          - type: 'null'
+          description: Situacao atual da demanda.
+          title: Status
+        description: Situacao atual da demanda.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Cartoes trazidos por etapa; o total nao e afetado.
+          default: 20
+          title: Limit
+        description: Cartoes trazidos por etapa; o total nao e afetado.
+      - name: stage
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa so, use GET /api/v1/demands?stage=.'
+          deprecated: true
+          title: Stage
+        description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa so, use GET /api/v1/demands?stage=.'
+        deprecated: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineBoard'
+        '422':
+          description: Filtros invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/demands/{demand_id}/raw-inputs:
     post:
       tags:
@@ -1391,6 +1488,80 @@ components:
       - page
       - size
       title: PaginatedResponse[DemandRead]
+    PipelineBoard:
+      properties:
+        stages:
+          items:
+            $ref: '#/components/schemas/PipelineStageGroup'
+          type: array
+          title: Stages
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - stages
+      - total
+      title: PipelineBoard
+      description: 'Quadro completo.
+
+
+        As cinco etapas vem sempre, inclusive as vazias: o quadro tem colunas
+
+        fixas, e omitir a etapa sem demanda faria a interface ter de inventar quais
+
+        colunas desenhar.'
+    PipelineCardPersonRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: PipelineCardPersonRead
+      description: Cliente ou responsavel exibido no cartao, reduzido a nome e identificador.
+    PipelineCardRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        title:
+          type: string
+          title: Title
+        status:
+          $ref: '#/components/schemas/DemandStatus'
+        client:
+          $ref: '#/components/schemas/PipelineCardPersonRead'
+        owner:
+          anyOf:
+          - $ref: '#/components/schemas/PipelineCardPersonRead'
+          - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - title
+      - status
+      - client
+      - owner
+      - created_at
+      - updated_at
+      title: PipelineCardRead
+      description: Demanda como ela aparece na coluna de uma etapa.
     PipelineStage:
       type: string
       enum:
@@ -1401,6 +1572,32 @@ components:
       - ACOMPANHAMENTO
       title: PipelineStage
       description: Etapas percorridas por uma demanda no pipeline (RF05).
+    PipelineStageGroup:
+      properties:
+        stage:
+          $ref: '#/components/schemas/PipelineStage'
+        total:
+          type: integer
+          title: Total
+        items:
+          items:
+            $ref: '#/components/schemas/PipelineCardRead'
+          type: array
+          title: Items
+      type: object
+      required:
+      - stage
+      - total
+      - items
+      title: PipelineStageGroup
+      description: 'Uma coluna do quadro.
+
+
+        ``total`` conta todas as demandas da etapa que passam pelos filtros, nao
+
+        apenas as que vieram em ``items``: a coluna precisa mostrar quantas existem
+
+        mesmo quando o recorte nao trouxe todas.'
     RawInputCreate:
       properties:
         original_content:
