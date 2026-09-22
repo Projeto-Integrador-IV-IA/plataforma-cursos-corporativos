@@ -24,6 +24,11 @@ class ArtifactRepository:
         artifact.source_links.extend(source_links)
         self.session.add(artifact)
         self.session.flush()
+        # Sem expirar, a resposta da criacao devolveria as colecoes na ordem em
+        # que foram montadas em memoria, enquanto a consulta posterior usa o
+        # ``order_by`` do relacionamento - o mesmo artefato saia com as fontes
+        # em ordens diferentes conforme a rota. Expirar obriga a releitura.
+        self.session.expire(artifact, ["versions", "source_links"])
         return self.get_by_id(artifact.id) or artifact
 
     def get_sources(self, source_ids: list[UUID]) -> list[RawInput]:

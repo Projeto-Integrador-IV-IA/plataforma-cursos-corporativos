@@ -1,73 +1,18 @@
 """Aceite RF16.1: resultado e fontes persistidos como um unico agregado."""
 
 import sqlite3
-from collections.abc import Iterator
-from pathlib import Path
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 import sqlalchemy as sa
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
 
-from app.db.session import get_session
-from app.main import create_app
 from app.models import Artifact, ArtifactSource, ArtifactVersion, Client, Demand, RawInput, User
 from app.repositories.artifact_repository import ArtifactRepository
-
-
-@pytest.fixture
-def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
-    from app.core.config import get_settings
-
-    database_url = f"sqlite+pysqlite:///{(tmp_path / 'artifacts.sqlite3').as_posix()}"
-    monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("LOG_LEVEL", "INFO")
-    monkeypatch.setenv("PIPELINE_PORT", "8001")
-    monkeypatch.setenv("DATABASE_URL", database_url)
-    get_settings.cache_clear()
-    config = Config("alembic.ini")
-    command.upgrade(config, "head")
-    engine = sa.create_engine(
-        database_url,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    @sa.event.listens_for(engine, "connect")
-    def enable_foreign_keys(dbapi_connection: Any, _connection_record: Any) -> None:
-        dbapi_connection.execute("PRAGMA foreign_keys=ON")
-
-    try:
-        yield engine
-    finally:
-        engine.dispose()
-        command.downgrade(config, "base")
-        get_settings.cache_clear()
-
-
-@pytest.fixture
-def api(engine: Engine) -> Iterator[TestClient]:
-    application = create_app()
-
-    def session_override() -> Iterator[Session]:
-        with Session(engine, expire_on_commit=False) as session:
-            try:
-                yield session
-                session.commit()
-            except Exception:
-                session.rollback()
-                raise
-
-    application.dependency_overrides[get_session] = session_override
-    with TestClient(application) as client:
-        yield client
 
 
 @pytest.fixture
@@ -219,3 +164,83 @@ def test_swagger_documents_artifact_creation_and_consultation(api: TestClient) -
     assert {"get", "post"} == set(operations)
     assert {"201", "404", "409", "422"} <= set(operations["post"]["responses"])
     assert {"200", "404", "422"} <= set(operations["get"]["responses"])
+
+
+def test_sources_come_in_the_same_order_from_creation_and_from_the_query(
+    api: TestClient, demand_with_sources: tuple[UUID, list[UUID]]
+) -> None:
+    """Duas rotas, um artefato: a lista de fontes nao pode mudar de ordem entre elas.
+
+    A criacao devolvia as fontes na ordem em que o payload as listou, e a
+    consulta na ordem do banco. Quem exibisse o artefato veria as fontes
+    trocarem de lugar conforme a rota de onde vieram.
+    """
+
+    demand_id, source_ids = demand_with_sources
+    # Enviadas em ordem decrescente de identificador de proposito: e a ordem que
+    # o banco nao usa, entao o teste falha se a resposta ecoar o payload.
+    ao_contrario = sorted(source_ids, key=str, reverse=True)
+
+    criado = api.post(
+        f"/api/v1/demands/{demand_id}/artifacts",
+        json=artifact_payload(ao_contrario),
+    ).json()
+    consultado = api.get(f"/api/v1/demands/{demand_id}/artifacts").json()[0]
+
+    da_criacao = [fonte["id"] for fonte in criado["sources"]]
+    da_consulta = [fonte["id"] for fonte in consultado["sources"]]
+
+    assert da_criacao == da_consulta
+    assert da_criacao == sorted(da_criacao)
+
+
+def test_ai_version_cannot_exist_without_the_raw_output(
+    engine: Engine, demand_with_sources: tuple[UUID, list[UUID]]
+) -> None:
+    """Versao da IA sem o bruto nao e rastreavel: nao da para dizer o que gerou o quê."""
+
+    demand_id, _ = demand_with_sources
+    with Session(engine) as session:
+        artifact = Artifact(demand_id=demand_id, type="REQUISITOS_EXTRAIDOS", title="Sem bruto")
+        session.add(artifact)
+        session.flush()
+        session.add(
+            ArtifactVersion(
+                artifact_id=artifact.id,
+                number=1,
+                raw_content=None,
+                content={"tema": "Dados"},
+                origin="IA",
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def test_human_version_may_have_no_raw_output(
+    engine: Engine, demand_with_sources: tuple[UUID, list[UUID]]
+) -> None:
+    """Quem edita na revisao (RF14) nao produz saida de modelo; gravar "" seria mentira."""
+
+    demand_id, _ = demand_with_sources
+    with Session(engine) as session:
+        author = session.scalars(sa.select(User)).one()
+        artifact = Artifact(demand_id=demand_id, type="REQUISITOS_EXTRAIDOS", title="Revisado")
+        session.add(artifact)
+        session.flush()
+        session.add(
+            ArtifactVersion(
+                artifact_id=artifact.id,
+                number=1,
+                raw_content=None,
+                content={"tema": "Dados revisados"},
+                origin="HUMANO",
+                author_id=author.id,
+            )
+        )
+        session.commit()
+
+        gravada = session.scalars(
+            sa.select(ArtifactVersion).where(ArtifactVersion.origin == "HUMANO")
+        ).one()
+        assert gravada.raw_content is None

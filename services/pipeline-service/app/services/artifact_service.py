@@ -74,15 +74,15 @@ class ArtifactService:
             created = self.repository.create_result(artifact, version, links)
         except IntegrityError as exc:
             self.repository.rollback()
-            is_constraint_error = (
-                getattr(exc.orig, "sqlstate", None) in {"23503", "23505", "23514"}
-                or getattr(exc.orig, "sqlite_errorcode", None)
-                in {
-                    sqlite3.SQLITE_CONSTRAINT_CHECK,
-                    sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY,
-                    sqlite3.SQLITE_CONSTRAINT_UNIQUE,
-                }
-            )
+            is_constraint_error = getattr(exc.orig, "sqlstate", None) in {
+                "23503",
+                "23505",
+                "23514",
+            } or getattr(exc.orig, "sqlite_errorcode", None) in {
+                sqlite3.SQLITE_CONSTRAINT_CHECK,
+                sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY,
+                sqlite3.SQLITE_CONSTRAINT_UNIQUE,
+            }
             if not is_constraint_error:
                 raise
             raise ConflictError(
@@ -110,8 +110,7 @@ class ArtifactService:
             title=artifact.title,
             created_at=artifact.created_at,
             sources=[
-                ArtifactSourceRead.model_validate(link.raw_input)
-                for link in artifact.source_links
+                ArtifactSourceRead.model_validate(link.raw_input) for link in artifact.source_links
             ],
             versions=[ArtifactVersionRead.model_validate(version) for version in artifact.versions],
         )

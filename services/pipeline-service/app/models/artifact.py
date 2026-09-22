@@ -90,6 +90,10 @@ class ArtifactVersion(Base):
             name="human_requires_author",
         ),
         sa.CheckConstraint(
+            f"origin <> '{ArtifactOrigin.IA.value}' OR raw_content IS NOT NULL",
+            name="ia_requires_raw_content",
+        ),
+        sa.CheckConstraint(
             f"origin IN ({sql_enum_values(ArtifactOrigin)})",
             name="origin",
         ),
@@ -117,7 +121,10 @@ class ArtifactVersion(Base):
         nullable=False,
     )
     number: Mapped[int] = mapped_column(sa.Integer, nullable=False)
-    raw_content: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    # Nulo de proposito na versao humana: quem editou na revisao (RF14) nao tem
+    # saida bruta de modelo, e gravar "" seria registrar uma resposta que nunca
+    # existiu. O CHECK acima exige o bruto quando a origem e a IA.
+    raw_content: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     content: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False)
     origin: Mapped[str] = mapped_column(sa.Text, nullable=False)
     ai_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON_TYPE, nullable=True)

@@ -1,12 +1,18 @@
 """Andaime comum dos testes de integracao: schema migrado e registros base.
 
-Os testes de integracao rodam contra o schema real, aplicado pela migration
-inicial em um SQLite em memoria com ``PRAGMA foreign_keys=ON``. Constantes e
-inserts vivem aqui para que cada arquivo de teste trate de um assunto so.
+Os testes rodam contra o schema real, aplicado por **toda a cadeia Alembic** em
+um SQLite em memoria com ``PRAGMA foreign_keys=ON``. Constantes e inserts vivem
+aqui para que cada arquivo de teste trate de um assunto so.
+
+A cadeia inteira, e nao a migration inicial: enquanto este andaime aplicava um
+unico modulo escolhido a mao, ele divergia do banco de verdade assim que uma
+migration posterior mexia no schema - foi o que aconteceu quando o RF16.1
+acrescentou ``artifact_versions.raw_content``.
 """
 
 import importlib
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,7 +22,7 @@ from alembic.operations import Operations
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
-MIGRATION_MODULE = "app.db.migrations.versions.20260902_1200_enforce_referential_integrity"
+VERSIONS_PACKAGE = "app.db.migrations.versions"
 
 USER_ID = "00000000000000000000000000000001"
 CLIENT_ID = "00000000000000000000000000000002"
@@ -27,8 +33,32 @@ RAW_INPUT_ID = "00000000000000000000000000000006"
 ARTIFACT_ID = "00000000000000000000000000000007"
 
 
+def _migrations_in_order() -> list[Any]:
+    """Ordena os modulos de versao seguindo os elos ``down_revision``."""
+
+    diretorio = Path(importlib.import_module(VERSIONS_PACKAGE).__file__).parent
+    modulos = [
+        importlib.import_module(f"{VERSIONS_PACKAGE}.{arquivo.stem}")
+        for arquivo in sorted(diretorio.glob("*.py"))
+        if arquivo.stem != "__init__"
+    ]
+    por_revisao_anterior = {modulo.down_revision: modulo for modulo in modulos}
+
+    cadeia: list[Any] = []
+    anterior: str | None = None
+    while anterior in por_revisao_anterior:
+        modulo = por_revisao_anterior[anterior]
+        cadeia.append(modulo)
+        anterior = modulo.revision
+
+    if len(cadeia) != len(modulos):
+        nomes = {modulo.__name__ for modulo in modulos} - {m.__name__ for m in cadeia}
+        raise RuntimeError(f"migration fora da cadeia de revisoes: {sorted(nomes)}")
+    return cadeia
+
+
 def migrated_connection() -> Iterator[Connection]:
-    """Aplica a migration em um banco relacional com FKs habilitadas."""
+    """Aplica a cadeia completa em um banco relacional com FKs habilitadas."""
 
     engine = sa.create_engine("sqlite+pysqlite:///:memory:")
 
@@ -38,17 +68,26 @@ def migrated_connection() -> Iterator[Connection]:
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-    migration = importlib.import_module(MIGRATION_MODULE)
+    cadeia = _migrations_in_order()
 
     with engine.connect() as connection:
-        migration.op = Operations(MigrationContext.configure(connection))
-        migration.upgrade()
+        operacoes = Operations(MigrationContext.configure(connection))
+        for migration in cadeia:
+            migration.op = operacoes
+            migration.upgrade()
         connection.commit()
 
         yield connection
 
-        migration.downgrade()
+        # O desmonte roda com as FKs desligadas de proposito. O pragma existe
+        # para que o teste exercite as restricoes durante o uso; mante-lo aqui
+        # so faria o ``DROP TABLE`` tropecar nas linhas inseridas pelo proprio
+        # teste, escondendo o que a migration reversa realmente faz.
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+        for migration in reversed(cadeia):
+            migration.downgrade()
         connection.commit()
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
 
     engine.dispose()
 

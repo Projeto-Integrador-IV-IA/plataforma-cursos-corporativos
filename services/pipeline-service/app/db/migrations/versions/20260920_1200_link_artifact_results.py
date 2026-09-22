@@ -22,11 +22,14 @@ def upgrade() -> None:
             ["id", "demand_id"],
         )
 
+    # Nulo e permitido: a versao criada na revisao humana (RF14) nao tem saida
+    # bruta de modelo. O CHECK cobra o bruto apenas quando a origem e a IA.
     with op.batch_alter_table("artifact_versions") as batch_op:
-        batch_op.add_column(
-            sa.Column("raw_content", sa.Text(), nullable=False, server_default="")
+        batch_op.add_column(sa.Column("raw_content", sa.Text(), nullable=True))
+        batch_op.create_check_constraint(
+            op.f("ck_artifact_versions_ia_requires_raw_content"),
+            "origin <> 'IA' OR raw_content IS NOT NULL",
         )
-        batch_op.alter_column("raw_content", server_default=None)
 
     op.create_table(
         "artifact_sources",
@@ -65,6 +68,9 @@ def downgrade() -> None:
     op.drop_table("artifact_sources")
 
     with op.batch_alter_table("artifact_versions") as batch_op:
+        batch_op.drop_constraint(
+            op.f("ck_artifact_versions_ia_requires_raw_content"), type_="check"
+        )
         batch_op.drop_column("raw_content")
 
     with op.batch_alter_table("artifacts") as batch_op:

@@ -78,8 +78,9 @@ class RawInput(Base):
         foreign_keys="Artifact.raw_input_id",
         passive_deletes=True,
     )
+    # Sem ``passive_deletes``: a relacao e somente leitura, entao nao executa
+    # persistencia nenhuma e o parametro so gerava aviso do SQLAlchemy.
     artifact_source_links: Mapped[list["ArtifactSource"]] = relationship(
         back_populates="raw_input",
-        passive_deletes=True,
         viewonly=True,
     )

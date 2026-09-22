@@ -51,6 +51,89 @@ paths:
                   type: string
                 type: object
                 title: Response Health Health Get
+  /api/v1/demands/{demand_id}/artifacts:
+    post:
+      tags:
+      - artifacts
+      summary: Persistir resultado da IA
+      description: Grava atomicamente a resposta bruta, o resultado estruturado validado e os vinculos
+        com todas as fontes da demanda usadas pela IA.
+      operationId: create_artifact_result_api_v1_demands__demand_id__artifacts_post
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtifactResultCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactRead'
+        '404':
+          description: Demanda ou fonte inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '409':
+          description: Fonte de outra demanda ou conflito de persistencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Resultado ou identificadores invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+    get:
+      tags:
+      - artifacts
+      summary: Consultar resultados da demanda
+      description: Recupera resultados brutos e estruturados com as fontes que originaram cada artefato.
+      operationId: list_demand_artifacts_api_v1_demands__demand_id__artifacts_get
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ArtifactRead'
+                title: Response List Demand Artifacts Api V1 Demands  Demand Id  Artifacts Get
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
   /api/v1/clients:
     post:
       tags:
@@ -517,6 +600,197 @@ components:
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
   schemas:
+    ArtifactErrorDetails:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties:
+            type: string
+          type: object
+          title: Details
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      title: ArtifactErrorDetails
+    ArtifactErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ArtifactErrorDetails'
+      type: object
+      required:
+      - error
+      title: ArtifactErrorResponse
+    ArtifactOrigin:
+      type: string
+      enum:
+      - IA
+      - HUMANO
+      title: ArtifactOrigin
+      description: Autores logicos possiveis para uma versao de artefato.
+    ArtifactRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        type:
+          $ref: '#/components/schemas/ArtifactType'
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        sources:
+          items:
+            $ref: '#/components/schemas/ArtifactSourceRead'
+          type: array
+          title: Sources
+        versions:
+          items:
+            $ref: '#/components/schemas/ArtifactVersionRead'
+          type: array
+          title: Versions
+      type: object
+      required:
+      - id
+      - demand_id
+      - type
+      - title
+      - created_at
+      - sources
+      - versions
+      title: ArtifactRead
+      description: Artefato recuperavel pela demanda, com fontes e versoes.
+    ArtifactResultCreate:
+      properties:
+        type:
+          $ref: '#/components/schemas/ArtifactType'
+          default: REQUISITOS_EXTRAIDOS
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        raw_output:
+          type: string
+          minLength: 1
+          title: Raw Output
+          description: Resposta integral devolvida pelo LLM.
+        structured_content:
+          additionalProperties: true
+          type: object
+          title: Structured Content
+          description: Resultado ja validado contra o schema canonico.
+        raw_input_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          minItems: 1
+          title: Raw Input Ids
+          description: Fontes da mesma demanda utilizadas na geracao.
+        ai_metadata:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Ai Metadata
+          description: Modelo, prompt, tokens e latencia da execucao.
+      additionalProperties: false
+      type: object
+      required:
+      - raw_output
+      - structured_content
+      - raw_input_ids
+      title: ArtifactResultCreate
+      description: Resultado bruto e estruturado, mais todas as fontes que o produziram.
+    ArtifactSourceRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        source:
+          $ref: '#/components/schemas/RawInputSource'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - source
+      - created_at
+      title: ArtifactSourceRead
+      description: Referencia suficiente para recuperar e auditar uma fonte usada.
+    ArtifactType:
+      type: string
+      enum:
+      - DEMANDA_BRUTA
+      - REQUISITOS_EXTRAIDOS
+      - EMENTA
+      - PROPOSTA
+      - OUTRO
+      title: ArtifactType
+      description: Naturezas aceitas para um artefato consolidado (RF15).
+    ArtifactVersionRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        number:
+          type: integer
+          title: Number
+        raw_output:
+          type: string
+          title: Raw Output
+        structured_content:
+          additionalProperties: true
+          type: object
+          title: Structured Content
+        origin:
+          $ref: '#/components/schemas/ArtifactOrigin'
+        ai_metadata:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Ai Metadata
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - number
+      - raw_output
+      - structured_content
+      - origin
+      - ai_metadata
+      - created_at
+      title: ArtifactVersionRead
+      description: Primeira versao atomica do resultado da IA.
     ClientCreate:
       properties:
         name:
