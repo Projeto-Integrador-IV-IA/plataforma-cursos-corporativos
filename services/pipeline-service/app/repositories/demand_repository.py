@@ -76,6 +76,7 @@ class DemandRepository:
             .where(Demand.id == demand_id)
             .options(
                 selectinload(Demand.client),
+                selectinload(Demand.raw_inputs),
                 selectinload(Demand.artifacts).selectinload(Artifact.versions),
             )
         )
