@@ -1,8 +1,8 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: EM CONSTRUCAO - clientes (RF01) e o contexto de demandas (RF02) estao
-# implementados e verificados contra o openapi.json do servico; os demais caminhos
-# vem conforme os cards avancam.
+# Estado: EM CONSTRUCAO - clientes (RF01), o contexto de demandas (RF02) e a
+# persistencia das fontes brutas (RF09) estao implementados e verificados contra o
+# openapi.json do servico; os demais caminhos vem conforme os cards avancam.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -25,6 +25,10 @@ servers:
 tags:
   - name: health
     description: Liveness e readiness
+  - name: raw-inputs
+    description: |
+      Fontes brutas de uma demanda (RF09). Rota interna: quem capta e o
+      ingestion-service, que persiste aqui antes de normalizar ou chamar a IA.
 
 security:
   - bearerAuth: []
@@ -410,7 +414,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+  /api/v1/demands/{demand_id}/raw-inputs:
+    post:
+      tags:
+      - raw-inputs
+      summary: Persistir texto bruto de uma demanda
+      description: Rota interna consumida pelo ingestion-service. Confirma a persistencia do conteudo
+        original antes que qualquer normalizacao ou chamada a IA possa ocorrer.
+      operationId: create_raw_input_api_v1_demands__demand_id__raw_inputs_post
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RawInputCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputRead'
+        '404':
+          description: Demanda ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '409':
+          description: Referencia removida durante a persistencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Conteudo, origem ou identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -802,6 +859,11 @@ components:
           title: Updated At
         client:
           $ref: '#/components/schemas/DemandClientRead'
+        raw_inputs:
+          items:
+            $ref: '#/components/schemas/DemandRawInputRead'
+          type: array
+          title: Raw Inputs
         artifacts:
           items:
             $ref: '#/components/schemas/DemandArtifactRead'
@@ -820,9 +882,51 @@ components:
       - created_at
       - updated_at
       - client
+      - raw_inputs
       - artifacts
       title: DemandDetail
       description: Agregado usado pela tela de detalhe da demanda.
+    DemandRawInputRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        source:
+          $ref: '#/components/schemas/RawInputSource'
+        original_content:
+          type: string
+          title: Original Content
+        truncated:
+          type: boolean
+          title: Truncated
+        author_id:
+          type: string
+          format: uuid
+          title: Author Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - source
+      - original_content
+      - truncated
+      - author_id
+      - created_at
+      title: DemandRawInputRead
+      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se perdeu.
+
+
+        O conteudo original entra por inteiro: preserva-lo e o proprio requisito
+
+        (RF09, RNF05), e a tela nao teria como confirmar a integridade a partir de
+
+        um resumo. ``normalized_content`` fica de fora enquanto a sanitizacao
+
+        (RF11) nao tiver contrato publicado.'
     DemandRead:
       properties:
         id:
@@ -982,3 +1086,92 @@ components:
       - ACOMPANHAMENTO
       title: PipelineStage
       description: Etapas percorridas por uma demanda no pipeline (RF05).
+    RawInputCreate:
+      properties:
+        original_content:
+          type: string
+          minLength: 1
+          title: Original Content
+        source:
+          $ref: '#/components/schemas/RawInputSource'
+      additionalProperties: false
+      type: object
+      required:
+      - original_content
+      - source
+      title: RawInputCreate
+      description: Conteudo original recebido do ingestion-service.
+    RawInputErrorDetails:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties:
+            type: string
+          type: object
+          title: Details
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      title: RawInputErrorDetails
+    RawInputErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/RawInputErrorDetails'
+      type: object
+      required:
+      - error
+      title: RawInputErrorResponse
+    RawInputRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        original_content:
+          type: string
+          title: Original Content
+        source:
+          $ref: '#/components/schemas/RawInputSource'
+        author_id:
+          type: string
+          format: uuid
+          title: Author Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - demand_id
+      - original_content
+      - source
+      - author_id
+      - created_at
+      title: RawInputRead
+      description: Fonte confirmada pelo banco antes de qualquer processamento posterior.
+    RawInputSource:
+      type: string
+      enum:
+      - EMAIL
+      - TRANSCRICAO
+      - MENSAGENS
+      - ANOTACAO
+      - OUTRO
+      title: RawInputSource
+      description: Origens aceitas para uma fonte bruta.

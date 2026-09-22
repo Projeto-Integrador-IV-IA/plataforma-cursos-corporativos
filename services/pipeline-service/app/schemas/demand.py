@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.domain.enums import DemandStatus, PipelineStage
+from app.domain.enums import DemandStatus, PipelineStage, RawInputSource
 
 
 class DemandCreate(BaseModel):
@@ -97,8 +97,28 @@ class DemandArtifactRead(BaseModel):
     versions: list[DemandArtifactVersionRead]
 
 
+class DemandRawInputRead(BaseModel):
+    """Fonte bruta captada, devolvida no detalhe para provar que nada se perdeu.
+
+    O conteudo original entra por inteiro: preserva-lo e o proprio requisito
+    (RF09, RNF05), e a tela nao teria como confirmar a integridade a partir de
+    um resumo. ``normalized_content`` fica de fora enquanto a sanitizacao
+    (RF11) nao tiver contrato publicado.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    source: RawInputSource
+    original_content: str
+    truncated: bool
+    author_id: UUID
+    created_at: datetime
+
+
 class DemandDetail(DemandRead):
     """Agregado usado pela tela de detalhe da demanda."""
 
     client: DemandClientRead
+    raw_inputs: list[DemandRawInputRead]
     artifacts: list[DemandArtifactRead]
