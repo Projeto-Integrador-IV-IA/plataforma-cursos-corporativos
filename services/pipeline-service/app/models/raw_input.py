@@ -12,7 +12,7 @@ from app.domain.enums import RawInputSource, sql_enum_values
 from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
-    from app.models.artifact import Artifact
+    from app.models.artifact import Artifact, ArtifactSource
     from app.models.demand import Demand
     from app.models.user import User
 
@@ -77,4 +77,10 @@ class RawInput(Base):
         primaryjoin="RawInput.id == Artifact.raw_input_id",
         foreign_keys="Artifact.raw_input_id",
         passive_deletes=True,
+    )
+    # Sem ``passive_deletes``: a relacao e somente leitura, entao nao executa
+    # persistencia nenhuma e o parametro so gerava aviso do SQLAlchemy.
+    artifact_source_links: Mapped[list["ArtifactSource"]] = relationship(
+        back_populates="raw_input",
+        viewonly=True,
     )

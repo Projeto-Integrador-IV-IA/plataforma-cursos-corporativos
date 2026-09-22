@@ -71,7 +71,7 @@ o ID valido aqui e sempre o da matriz.
 
 A operacao fica no contrato do servico,
 [`pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml),
-e o teste `test_versioned_contract_matches_published_demand_operations` compara o arquivo
+e o teste `test_versioned_contract_declares_every_published_operation` compara o arquivo
 com o `openapi.json` gerado, impedindo que os dois divirjam.
 
 ## Consultar e editar o contexto (RF02)
@@ -82,6 +82,19 @@ gerada. `PATCH /api/v1/demands/{id}` aceita `title`, `description` e `owner_id`;
 somente os campos enviados sao alterados. Enviar `null` limpa `description` ou
 `owner_id`, enquanto etapa, situacao, cliente, artefatos e datas anteriores sao
 preservados. Identificadores inexistentes retornam `DEMAND_NOT_FOUND` com HTTP 404.
+
+## Persistir resultados da IA (RF16.1 consolidado)
+
+`POST /api/v1/demands/{id}/artifacts` grava, na mesma transacao, a resposta
+bruta do LLM, o JSON estruturado validado, os metadados da execucao e os
+vinculos com todas as fontes utilizadas. Se qualquer parte falhar, artefato,
+versao e vinculos sao revertidos. `GET /api/v1/demands/{id}/artifacts` recupera
+o agregado completo a partir da demanda.
+
+O campo legado `artifacts.raw_input_id` continua apontando para a primeira
+fonte por compatibilidade. A tabela `artifact_sources` representa todas as
+fontes e impede, por chave estrangeira composta, vinculos entre demandas
+diferentes.
 
 ## Testes
 

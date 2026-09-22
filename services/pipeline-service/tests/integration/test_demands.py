@@ -404,6 +404,7 @@ def test_get_returns_context_client_stage_and_linked_artifacts(
         version = ArtifactVersion(
             artifact_id=artifact.id,
             number=1,
+            raw_content='{"tema": "Lideranca"}',
             content={"tema": "Lideranca"},
             origin="IA",
         )
