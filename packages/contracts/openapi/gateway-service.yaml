@@ -11,6 +11,9 @@ info:
   description: |
     BFF (Backend for Frontend), roteamento unificado de chamadas para servicos internos
     e ponto central de autenticacao e emissao de tokens JWT (ADR-0005, RF16).
+    O roteamento de borda encaminha de forma transparente as chamadas autenticadas 
+    para os servicos internos especializados (pipeline-service, ingestion-service, 
+    ai-structuring-service), cujos contratos dedicados detalham os endpoints correspondentes.
     Requisitos atendidos: RF16, RF17, RNF02, RNF10.
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
@@ -24,8 +27,6 @@ servers:
 tags:
   - name: auth
     description: Autenticacao, emissao e validacao de sessao JWT (RF16)
-  - name: gateway-proxy
-    description: Roteamento de borda e BFF para os servicos internos (pipeline, ingestion, ai)
   - name: health
     description: Liveness e readiness do gateway
 
@@ -61,7 +62,7 @@ paths:
                     example: '2026-09-08T22:30:00Z'
 
   # ===========================================================================
-  # 1. AUTENTICAÇÃO E SESSÃO (RF16)
+  # AUTENTICAÇÃO E SESSÃO (RF16)
   # ===========================================================================
   /api/v1/auth/login:
     post:
@@ -151,97 +152,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # ===========================================================================
-  # 2. ROTEAMENTO DE BORDA / PROXY PARA SERVIÇOS INTERNOS (ADR-0005)
-  # ===========================================================================
-  /api/v1/demands/{proxy_path}:
-    all:
-      tags:
-        - gateway-proxy
-      summary: Roteador de Borda para o pipeline-service (:8001)
-      description: Encaminha chamadas autenticadas de demandas e CRM para o pipeline-service interno.
-      operationId: proxyPipelineService
-      parameters:
-        - name: proxy_path
-          in: path
-          required: true
-          description: Caminho restante da rota encaminhada
-          schema:
-            type: string
-            example: "dem-8f92a10c"
-      responses:
-        '200':
-          description: Resposta repassada com sucesso do servico interno.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-        '502':
-          $ref: '#/components/responses/BadGatewayError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /api/v1/sources/{proxy_path}:
-    all:
-      tags:
-        - gateway-proxy
-      summary: Roteador de Borda para o ingestion-service (:8002)
-      description: Encaminha chamadas de fontes e captação bruta para o ingestion-service interno.
-      operationId: proxyIngestionService
-      parameters:
-        - name: proxy_path
-          in: path
-          required: true
-          description: Caminho restante da rota encaminhada
-          schema:
-            type: string
-            example: "src-10293847"
-      responses:
-        '200':
-          description: Resposta repassada com sucesso.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '502':
-          $ref: '#/components/responses/BadGatewayError'
-
-  /api/v1/structurings/{proxy_path}:
-    all:
-      tags:
-        - gateway-proxy
-      summary: Roteador de Borda para o ai-structuring-service (:8003)
-      description: Encaminha chamadas de estruturacao por IA para o servico interno de IA.
-      operationId: proxyAiStructuringService
-      parameters:
-        - name: proxy_path
-          in: path
-          required: true
-          description: Caminho restante da rota
-          schema:
-            type: string
-            example: "job-44556677"
-      responses:
-        '200':
-          description: Resposta repassada com sucesso.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '502':
-          $ref: '#/components/responses/BadGatewayError'
-
 components:
   securitySchemes:
     bearerAuth:
@@ -250,7 +160,7 @@ components:
       bearerFormat: JWT
       description: |
         Token JWT emitido pelo /api/v1/auth/login.
-        Deve ser enviado no header com o formato: `Authorization: Bearer <seu_token>` (RF16, ADR-0005).
+        Deve ser enviado no header com o formato: `Authorization: Bearer ` (RF16, ADR-0005).
 
   responses:
     UnauthorizedError:
@@ -267,37 +177,6 @@ components:
                   message: "Token de acesso ausente ou invalido."
                   details: {}
                   request_id: "req-gw-02"
-
-    NotFoundError:
-      description: Recurso nao encontrado nos servicos internos.
-      content:
-        application/json:
-          schema:
-            $ref: '../schemas/error.schema.json'
-          examples:
-            erro404:
-              value:
-                error:
-                  code: "RESOURCE_NOT_FOUND"
-                  message: "O recurso solicitado nao foi localizado."
-                  details: {}
-                  request_id: "req-gw-03"
-
-    BadGatewayError:
-      description: Falha de comunicacao ou indisponibilidade do microsservico interno.
-      content:
-        application/json:
-          schema:
-            $ref: '../schemas/error.schema.json'
-          examples:
-            erroProxy:
-              value:
-                error:
-                  code: "UPSTREAM_SERVICE_UNAVAILABLE"
-                  message: "O servico interno responsavel nao respondeu a requisicao."
-                  details:
-                    service: "pipeline-service"
-                  request_id: "req-gw-04"
 
     InternalServerError:
       description: Erro inesperado na borda do gateway.
