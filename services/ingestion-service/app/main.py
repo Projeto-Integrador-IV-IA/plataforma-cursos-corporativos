@@ -8,11 +8,23 @@ Responsabilidades deste modulo:
     - registrar middlewares transversais (CORS, correlacao de requisicao, log de acesso);
     - registrar os handlers de excecao definidos em app.core.exceptions;
     - expor os endpoints de saude usados pelo Docker Compose e pela CI.
-
-TODO(scaffolding): implementar a fabrica create_app() e expor app.
-    Ate la este servico nao sobe - ver README na raiz do repositorio.
 """
 
-# TODO: from fastapi import FastAPI
-# TODO: def create_app() -> FastAPI: ...
-# TODO: app = create_app()
+from fastapi import FastAPI
+
+from app.api.v1.router import api_router
+from app.api.v1.routes.health import router as health_router
+from app.core.exceptions import register_exception_handlers
+
+
+def create_app() -> FastAPI:
+    """Cria a aplicacao e registra as fronteiras HTTP publicas."""
+
+    application = FastAPI(title="ingestion-service", version="0.1.0")
+    register_exception_handlers(application)
+    application.include_router(health_router)
+    application.include_router(api_router)
+    return application
+
+
+app = create_app()

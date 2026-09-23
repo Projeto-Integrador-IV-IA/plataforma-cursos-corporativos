@@ -1,10 +1,15 @@
 # Modelo de dados
 
-Atende **RNF08** (integridade referencial entre cliente, demanda, etapa e artefato) e **RNF09**
-(nenhuma transição ou versão pode ser perdida).
+Atende **RNF08** (integridade referencial entre cliente, demanda, etapa, fonte e artefato) e
+**RNF09** (nenhuma transição ou versão pode ser perdida). O Documento Consolidado de Requisitos
+v1.0 numera o RNF08 como RNF14 — enquanto esse documento não estiver versionado aqui, o ID válido
+é o da [matriz de rastreabilidade](../01-requisitos/matriz-rastreabilidade.md).
 
-> **Estado:** proposta da Fase 2 (modelagem até 08/09). O schema real é criado exclusivamente por
-> migrations do Alembic — ver [ADR-0004](../02-arquitetura/decisoes/ADR-0004-banco-unico-com-dono.md).
+> **Estado:** integridade referencial (RNF08) implementada pela migration
+> [`20260902_1200_enforce_referential_integrity.py`](../../services/pipeline-service/app/db/migrations/versions/20260902_1200_enforce_referential_integrity.py).
+> As garantias de append-only do RNF09 (`REVOKE UPDATE, DELETE`) ainda estão pendentes.
+> O schema real é criado exclusivamente por migrations do Alembic — ver
+> [ADR-0004](../02-arquitetura/decisoes/ADR-0004-banco-unico-com-dono.md) e [ADR-0007](../02-arquitetura/decisoes/007-estrategia-evidencia-e-recuperacao-vetorial.md).
 
 ## Entidade-relacionamento
 
@@ -23,18 +28,18 @@ erDiagram
 
     CLIENTS {
         uuid id PK
-        text nome
+        text name
         text cnpj
-        text segmento
-        text contato_nome
-        text contato_email
+        text segment
+        text contact_name
+        text contact_email
         timestamptz created_at
     }
 
     DEMANDS {
         uuid id PK
         uuid client_id FK
-        text titulo
+        text title
         text current_stage
         text status
         uuid owner_id FK
@@ -44,9 +49,10 @@ erDiagram
     RAW_INPUTS {
         uuid id PK
         uuid demand_id FK
-        text conteudo_original
-        text conteudo_normalizado
-        text origem
+        text original_content
+        text normalized_content
+        text source
+        vector embedding "pgvector para busca semântica"
         timestamptz created_at
     }
 
@@ -55,7 +61,7 @@ erDiagram
         uuid demand_id FK
         text from_stage
         text to_stage
-        text motivo
+        text reason
         uuid author_id FK
         timestamptz occurred_at
     }
@@ -63,7 +69,7 @@ erDiagram
     ARTIFACTS {
         uuid id PK
         uuid demand_id FK
-        text tipo
+        text type
         uuid raw_input_id FK
         timestamptz created_at
     }
@@ -71,68 +77,68 @@ erDiagram
     ARTIFACT_VERSIONS {
         uuid id PK
         uuid artifact_id FK
-        int numero
-        jsonb conteudo
-        text origem
-        jsonb metadados_ia
+        int number
+        text raw_content
+        jsonb content
+        jsonb cited_evidence_snippets "trechos citados para barreira anti-alucinação"
+        text origin
+        jsonb ai_metadata
         uuid author_id FK
         timestamptz created_at
     }
-```
 
-## As entidades
+    ARTIFACT_SOURCES {
+        uuid artifact_id PK, FK
+        uuid raw_input_id PK, FK
+        uuid demand_id FK
+    }
 
-| Entidade | O que é | Requisitos |
-|---|---|---|
+## As Entidades
+
+    | Entidade | O que é | Requisitos |
+| :--- | :--- | :--- |
 | `users` | Operador da plataforma. Sustenta a autoria da trilha de auditoria. | RF16 |
 | `clients` | Empresa cliente. | RF01 |
 | `demands` | Negociação vinculada a um cliente; percorre o pipeline. | RF02, RF05 |
-| `raw_inputs` | Texto heterogêneo como chegou, mais sua versão normalizada. | RF09, RF10 |
+| `raw_inputs` | Texto heterogêneo ou áudio transcrito como chegou, sua versão normalizada e vetor `pgvector`. | RF09, RF10, RF27 |
 | `stage_transitions` | Histórico imutável de mudanças de etapa. | RF07 |
 | `artifacts` | Documento lógico atrelado à negociação. | RF15 |
-| `artifact_versions` | Cada versão do conteúdo do artefato. | RF08 |
+| `artifact_sources` | Fontes que originaram cada resultado da IA. | RF16.1 |
+| `artifact_versions` | Cada versão do conteúdo do artefato com evidências de citação validadas. | RF08, RNF27 |
 
 ## Decisões de modelagem
 
 ### 1. Etapa corrente duplicada — de propósito
 
-`demands.current_stage` repete o `to_stage` da última transição. É desnormalização deliberada: a
-listagem de demandas (RF03) precisa filtrar por etapa dentro do alvo de 500 ms (RNF07) sem varrer o
-histórico a cada consulta.
+`demands.current_stage` repete o `to_stage` da última transição. É desnormalização deliberada: a listagem de demandas (RF03) precisa filtrar por etapa dentro do alvo de 500 ms (RNF07) sem varrer o histórico a cada consulta.
 
-**Preço:** os dois campos podem divergir. **Mitigação:** gravar a transição e atualizar a etapa
-corrente ocorre sempre na **mesma transação**, em um único lugar do código
-(`pipeline_service.py`). Nenhuma rota atualiza `current_stage` diretamente.
+**Preço:** os dois campos podem divergir. **Mitigação:** gravar a transição e atualizar a etapa corrente ocorre sempre na mesma transação, em um único lugar do código (`pipeline_service.py`). Nenhuma rota atualiza `current_stage` diretamente.
 
 ### 2. Tabelas append-only
 
-`stage_transitions` e `artifact_versions` **só aceitam INSERT**. Não há caminho de código que
-atualize ou apague linha dessas tabelas — é assim que RNF09 deixa de ser promessa e vira propriedade
-do sistema.
+`stage_transitions` e `artifact_versions` **só aceitam INSERT**. Não há caminho de código que atualize ou apague linha dessas tabelas — é assim que RNF09 deixa de ser promessa e vira propriedade do sistema.
 
-Recomendado reforçar no banco com `REVOKE UPDATE, DELETE` para o usuário da aplicação nessas duas
-tabelas: a garantia deixa de depender de disciplina de código.
+Recomendado reforçar no banco com `REVOKE UPDATE, DELETE` para o usuário da aplicação nessas duas tabelas: a garantia deixa de depender de disciplina de código.
 
 ### 3. Conteúdo do artefato em `jsonb`
 
-O curso estruturado tem forma definida ([`structured-course.schema.json`](../../packages/contracts/schemas/structured-course.schema.json)),
-mas evoluirá durante a Fase 3. `jsonb` permite evoluir o conteúdo sem migration a cada ajuste de
-campo, e o PostgreSQL ainda permite indexar e consultar dentro dele.
+O curso estruturado tem forma definida ([`structured-course.schema.json`](../../packages/contracts/schemas/structured-course.schema.json)), mas evoluirá durante a Fase 3. `jsonb` permite evoluir o conteúdo sem migration a cada ajuste de campo, e o PostgreSQL ainda permite indexar e consultar dentro dele.
 
 A validação do formato acontece na aplicação, contra o JSON Schema (RNF03) — não no banco.
 
-### 4. Proveniência da IA gravada junto
+### 4. Proveniência da IA e Evidências gravadas junto
 
-`artifact_versions.metadados_ia` guarda modelo, versão de prompt, tokens e latência de cada geração.
-Sem isso, nenhum resultado é reproduzível e as métricas de RNF04 não têm como ser recalculadas depois.
-
-`artifact_versions.origem` distingue `IA` de `HUMANO` — é o que permite medir quanto o operador
-precisou corrigir, principal indicador prático de qualidade da estruturação.
+- `artifact_versions.ai_metadata` guarda modelo, versão de prompt, tokens e latência de cada geração.
+- `artifact_versions.cited_evidence_snippets` armazena os trechos citados validados contra as fontes brutas, sustentando a barreira anti-alucinação (RNF27).
+- `artifact_versions.origin` distingue `IA` de `HUMANO` — é o que permite medir quanto o operador precisou corrigir, principal indicador prático de qualidade da estruturação.
 
 ### 5. Nada é apagado
 
-Cliente e demanda usam desativação lógica, nunca `DELETE`. Apagar um cliente levaria junto o
-histórico das negociações dele — o oposto de RNF09 e de RF15.
+Cliente e demanda usam desativação lógica, nunca `DELETE`. Apagar um cliente levaria junto o histórico das negociações dele — o oposto de RNF09 e de RF15.
+
+### 6. Fonte e artefato pertencem à mesma demanda
+
+`artifacts.raw_input_id` preserva compatibilidade com a primeira fonte. A tabela `artifact_sources` registra todas as fontes usadas e suas duas chaves estrangeiras compostas garantem que fonte e artefato pertençam à mesma demanda. Assim, não é possível formar uma cadeia válida individualmente, mas inconsistente entre clientes ou demandas.
 
 ## Máquina de estados do pipeline
 
@@ -155,28 +161,24 @@ stateDiagram-v2
     ACOMPANHAMENTO --> ESTRUTURACAO
     ACOMPANHAMENTO --> PRODUTO
     ACOMPANHAMENTO --> PROPOSTA
-```
 
-**Avanço** é sequencial: só para a etapa imediatamente seguinte. **Retrocesso** é livre para
-qualquer etapa anterior (RF06) — o cliente muda escopo a qualquer momento, e isso é rotina do
-negócio, não exceção. Todo retrocesso exige motivo, e toda transição é registrada (RF07).
+**Avanço** é sequencial: só para a etapa imediatamente seguinte. **Retrocesso** é livre para qualquer etapa anterior (RF06) — o cliente muda escopo a qualquer momento, e isso é rotina do negócio, não exceção. Todo retrocesso exige motivo, e toda transição é registrada (RF07).
 
 Demanda com status diferente de `ABERTA` não muda de etapa.
 
 ## Índices previstos
 
 | Tabela | Índice | Por quê |
-|---|---|---|
+| :--- | :--- | :--- |
 | `demands` | `(client_id, status, created_at)` | Listagem filtrada de RF03 dentro do alvo de RNF07 |
 | `demands` | `(current_stage)` | Visão de pipeline |
 | `stage_transitions` | `(demand_id, occurred_at)` | Histórico cronológico de RF04 e RF07 |
-| `artifact_versions` | `(artifact_id, numero)` único | Garante numeração sequencial sem lacuna (RF08) |
+| `artifact_versions` | `(artifact_id, number)` único | Garante numeração sequencial sem lacuna (RF08) |
 | `raw_inputs` | `(demand_id, created_at)` | Recuperação do bruto |
-| `clients` | `nome` com `unaccent` | Busca de cliente sem acento (RF03) |
+| `raw_inputs` | `embedding vector_cosine_ops` (HNSW/IVFFlat) | Busca vetorial semântica via `pgvector` (ADR-0007) |
+| `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) — **pendente** |
 
 ## Questões que afetam este modelo
 
-- **[Q1](../01-requisitos/questoes-em-aberto.md#q1--revisão--versionamento-de-artefato)** — editar a
-  saída da IA cria versão nova ou usa rascunho? Muda `artifact_versions`. **Fechar antes da Fase 3.**
-- **[Q6](../01-requisitos/questoes-em-aberto.md#q6--papéis-de-usuário)** — quantos papéis de usuário?
-  Muda `users`.
+- **[Q1](../01-requisitos/questoes-em-aberto.md#q1--revisão--versionamento-de-artefato)** — editar a saída da IA cria versão nova ou usa rascunho? Muda `artifact_versions`. **Fechar antes da Fase 3.**
+- **[Q6](../01-requisitos/questoes-em-aberto.md#q6--papéis-de-usuário)** — quantos papéis de usuário? Muda `users`.
