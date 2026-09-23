@@ -86,3 +86,12 @@ que **não existe base de custo modelável**: a estimativa é hoje tácita e hum
 
 > Implementar item do Bloco B durante o MVP é **desvio de escopo**. Se a necessidade aparecer, ela
 > passa pela gerência antes de virar card.
+
+## Requisitos Adicionais do Escopo (RF27–RF31 / RNF27–RNF28)
+
+### Requisitos Funcionais (RF)
+- **RF27 — Ingestão e Processamento de Áudio (STT):** O sistema deve permitir a ingestão e conversão de arquivos de áudio de reuniões e atendimento em texto (Speech-to-Text) para alimentar as fontes brutas.
+- **RF28 — Associação de Transcrições:** As transcrições obtidas via STT devem ser vinculadas automaticamente como fontes brutas (`raw-inputs`) à demanda correspondente.
+- **RF29 — Validação de Formato de Entrada de Áudio:** O serviço de ingestão deve validar se o formato do arquivo de áudio enviado é compatível antes do processamento.
+- **RF30 — Versionamento de Transcrições:** Alterações ou reprocessamentos de áudio devem gerar novas versões sem sobrescrever o registro bruto original.
+- **RF31 — Exibição de Áudios no Detalhe da Demanda:** A interface de detalhes da demanda deve exibir distintamente as fontes originadas de áudio transcrito.

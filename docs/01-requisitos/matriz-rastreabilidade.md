@@ -72,3 +72,13 @@ mostra, em uma tela, onde o MVP está.
 
 Fora do escopo desta disciplina. Não recebem card nem entram em sprint:
 `RF-F1` a `RF-F5`, `RNF-F1` a `RNF-F3`.
+
+| Requisito | Módulo / Serviço | Descrição Resumida | Status no MVP |
+| :--- | :--- | :--- | :--- |
+| **RF27** | ingestion-service / ai-structuring-service | Ingestão e conversão de áudio (STT) | Ativo / MVP |
+| **RF28** | pipeline-service | Associação de transcrições à demanda | Ativo / MVP |
+| **RF29** | ingestion-service | Validação de formato de áudio | Ativo / MVP |
+| **RF30** | pipeline-service | Versionamento de transcrições | Ativo / MVP |
+| **RF31** | Front-end / Pipeline | Exibição de fontes de áudio no detalhe | Ativo / MVP |
+| **RNF27** | Infraestrutura / IA | Desempenho assíncrono do STT | Atendido |
+| **RNF28** | Segurança / LGPD | Tratamento seguro de arquivos de áudio | Atendido |
