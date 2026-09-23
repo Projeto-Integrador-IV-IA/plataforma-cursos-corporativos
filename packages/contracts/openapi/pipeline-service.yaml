@@ -405,7 +405,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DemandRead'
         '404':
-          description: Cliente ou responsavel inexistente.
+          description: Responsavel inexistente.
           content:
             application/json:
               schema:
@@ -417,7 +417,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: Dados de entrada invalidos.
+          description: Campos invalidos ou cliente inexistente.
           content:
             application/json:
               schema:
@@ -1209,7 +1209,7 @@ components:
           type: string
           minLength: 1
           title: Title
-          description: Titulo da negociacao.
+          description: Titulo da negociacao. Obrigatorio.
         description:
           anyOf:
           - type: string

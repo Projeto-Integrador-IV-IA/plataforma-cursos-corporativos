@@ -1,12 +1,21 @@
 """Contrato de criacao de demandas vinculadas a clientes (RF02)."""
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.enums import DemandStatus, PipelineStage, RawInputSource
+
+DemandClientId = Annotated[
+    UUID,
+    Field(description="Identificador de um cliente existente. Obrigatorio."),
+]
+DemandTitle = Annotated[
+    str,
+    Field(min_length=1, description="Titulo da negociacao. Obrigatorio."),
+]
 
 
 class DemandCreate(BaseModel):
@@ -14,8 +23,8 @@ class DemandCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    client_id: UUID = Field(description="Identificador de um cliente existente. Obrigatorio.")
-    title: str = Field(min_length=1, description="Titulo da negociacao.")
+    client_id: DemandClientId
+    title: DemandTitle
     description: str | None = Field(default=None, description="Contexto da negociacao.")
     owner_id: UUID | None = Field(default=None, description="Identificador do usuario responsavel.")
 
