@@ -1,15 +1,18 @@
 # =============================================================================
 # Portao de qualidade dos PRs (RNF14).
-# Enquanto os servicos nao tiverem implementacao, os jobs sao tolerantes a
-# ausencia de codigo/testes - remova os `continue-on-error` ao iniciar a Fase 3.
+# Backend e frontend reprovam de fato: nenhum passo tolera falha. No backend
+# sao obrigatorios lint, formatacao e testes dos quatro servicos; no frontend,
+# lint, testes e build do `web`. Check verde aqui significa codigo verde.
 # =============================================================================
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    # O fluxo do projeto abre PR contra `dev`; `main` so recebe release. Sem
+    # `dev` aqui, nenhum PR do time passava pelo portao (RNF14).
+    branches: [main, dev]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,7 +53,6 @@ jobs:
       - name: Testes
         working-directory: services/${{ matrix.service }}
         run: pytest -q
-        continue-on-error: true   # TODO: remover na Fase 3, quando houver testes
 
   frontend:
     name: Frontend
@@ -64,19 +66,23 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # Sem `|| npm install`: o fallback silencioso escondia lockfile
+      # dessincronizado, que e justamente o que o portao deve pegar.
       - name: Instalar dependencias
         working-directory: web
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Lint
         working-directory: web
         run: npm run lint
-        continue-on-error: true   # TODO: remover na Fase 3
+
+      - name: Testes
+        working-directory: web
+        run: npm run test
 
       - name: Build
         working-directory: web
         run: npm run build
-        continue-on-error: true   # TODO: remover na Fase 3
 
   seguranca:
     name: Verificacao de segredos (RNF11)
@@ -86,18 +92,51 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Bloquear .env versionado
+      - name: Bloquear arquivos de ambiente e chaves privadas
         run: |
-          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
-            echo "::error::arquivo .env versionado - remova do controle de versao (RNF11)"
+          proibidos=$(git ls-files | grep -E '(^|/)\.env($|\.)|\.(pem|key|p12|pfx)$' | grep -vE '(^|/)\.env\.example$' || true)
+          if [ -n "$proibidos" ]; then
+            echo "::error::arquivo sensivel versionado (RNF11)"
+            echo "$proibidos"
             exit 1
           fi
 
-      - name: Procurar chaves aparentes no diff
+      - name: Procurar credenciais aparentes no codigo versionado
+        env:
+          # PR: o commit de onde a mudanca parte. Push: o estado anterior do ref.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          padrao='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
-          if git grep -nEI "$padrao" -- ':!*.example' ':!.github/workflows/*' ; then
+          # O DSN so conta como credencial quando usuario e senha sao literais.
+          # `${VAR}` e `<placeholder>` sao template, nao segredo - eram o falso
+          # positivo que mantinha este job vermelho.
+          padrao='(sk-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|[a-z][a-z0-9+.-]*://[^[:space:]/$<{]+:[^@[:space:]$<{]+@)'
+
+          if git grep -nEI "$padrao" -- ':!*.example' ':!.github/workflows/*' ':!Makefile' ':!web/package-lock.json'; then
             echo "::error::possivel segredo commitado (RNF11)"
             exit 1
           fi
+
+          # Historico: so o que ESTA mudanca acrescenta. Varrer `--all` fazia um
+          # unico commit antigo reprovar todo PR para sempre, sem conserto
+          # possivel sem reescrever historico - e o proprio commit que removia o
+          # segredo tambem reprovava. Aqui olhamos apenas as linhas adicionadas.
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "sem base para comparar; varredura limitada a arvore de trabalho"
+            echo "nenhum segredo aparente encontrado"
+            exit 0
+          fi
+
+          adicionado=$(git diff --unified=0 "$BASE_SHA...HEAD" -- . \
+            ':(exclude)*.example' \
+            ':(exclude).github/workflows/**' \
+            ':(exclude)Makefile' \
+            ':(exclude)web/package-lock.json' | grep -E '^\+[^+]' || true)
+
+          if printf '%s\n' "$adicionado" | grep -qE "$padrao"; then
+            echo "::error::possivel segredo introduzido nos commits desta mudanca (RNF11)"
+            printf '%s\n' "$adicionado" | grep -nE "$padrao"
+            exit 1
+          fi
+
           echo "nenhum segredo aparente encontrado"

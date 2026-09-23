@@ -47,7 +47,7 @@
 | ID | Requisito | Prioridade | Onde se materializa |
 |---|---|---|---|
 | **RNF10** | Controle de acesso à plataforma; dados de clientes não expostos publicamente. | Essencial | `gateway-service` |
-| **RNF11** | Chaves de API e segredos mantidos fora do código-fonte (variáveis de ambiente). | Essencial | [`.env.example`](../../.env.example), job de segurança da CI |
+| **RNF11** | Chaves de API, tokens e credenciais fora do código-fonte, exclusivamente em variáveis de ambiente; senhas de usuários somente como hash. | Essencial | Classes `Settings`, [`.env.example`](../../.env.example), hash bcrypt e job de segurança da CI |
 
 ### Custo e infraestrutura
 
@@ -72,3 +72,7 @@
 | **RNF-F1** | Fundação de dados para custeio: coleta e estruturação de histórico de custos até tornar a estimativa modelável. | Média |
 | **RNF-F2** | Camada de integração externa com gestão segura de credenciais de terceiros (OAuth e afins). | Média |
 | **RNF-F3** | Escalabilidade multiusuário/multiempresa compatível com o modelo de assinatura (SaaS). | Média |
+
+### Requisitos Não Funcionais (RNF)
+- **RNF27 — Desempenho do Serviço de STT:** O tempo de processamento assíncrono para transcrição de áudios deve respeitar os limites operacionais do pipeline de IA.
+- **RNF28 — Privacidade e Segurança de Áudios:** O armazenamento e trânsito de arquivos de áudio devem atender às diretrizes da LGPD e segurança da plataforma.
