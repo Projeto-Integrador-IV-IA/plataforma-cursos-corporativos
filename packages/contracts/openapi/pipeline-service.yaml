@@ -1,8 +1,6 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: EM CONSTRUCAO - clientes (RF01), o contexto de demandas (RF02) e a
-# persistencia das fontes brutas (RF09) estao implementados e verificados contra o
-# openapi.json do servico; os demais caminhos vem conforme os cards avancam.
+# Estado: Sincronizado com o modelo relacional e enums do backend.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -29,6 +27,14 @@ tags:
     description: |
       Fontes brutas de uma demanda (RF09). Rota interna: quem capta e o
       ingestion-service, que persiste aqui antes de normalizar ou chamar a IA.
+  - name: clients
+    description: Gestao de clientes (RF01)
+  - name: demands
+    description: Gestao de demandas e pipeline (RF02 a RF08)
+  - name: pipeline
+    description: Quadro Kanban do pipeline (RF05)
+  - name: artifacts
+    description: Gestao de artefatos (RF15)
 
 security:
   - bearerAuth: []
@@ -245,8 +251,7 @@ paths:
       tags:
       - clients
       summary: Editar dados de um cliente
-      description: Altera somente os campos enviados. Campos opcionais enviados como null sao limpos;
-        a inativacao pertence ao RF01.3 e nao e realizada por esta operacao.
+      description: Altera somente os campos enviados. Campos opcionais enviados como null sao limpos.
       operationId: update_client_api_v1_clients__client_id__patch
       parameters:
       - name: client_id
@@ -292,8 +297,7 @@ paths:
       tags:
       - demands
       summary: Listar e filtrar demandas
-      description: Lista demandas por cliente, etapa, responsavel, periodo de criacao e situacao. Os filtros
-        informados sao combinados com AND.
+      description: Lista demandas por cliente, etapa, responsavel, periodo de criacao e situacao.
       operationId: list_demands_api_v1_demands_get
       parameters:
       - name: client_id
@@ -330,9 +334,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          description: Inicio inclusivo do periodo de criacao, com fuso.
           title: From
-        description: Inicio inclusivo do periodo de criacao, com fuso.
       - name: to
         in: query
         required: false
@@ -341,9 +343,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          description: Fim inclusivo do periodo de criacao, com fuso.
           title: To
-        description: Fim inclusivo do periodo de criacao, com fuso.
       - name: status
         in: query
         required: false
@@ -351,9 +351,7 @@ paths:
           anyOf:
           - $ref: '#/components/schemas/DemandStatus'
           - type: 'null'
-          description: Situacao atual da demanda.
           title: Status
-        description: Situacao atual da demanda.
       - name: limit
         in: query
         required: false
@@ -388,8 +386,7 @@ paths:
       tags:
       - demands
       summary: Criar demanda vinculada a cliente
-      description: Cria uma negociacao com cliente obrigatorio, na situacao ABERTA e etapa CAPTACAO. description
-        registra o contexto; owner_id indica um usuario responsavel existente.
+      description: Cria uma negociacao com cliente obrigatorio, na situacao ABERTA e etapa CAPTACAO.
       operationId: create_demand_api_v1_demands_post
       requestBody:
         required: true
@@ -427,8 +424,7 @@ paths:
       tags:
       - demands
       summary: Consultar contexto da demanda
-      description: Retorna o contexto da demanda, o cliente, a etapa corrente e os artefatos vinculados
-        com suas versoes.
+      description: Retorna o contexto da demanda, o cliente, a etapa corrente e os artefatos.
       operationId: get_demand_api_v1_demands__demand_id__get
       parameters:
       - name: demand_id
@@ -461,8 +457,7 @@ paths:
       tags:
       - demands
       summary: Editar contexto da demanda
-      description: Altera somente os campos enviados. description e owner_id enviados como null sao limpos;
-        etapa, situacao, cliente e artefatos permanecem inalterados.
+      description: Altera somente os campos enviados.
       operationId: update_demand_api_v1_demands__demand_id__patch
       parameters:
       - name: demand_id
@@ -502,10 +497,7 @@ paths:
       tags:
       - pipeline
       summary: Consultar demandas agrupadas por etapa
-      description: Devolve as cinco etapas do pipeline, cada uma com os cartoes da etapa e o total de
-        demandas que a atendem. As etapas vazias tambem vem, porque o quadro tem colunas fixas. Aceita
-        os mesmos filtros da listagem de demandas, combinados com AND; o filtro por etapa nao se aplica
-        aqui, ja que o agrupamento e por etapa.
+      description: Devolve as cinco etapas do pipeline corporativo.
       operationId: get_pipeline_board_api_v1_pipeline_get
       parameters:
       - name: client_id
@@ -534,9 +526,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          description: Inicio inclusivo do periodo de criacao, com fuso.
           title: From
-        description: Inicio inclusivo do periodo de criacao, com fuso.
       - name: to
         in: query
         required: false
@@ -545,9 +535,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          description: Fim inclusivo do periodo de criacao, com fuso.
           title: To
-        description: Fim inclusivo do periodo de criacao, com fuso.
       - name: status
         in: query
         required: false
@@ -555,9 +543,7 @@ paths:
           anyOf:
           - $ref: '#/components/schemas/DemandStatus'
           - type: 'null'
-          description: Situacao atual da demanda.
           title: Status
-        description: Situacao atual da demanda.
       - name: limit
         in: query
         required: false
@@ -565,10 +551,8 @@ paths:
           type: integer
           maximum: 100
           minimum: 1
-          description: Cartoes trazidos por etapa; o total nao e afetado.
           default: 20
           title: Limit
-        description: Cartoes trazidos por etapa; o total nao e afetado.
       - name: stage
         in: query
         required: false
@@ -576,11 +560,8 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa so, use GET /api/v1/demands?stage=.'
           deprecated: true
           title: Stage
-        description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa so, use GET /api/v1/demands?stage=.'
-        deprecated: true
       responses:
         '200':
           description: Successful Response
@@ -599,8 +580,7 @@ paths:
       tags:
       - raw-inputs
       summary: Persistir texto bruto de uma demanda
-      description: Rota interna consumida pelo ingestion-service. Confirma a persistencia do conteudo
-        original antes que qualquer normalizacao ou chamada a IA possa ocorrer.
+      description: Rota interna consumida pelo ingestion-service.
       operationId: create_raw_input_api_v1_demands__demand_id__raw_inputs_post
       parameters:
       - name: demand_id
@@ -653,8 +633,7 @@ paths:
       tags:
       - raw-inputs
       summary: Persistir texto sanitizado
-      description: Preenche normalized_content depois da persistencia do original. Esta operacao nunca
-        altera original_content.
+      description: Preenche normalized_content depois da persistencia do original.
       operationId: normalize_raw_input_api_v1_raw_inputs__raw_input_id__normalization_patch
       parameters:
       - name: raw_input_id
@@ -689,6 +668,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -791,12 +771,10 @@ components:
           type: string
           minLength: 1
           title: Raw Output
-          description: Resposta integral devolvida pelo LLM.
         structured_content:
           additionalProperties: true
           type: object
           title: Structured Content
-          description: Resultado ja validado contra o schema canonico.
         raw_input_ids:
           items:
             type: string
@@ -804,14 +782,12 @@ components:
           type: array
           minItems: 1
           title: Raw Input Ids
-          description: Fontes da mesma demanda utilizadas na geracao.
         ai_metadata:
           anyOf:
           - additionalProperties: true
             type: object
           - type: 'null'
           title: Ai Metadata
-          description: Modelo, prompt, tokens e latencia da execucao.
       additionalProperties: false
       type: object
       required:
@@ -819,7 +795,6 @@ components:
       - structured_content
       - raw_input_ids
       title: ArtifactResultCreate
-      description: Resultado bruto e estruturado, mais todas as fontes que o produziram.
     ArtifactSourceRead:
       properties:
         id:
@@ -838,7 +813,6 @@ components:
       - source
       - created_at
       title: ArtifactSourceRead
-      description: Referencia suficiente para recuperar e auditar uma fonte usada.
     ArtifactType:
       type: string
       enum:
@@ -887,7 +861,6 @@ components:
       - ai_metadata
       - created_at
       title: ArtifactVersionRead
-      description: Primeira versao atomica do resultado da IA.
     ClientCreate:
       properties:
         name:
@@ -929,7 +902,6 @@ components:
       required:
       - name
       title: ClientCreate
-      description: Dados cadastrais recebidos pelo fluxo dependente RF01.1.
     ClientPage:
       properties:
         items:
@@ -953,7 +925,6 @@ components:
       - page
       - size
       title: ClientPage
-      description: Pagina estavel para a consulta de clientes.
     ClientRead:
       properties:
         id:
@@ -1018,7 +989,6 @@ components:
       - created_at
       - updated_at
       title: ClientRead
-      description: Representacao completa usada na listagem e na tela de detalhe.
     ClientUpdate:
       properties:
         name:
@@ -1060,7 +1030,6 @@ components:
       additionalProperties: false
       type: object
       title: ClientUpdate
-      description: Edicao parcial; campos omitidos permanecem inalterados (RF01.2).
     DemandArtifactRead:
       properties:
         id:
@@ -1099,7 +1068,6 @@ components:
       - created_at
       - versions
       title: DemandArtifactRead
-      description: Artefato vinculado com suas versoes em ordem crescente.
     DemandArtifactVersionRead:
       properties:
         id:
@@ -1142,7 +1110,6 @@ components:
       - author_id
       - created_at
       title: DemandArtifactVersionRead
-      description: Versao de artefato disponibilizada para a estrutura gerada no detalhe.
     DemandClientRead:
       properties:
         id:
@@ -1197,39 +1164,33 @@ components:
       - notes
       - active
       title: DemandClientRead
-      description: Cliente incorporado ao detalhe para evitar uma segunda consulta da tela.
     DemandCreate:
       properties:
         client_id:
           type: string
           format: uuid
           title: Client Id
-          description: Identificador de um cliente existente. Obrigatorio.
         title:
           type: string
           minLength: 1
           title: Title
-          description: Titulo da negociacao.
         description:
           anyOf:
           - type: string
           - type: 'null'
           title: Description
-          description: Contexto da negociacao.
         owner_id:
           anyOf:
           - type: string
             format: uuid
           - type: 'null'
           title: Owner Id
-          description: Identificador do usuario responsavel.
       additionalProperties: false
       type: object
       required:
       - client_id
       - title
       title: DemandCreate
-      description: Dados da negociacao; situacao e etapa inicial sao definidas pelo servico.
     DemandDetail:
       properties:
         id:
@@ -1297,7 +1258,6 @@ components:
       - raw_inputs
       - artifacts
       title: DemandDetail
-      description: Agregado usado pela tela de detalhe da demanda.
     DemandRawInputRead:
       properties:
         id:
@@ -1329,16 +1289,6 @@ components:
       - author_id
       - created_at
       title: DemandRawInputRead
-      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se perdeu.
-
-
-        O conteudo original entra por inteiro: preserva-lo e o proprio requisito
-
-        (RF09, RNF05), e a tela nao teria como confirmar a integridade a partir de
-
-        um resumo. ``normalized_content`` fica de fora enquanto a sanitizacao
-
-        (RF11) nao tiver contrato publicado.'
     DemandRead:
       properties:
         id:
@@ -1391,7 +1341,6 @@ components:
       - created_at
       - updated_at
       title: DemandRead
-      description: Demanda persistida, com situacao, etapa corrente e vinculo ao cliente.
     DemandStatus:
       type: string
       enum:
@@ -1409,24 +1358,20 @@ components:
             minLength: 1
           - type: 'null'
           title: Title
-          description: Titulo da negociacao.
         description:
           anyOf:
           - type: string
           - type: 'null'
           title: Description
-          description: Contexto da negociacao.
         owner_id:
           anyOf:
           - type: string
             format: uuid
           - type: 'null'
           title: Owner Id
-          description: Identificador do usuario responsavel.
       additionalProperties: false
       type: object
       title: DemandUpdate
-      description: Campos de contexto editaveis sem substituir os demais dados da demanda.
     ErrorBody:
       properties:
         code:
@@ -1470,17 +1415,14 @@ components:
           type: integer
           minimum: 0.0
           title: Total
-          description: Total de registros que atendem aos filtros.
         page:
           type: integer
           minimum: 1.0
           title: Page
-          description: Pagina atual, calculada a partir de offset e limit.
         size:
           type: integer
           minimum: 1.0
           title: Size
-          description: Limite de registros solicitado por pagina.
       type: object
       required:
       - items
@@ -1503,14 +1445,6 @@ components:
       - stages
       - total
       title: PipelineBoard
-      description: 'Quadro completo.
-
-
-        As cinco etapas vem sempre, inclusive as vazias: o quadro tem colunas
-
-        fixas, e omitir a etapa sem demanda faria a interface ter de inventar quais
-
-        colunas desenhar.'
     PipelineCardPersonRead:
       properties:
         id:
@@ -1525,7 +1459,6 @@ components:
       - id
       - name
       title: PipelineCardPersonRead
-      description: Cliente ou responsavel exibido no cartao, reduzido a nome e identificador.
     PipelineCardRead:
       properties:
         id:
@@ -1561,7 +1494,6 @@ components:
       - created_at
       - updated_at
       title: PipelineCardRead
-      description: Demanda como ela aparece na coluna de uma etapa.
     PipelineStage:
       type: string
       enum:
@@ -1590,14 +1522,6 @@ components:
       - total
       - items
       title: PipelineStageGroup
-      description: 'Uma coluna do quadro.
-
-
-        ``total`` conta todas as demandas da etapa que passam pelos filtros, nao
-
-        apenas as que vieram em ``items``: a coluna precisa mostrar quantas existem
-
-        mesmo quando o recorte nao trouxe todas.'
     RawInputCreate:
       properties:
         original_content:
@@ -1612,7 +1536,6 @@ components:
       - original_content
       - source
       title: RawInputCreate
-      description: Conteudo original recebido do ingestion-service.
     RawInputErrorDetails:
       properties:
         code:
@@ -1639,7 +1562,7 @@ components:
     RawInputErrorResponse:
       properties:
         error:
-          $ref: '#/components/schemas/RawInputErrorDetails'
+          $ref: '#/components/schemas/RawInputErrorResponse'
       type: object
       required:
       - error
@@ -1654,7 +1577,6 @@ components:
       required:
       - normalized_content
       title: RawInputNormalization
-      description: Copia sanitizada; o contrato nao aceita o conteudo original nesta operacao.
     RawInputRead:
       properties:
         id:
@@ -1697,7 +1619,6 @@ components:
       - truncated
       - created_at
       title: RawInputRead
-      description: Fonte confirmada pelo banco antes de qualquer processamento posterior.
     RawInputSource:
       type: string
       enum:
