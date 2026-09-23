@@ -4,7 +4,6 @@
 
 **Projeto Integrador de Extensão IV** · Curso IA/CD · Equipe de 6 · Ago–Nov/2026
 
-teste
 ---
 
 ## O problema

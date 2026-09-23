@@ -1,15 +1,59 @@
-"""Engine e sessao do banco.
+"""Engine e ciclo transacional das sessoes do pipeline-service.
 
 Contrato desta camada:
     - engine unico criado a partir de ``DATABASE_URL`` (RNF11);
-    - ``get_session()`` como dependencia do FastAPI, com commit no sucesso e
-      rollback na excecao;
-    - pool dimensionado para o alvo de latencia do CRM (RNF07: <= 500 ms).
-
-Nenhum outro microsservico acessa este banco - o acesso e exclusivo do
-pipeline-service e se da por API (RNF01, RNF13).
-
-TODO(scaffolding): implementar ``engine``, ``SessionLocal`` e ``get_session()``.
+    - uma sessao por requisicao, com commit no sucesso e rollback na excecao;
+    - pool dimensionado para o alvo de latencia do CRM (RNF07: <= 500 ms);
+    - acesso ao banco exclusivo do pipeline-service, preservando o isolamento
+      entre microsservicos (RNF01, RNF13).
 """
 
-# TODO: def get_session(): ...
+from collections.abc import Iterator
+from functools import lru_cache
+
+import sqlalchemy as sa
+from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.core.config import get_settings
+
+
+@lru_cache
+def get_engine() -> Engine:
+    """Cria um unico engine, lendo a credencial apenas do ambiente (RNF11)."""
+
+    database_url = get_settings().database_url.get_secret_value()
+    url = make_url(database_url)
+    options: dict[str, object] = {"pool_pre_ping": True}
+
+    if url.get_backend_name() != "sqlite":
+        # Limites explicitos evitam conexoes sem controle e sustentam o alvo do RNF07.
+        options.update(pool_size=5, max_overflow=10, pool_timeout=30)
+
+    return sa.create_engine(url, **options)
+
+
+@lru_cache
+def get_session_factory() -> sessionmaker[Session]:
+    """Retorna a fabrica de sessoes vinculada ao engine do processo."""
+
+    return sessionmaker(
+        bind=get_engine(),
+        class_=Session,
+        autoflush=False,
+        expire_on_commit=False,
+    )
+
+
+def get_session() -> Iterator[Session]:
+    """Fornece uma sessao por requisicao, com commit ou rollback atomico."""
+
+    session = get_session_factory()()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()

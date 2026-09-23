@@ -20,6 +20,8 @@ dev = [
   "pytest-asyncio>=0.24",
   "pytest-cov>=6.0",
   "ruff>=0.7",
+  # Lê o contrato OpenAPI no teste que o compara com o openapi.json do servico.
+  "pyyaml>=6.0",
 ]
 
 [build-system]

@@ -58,13 +58,11 @@ prometer o que não há base para sustentar:
 | Item | Motivo |
 |---|---|
 | Motor de custeio / orçamento | O custo é hoje definido de forma tácita e caso a caso. **Não existe base de custo modelável.** |
-| Busca automatizada de instrutores | Depende de fontes e integrações externas. |
+| Busca automatizada de instrutores | Depende de fontes e integrações externas adicionais. |
 | Geração automática da apresentação comercial (slides) | Depende do produto estruturado estar consolidado primeiro. |
-| Integrações externas (e-mail, LinkedIn) e automação de prospecção | Exigem gestão segura de credenciais de terceiros (OAuth). |
+| Automação de prospecção em redes externas | Exigem gestão complexa de credenciais de terceiros (OAuth). |
 
-> **Nota de reposicionamento.** O custeio era previsto como núcleo do projeto e foi movido para
-> evolução futura após a constatação de que não existe base de custo modelável — a estimativa é hoje
-> tácita e humana. Sem essa fundação (RNF-F1), não se promete faixa orçamentária.
+> **Nota sobre STT (Speech-to-Text):** A integração de STT (transcrição de áudios e reuniões) foi movida das evoluções futuras para dentro do escopo do MVP por diretriz do orientador, viabilizando a ingestão direta de gravações como fontes brutas de demanda (RF27).
 
 Evoluções futuras estão registradas como `RF-F*` e `RNF-F*` em
 [requisitos-funcionais.md](../01-requisitos/requisitos-funcionais.md#bloco-b--evoluções-futuras).
