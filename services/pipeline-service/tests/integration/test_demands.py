@@ -233,11 +233,19 @@ def test_missing_client_is_refused_without_persisting(api: TestClient, engine: E
         json={"client_id": missing_id, "title": "Demanda orfa"},
         headers={"X-Request-ID": "demand-test"},
     )
-    assert response.status_code == 404
+    assert response.status_code == 422
     assert response.json()["error"] == {
-        "code": "CLIENT_NOT_FOUND",
-        "message": "Cliente nao encontrado.",
-        "details": {"client_id": missing_id},
+        "code": "VALIDATION_ERROR",
+        "message": "Os dados informados sao invalidos.",
+        "details": {
+            "issues": [
+                {
+                    "location": ["body", "client_id"],
+                    "message": "O cliente informado nao existe.",
+                    "type": "value_error.client_not_found",
+                }
+            ]
+        },
         "request_id": "demand-test",
     }
     with Session(engine) as session:
@@ -283,12 +291,18 @@ def test_invalid_creation_is_refused(
         assert session.scalar(sa.select(sa.func.count(Demand.id))) == 0
 
 
-@pytest.mark.parametrize("payload", [{"title": "Sem cliente"}, {"client_id": str(uuid4())}])
-def test_required_fields_cannot_be_omitted(api: TestClient, payload: dict[str, str]) -> None:
-    response = api.post("/api/v1/demands", json=payload, headers={"X-Request-ID": "invalid-demand"})
+def test_required_fields_cannot_be_omitted(api: TestClient) -> None:
+    response = api.post("/api/v1/demands", json={}, headers={"X-Request-ID": "invalid-demand"})
     assert response.status_code == 422
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
-    assert response.json()["error"]["request_id"] == "invalid-demand"
+    error = response.json()["error"]
+    assert error["code"] == "VALIDATION_ERROR"
+    assert error["message"] == "Os dados informados sao invalidos."
+    assert error["request_id"] == "invalid-demand"
+
+    issues = {issue["location"][-1]: issue for issue in error["details"]["issues"]}
+    assert set(issues) == {"client_id", "title"}
+    assert all(issue["type"] == "missing" for issue in issues.values())
+    assert all(issue["message"] for issue in issues.values())
 
 
 def test_database_rejects_orphan_even_when_api_is_bypassed(engine: Engine) -> None:
