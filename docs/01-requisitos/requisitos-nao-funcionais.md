@@ -72,3 +72,7 @@
 | **RNF-F1** | Fundação de dados para custeio: coleta e estruturação de histórico de custos até tornar a estimativa modelável. | Média |
 | **RNF-F2** | Camada de integração externa com gestão segura de credenciais de terceiros (OAuth e afins). | Média |
 | **RNF-F3** | Escalabilidade multiusuário/multiempresa compatível com o modelo de assinatura (SaaS). | Média |
+
+### Requisitos Não Funcionais (RNF)
+- **RNF27 — Desempenho do Serviço de STT:** O tempo de processamento assíncrono para transcrição de áudios deve respeitar os limites operacionais do pipeline de IA.
+- **RNF28 — Privacidade e Segurança de Áudios:** O armazenamento e trânsito de arquivos de áudio devem atender às diretrizes da LGPD e segurança da plataforma.
