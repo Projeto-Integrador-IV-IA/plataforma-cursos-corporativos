@@ -19,9 +19,11 @@ servico.
 Pontos de atencao:
     - timeout configuravel por ``LLM_TIMEOUT_SECONDS``, alinhado ao alvo de
       15 s de RNF06;
-    - retentativa com backoff limitada por ``LLM_MAX_RETRIES``, apenas para
-      falhas marcadas como ``retryable`` - erro de requisicao ou resposta
-      invalida nao e retentado;
+    - uma chamada e uma tentativa: insistir ou desistir e decisao de politica,
+      nao de transporte, e vive no caso de uso
+      (``app.services.structuring_service``, ``LLM_MAX_RETRIES``). O que cabe
+      aqui e classificar a falha - a excecao levantada diz, em ``retryable``,
+      se repetir tem chance de sucesso;
     - temperatura baixa e schema de saida repassado ao fornecedor, para
       garantir formato previsivel (RNF03) - a validacao definitiva contra o
       JSON Schema fica com o caso de uso (ADR-0006);
@@ -45,9 +47,8 @@ Traducao dos erros do transporte para as excecoes tipadas (RNF05):
 Nenhuma excecao de ``httpx`` atravessa esta fronteira.
 """
 
-import asyncio
 import time
-from typing import Any, ClassVar, Final
+from typing import Any, ClassVar
 
 import httpx
 
@@ -66,16 +67,13 @@ from app.providers.base import (
     LLMProvider,
 )
 
-#: Base do backoff exponencial entre retentativas, em segundos.
-BACKOFF_BASE_SECONDS: Final[float] = 0.5
-
 
 class HttpLLMProvider(LLMProvider):
     """Provedor que conversa com uma API de chat completions por HTTP.
 
     Args:
         settings: configuracao lida do ambiente; fornece endpoint, modelo,
-            chave, timeout, teto de retentativas e temperatura.
+            chave, timeout e temperatura.
         client: cliente HTTP a reutilizar. Injetado nos testes para dispensar
             rede; em producao o provedor cria e mantem o seu.
     """
@@ -101,7 +99,7 @@ class HttpLLMProvider(LLMProvider):
         timeout = params.timeout_seconds or self._settings.llm_timeout_seconds
         inicio = time.perf_counter()
 
-        resposta = await self._chamar_com_retentativa(payload, timeout)
+        resposta = await self._chamar(payload, timeout)
         latency_ms = (time.perf_counter() - inicio) * 1000
 
         return self._traduzir_resposta(resposta, payload["model"], latency_ms)
@@ -163,41 +161,29 @@ class HttpLLMProvider(LLMProvider):
     # Chamada e traducao de falha
     # ------------------------------------------------------------------
 
-    async def _chamar_com_retentativa(
-        self,
-        payload: dict[str, Any],
-        timeout: float,
-    ) -> httpx.Response:
+    async def _chamar(self, payload: dict[str, Any], timeout: float) -> httpx.Response:
+        """Faz uma requisicao e devolve a resposta, ou levanta a falha tipada."""
+
         client = self._obter_client(timeout)
-        url = self._url_completions()
-        ultima_falha: LLMProviderError | None = None
+        try:
+            resposta = await client.post(
+                self._url_completions(),
+                json=payload,
+                headers=self._headers(),
+                timeout=timeout,
+            )
+        except httpx.TimeoutException as erro:
+            raise self._erro_de_timeout(timeout, payload["model"], erro) from erro
+        except httpx.HTTPError as erro:
+            raise LLMUnavailableError(
+                provider=self.name,
+                model=payload["model"],
+                details={"causa": type(erro).__name__},
+            ) from erro
 
-        for tentativa in range(self._settings.llm_max_retries + 1):
-            try:
-                resposta = await client.post(
-                    url,
-                    json=payload,
-                    headers=self._headers(),
-                    timeout=timeout,
-                )
-            except httpx.TimeoutException as erro:
-                ultima_falha = self._erro_de_timeout(timeout, payload["model"], erro)
-            except httpx.HTTPError as erro:
-                ultima_falha = LLMUnavailableError(
-                    provider=self.name,
-                    model=payload["model"],
-                    details={"causa": type(erro).__name__},
-                )
-            else:
-                if resposta.is_success:
-                    return resposta
-                ultima_falha = self._erro_de_status(resposta, payload["model"])
-
-            if not ultima_falha.retryable or tentativa == self._settings.llm_max_retries:
-                raise ultima_falha
-            await asyncio.sleep(self._espera(tentativa, ultima_falha))
-
-        raise ultima_falha  # pragma: no cover - o laco sempre sai antes
+        if resposta.is_success:
+            return resposta
+        raise self._erro_de_status(resposta, payload["model"])
 
     def _url_completions(self) -> str:
         base = (self._settings.llm_base_url or "").rstrip("/")
@@ -243,14 +229,6 @@ class HttpLLMProvider(LLMProvider):
             model=model,
             details=details,
         )
-
-    def _espera(self, tentativa: int, falha: LLMProviderError) -> float:
-        """Backoff exponencial, respeitando o ``Retry-After`` quando houver."""
-
-        sugerido = getattr(falha, "retry_after_seconds", None)
-        if sugerido is not None:
-            return float(sugerido)
-        return BACKOFF_BASE_SECONDS * (2**tentativa)
 
     # ------------------------------------------------------------------
     # Traducao da resposta

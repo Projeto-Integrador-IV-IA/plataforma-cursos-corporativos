@@ -76,12 +76,14 @@ EXPECTED_COLUMNS = {
         "id",
         "artifact_id",
         "number",
+        "raw_content",
         "content",
         "origin",
         "ai_metadata",
         "author_id",
         "created_at",
     },
+    "artifact_sources": {"artifact_id", "raw_input_id", "demand_id"},
 }
 
 
@@ -101,6 +103,9 @@ def test_required_domain_relationships_are_not_nullable() -> None:
         ("stage_transitions", "author_id"),
         ("artifacts", "demand_id"),
         ("artifact_versions", "artifact_id"),
+        ("artifact_sources", "artifact_id"),
+        ("artifact_sources", "raw_input_id"),
+        ("artifact_sources", "demand_id"),
     }
 
     nullable_relationships = {
@@ -187,6 +192,7 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
     version = ArtifactVersion(
         artifact=artifact,
         number=1,
+        raw_content='{"titulo":"Curso"}',
         content={"titulo": "Curso"},
         origin="HUMANO",
         author=user,

@@ -1,4 +1,10 @@
-"""Testes do provedor HTTP, sem rede: transporte dublado por ``httpx.MockTransport``."""
+"""Testes do provedor HTTP, sem rede: transporte dublado por ``httpx.MockTransport``.
+
+Aqui se verifica o que e responsabilidade do transporte: montar a requisicao a
+partir do ambiente e traduzir cada falha na excecao tipada correspondente. A
+politica de retentativa nao e testada aqui porque nao mora aqui - ela e do caso
+de uso, em ``tests/unit/test_structuring_service.py`` (RNF05).
+"""
 
 import json
 from collections.abc import Callable
@@ -225,65 +231,6 @@ async def test_corpo_que_nao_e_json_e_resposta_invalida(
         await provider.complete("prompt")
 
 
-async def test_falha_retentavel_e_repetida_ate_o_limite_configurado(
-    settings_http: Callable[..., object],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    tentativas: list[int] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        tentativas.append(1)
-        if len(tentativas) < 3:
-            return httpx.Response(503, json={})
-        return httpx.Response(200, json=RESPOSTA_OK)
-
-    monkeypatch.setattr("app.providers.http_llm_provider.asyncio.sleep", _sem_espera)
-    provider = _provider(settings_http(llm_max_retries=2), handler)
-
-    result = await provider.complete("prompt")
-
-    assert len(tentativas) == 3
-    assert result.text == '{"tema": "lideranca"}'
-
-
-async def test_falha_nao_retentavel_nao_e_repetida(
-    settings_http: Callable[..., object],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    tentativas: list[int] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        tentativas.append(1)
-        return httpx.Response(401, json={})
-
-    monkeypatch.setattr("app.providers.http_llm_provider.asyncio.sleep", _sem_espera)
-    provider = _provider(settings_http(llm_max_retries=3), handler)
-
-    with pytest.raises(LLMInvalidResponseError):
-        await provider.complete("prompt")
-
-    assert len(tentativas) == 1
-
-
-async def test_retentativa_esgotada_propaga_a_ultima_falha(
-    settings_http: Callable[..., object],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    tentativas: list[int] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        tentativas.append(1)
-        return httpx.Response(503, json={})
-
-    monkeypatch.setattr("app.providers.http_llm_provider.asyncio.sleep", _sem_espera)
-    provider = _provider(settings_http(llm_max_retries=1), handler)
-
-    with pytest.raises(LLMUnavailableError):
-        await provider.complete("prompt")
-
-    assert len(tentativas) == 2
-
-
 def test_provedor_http_exige_endpoint(make_settings: MakeSettings) -> None:
     settings = make_settings(llm_provider="mock", llm_base_url=None)
 
@@ -301,7 +248,3 @@ async def test_chave_nunca_aparece_na_mensagem_de_erro(
 
     assert "chave-de-teste-do-ambiente" not in str(excinfo.value)
     assert "chave-de-teste-do-ambiente" not in json.dumps(excinfo.value.to_error_payload())
-
-
-async def _sem_espera(segundos: float) -> None:
-    """Substitui o backoff nos testes, para que a suite nao durma."""

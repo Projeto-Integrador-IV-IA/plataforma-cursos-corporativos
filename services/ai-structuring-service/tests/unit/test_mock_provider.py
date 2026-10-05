@@ -35,6 +35,17 @@ async def test_resposta_traz_os_campos_do_curso_estruturado() -> None:
     assert len(curso["ementa"]) == 3
 
 
+async def test_resposta_fixa_traz_a_lacuna_classificada_da_forma_canonica() -> None:
+    """A fatia vertical da pre-banca le o mock: ele mostra a forma nova (RNF03)."""
+
+    curso = json.loads((await MockLLMProvider().complete("qualquer prompt")).text)
+
+    (lacuna,) = curso["campos_ausentes"]
+    assert tuple(lacuna) == ("campo", "tipo", "motivo")
+    assert lacuna["tipo"] == "ambigua"
+    assert curso[lacuna["campo"]] is None
+
+
 async def test_carga_horaria_dos_modulos_fecha_com_a_carga_total() -> None:
     curso = json.loads((await MockLLMProvider().complete("prompt")).text)
 

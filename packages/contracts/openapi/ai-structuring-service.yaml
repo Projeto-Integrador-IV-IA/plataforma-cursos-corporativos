@@ -1,6 +1,8 @@
 # =============================================================================
 # Contrato do ai-structuring-service (RNF02).
-# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
+# Estado: EM CONSTRUCAO - a estruturacao sincrona (RF11, RF12) e o acompanhamento
+# por identificador (RF17) estao implementados e verificados contra o openapi.json
+# do servico; as metricas de qualidade (RNF04) seguem previstas no card #110.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -10,7 +12,7 @@ info:
   version: 1.0.0
   description: |
     Estruturacao do curso por LLM.
-    Requisitos atendidos: RF11, RF12, RNF03, RNF04.
+    Requisitos atendidos: RF11, RF12, RF17, RNF03, RNF04.
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
 
@@ -23,12 +25,158 @@ servers:
 tags:
   - name: health
     description: Liveness e readiness
+  - name: structuring
+    description: |
+      Estruturacao do curso por LLM (RF11, RF12). O caminho sincrono espera o
+      resultado; o assincrono aceita o pedido e devolve identificador (RF17).
 
 security:
   - bearerAuth: []
 
-paths: {}
-# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+paths:
+  /health:
+    get:
+      tags:
+      - health
+      summary: Health
+      description: Confirma que o processo HTTP esta apto a responder.
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /api/v1/structuring:
+    post:
+      tags:
+      - structuring
+      summary: Estruturar o curso a partir do texto normalizado da demanda
+      description: 'Devolve tema, publico, carga horaria, ementa e objetivos do texto recebido.
+
+
+        O texto chega ja normalizado pelo ingestion-service (RF10) e ja persistido
+
+        la (RNF05): esta rota nao grava nada e nao fala com o banco de outro
+
+        servico. Nao ha recurso criado, por isso 200 e nao 201 - anexar o resultado
+
+        a negociacao e trabalho do pipeline-service (RF13).
+
+
+        O que volta nunca e "quase certo": ou o curso passou na validacao contra o
+
+        schema canonico (RNF03), ou a resposta e um erro identificado. E saida de
+
+        modelo, entao passa por revisao humana antes de virar proposta (RF14).'
+      operationId: structure_course_api_v1_structuring_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StructuringRequest'
+        required: true
+      responses:
+        '200':
+          description: Curso estruturado na forma canonica, com a proveniencia da execucao.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuringResponse'
+        '429':
+          description: Limite de uso do provedor de LLM atingido (LLM_RATE_LIMITED). A demanda bruta continua
+            intacta e pode ser reprocessada.
+        '502':
+          description: Resposta do provedor fora do schema do curso estruturado (LLM_INVALID_RESPONSE).
+            Resposta invalida e falha, nao resultado aproveitavel.
+        '503':
+          description: Provedor de LLM indisponivel (LLM_UNAVAILABLE) depois de esgotadas as retentativas.
+            A demanda bruta continua intacta.
+        '504':
+          description: Provedor de LLM excedeu o tempo maximo de resposta (LLM_TIMEOUT).
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/structuring/jobs:
+    post:
+      tags:
+      - structuring
+      summary: Aceitar a estruturacao e devolver o identificador da execucao
+      description: 'Aceita o pedido sem esperar o modelo responder (RF17, RNF06).
+
+
+        202 e nao 200: o recurso devolvido e a **execucao**, nao o curso, que ainda
+
+        nao existe. A entrada passa pela mesma validacao do caminho sincrono, entao
+
+        texto vazio ou versao de prompt inexistente continua sendo recusado aqui,
+
+        antes de ocupar lugar na fila.'
+      operationId: submit_structuring_job_api_v1_structuring_jobs_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StructuringRequest'
+        required: true
+      responses:
+        '202':
+          description: Pedido aceito; o resultado e consultado pelo identificador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuringJobAccepted'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/structuring/jobs/{job_id}:
+    get:
+      tags:
+      - structuring
+      summary: Consultar o estado de uma execucao de estruturacao
+      description: 'Informa em que pe esta a execucao, sem bloquear quem pergunta.
+
+
+        Enquanto nao concluiu, ``result`` vem nulo: nao existe curso parcial, e
+
+        devolver um esqueleto vazio faria a tela exibir campos que ninguem
+
+        preencheu (RNF03).'
+      operationId: get_structuring_job_api_v1_structuring_jobs__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Job Id
+      responses:
+        '200':
+          description: Estado corrente e, quando concluida, o curso produzido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuringJobRead'
+        '404':
+          description: Identificador desconhecido (STRUCTURING_JOB_NOT_FOUND). Execucoes nao sobrevivem
+            ao reinicio do servico; a demanda bruta, sim.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 
 components:
   securitySchemes:
@@ -37,5 +185,452 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
-  schemas: {}
-  # TODO(Fase 2): referenciar ../schemas/*.json
+  schemas:
+    CourseFormat:
+      type: string
+      enum:
+      - presencial
+      - online
+      - hibrido
+      title: CourseFormat
+      description: Formato de realizacao do treinamento (RF11).
+    ExecutionMetadata:
+      properties:
+        provider:
+          type: string
+          title: Provider
+        model:
+          type: string
+          title: Model
+        prompt:
+          type: string
+          title: Prompt
+        attempts:
+          type: integer
+          title: Attempts
+        prompt_tokens:
+          type: integer
+          title: Prompt Tokens
+        completion_tokens:
+          type: integer
+          title: Completion Tokens
+        total_tokens:
+          type: integer
+          title: Total Tokens
+        provider_latency_ms:
+          type: number
+          title: Provider Latency Ms
+        elapsed_ms:
+          type: number
+          title: Elapsed Ms
+      type: object
+      required:
+      - provider
+      - model
+      - prompt
+      - attempts
+      - prompt_tokens
+      - completion_tokens
+      - total_tokens
+      - provider_latency_ms
+      - elapsed_ms
+      title: ExecutionMetadata
+      description: "Proveniencia da execucao que produziu o curso (RNF04, RNF09, RNF12).\n\nAttributes:\n\
+        \    provider: provedor que atendeu a chamada (``LLM_PROVIDER``).\n    model: modelo que efetivamente\
+        \ respondeu.\n    prompt: prompt versionado usado, ex.: ``extract-requirements.v3``.\n    attempts:\
+        \ tentativas gastas, contando a primeira (RNF05).\n    prompt_tokens: tokens de entrada consumidos.\n\
+        \    completion_tokens: tokens gerados.\n    total_tokens: soma dos dois, insumo do custo de operacao\
+        \ (RNF12).\n    provider_latency_ms: tempo da chamada que respondeu.\n    elapsed_ms: tempo do caso\
+        \ de uso inteiro, incluindo as esperas entre\n        tentativas - e este que se compara ao alvo\
+        \ de 15 s (RNF06)."
+    FieldGap:
+      properties:
+        campo:
+          type: string
+          minLength: 1
+          title: Campo
+        tipo:
+          $ref: '#/components/schemas/GapKind'
+          default: ausente
+        motivo:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Motivo
+      additionalProperties: false
+      type: object
+      required:
+      - campo
+      title: FieldGap
+      description: "Lacuna apontada para um campo do curso (RNF03).\n\nRF15.1 no Documento Consolidado de\
+        \ Requisitos v1.0. E o apontamento que a\ntela de revisao destaca (RF14): o campo ficou sem valor\
+        \ utilizavel, este e o\ntipo da lacuna e este e o motivo, na linguagem do operador.\n\nAttributes:\n\
+        \    campo: nome do campo do contrato, exatamente como no schema.\n    tipo: por que o campo ficou\
+        \ sem valor - ``ausente`` por padrao, que e o\n        caso mais comum e o unico que a ``extract-requirements.v2``\
+        \ sabia\n        produzir.\n    motivo: frase curta explicando o apontamento; ``None`` quando o\
+        \ modelo\n        nao registrou nenhuma - lacuna sem explicacao continua visivel, em\n        vez\
+        \ de sumir da revisao."
+    GapKind:
+      type: string
+      enum:
+      - ausente
+      - ambigua
+      - contraditoria
+      title: GapKind
+      description: "Por que um campo ficou sem valor utilizavel (RNF03).\n\nA distincao existe para o operador,\
+        \ nao para a maquina: cada tipo pede uma\nconversa diferente com o cliente (RF14).\n\nAttributes:\n\
+        \    AUSENTE: a fonte nao traz a informacao.\n    AMBIGUA: a fonte traz a informacao de forma que\
+        \ admite mais de uma\n        leitura, e escolher uma delas seria supor.\n    CONTRADITORIA: dois\
+        \ trechos da mesma fonte afirmam coisas\n        incompativeis sobre o campo."
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    JobStatus:
+      type: string
+      enum:
+      - PENDENTE
+      - PROCESSANDO
+      - CONCLUIDA
+      - ERRO
+      title: JobStatus
+      description: Estados possiveis de uma execucao de estruturacao.
+    StructuredCourse:
+      properties:
+        tema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tema
+        nicho:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nicho
+        publico_alvo:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Publico Alvo
+        numero_participantes:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Numero Participantes
+        carga_horaria:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Carga Horaria
+        formato:
+          anyOf:
+          - $ref: '#/components/schemas/CourseFormat'
+          - type: 'null'
+        objetivos_aprendizagem:
+          items:
+            type: string
+          type: array
+          title: Objetivos Aprendizagem
+        ementa:
+          items:
+            $ref: '#/components/schemas/SyllabusModule'
+          type: array
+          title: Ementa
+        campos_ausentes:
+          items:
+            $ref: '#/components/schemas/FieldGap'
+          type: array
+          title: Campos Ausentes
+        observacoes:
+          items:
+            type: string
+          type: array
+          title: Observacoes
+      additionalProperties: false
+      type: object
+      required:
+      - tema
+      - publico_alvo
+      - carga_horaria
+      - objetivos_aprendizagem
+      - ementa
+      - campos_ausentes
+      - observacoes
+      title: StructuredCourse
+      description: 'Curso estruturado: a saida canonica da estruturacao por IA (RNF03).
+
+
+        A ordem de declaracao dos campos e a ordem canonica da serializacao -
+
+        extraidos (RF11), gerados (RF12) e metadados de confianca.
+
+
+        Valor nulo ou lista vazia significa "nao ha valor utilizavel no texto de
+
+        entrada", e o campo correspondente aparece em ``campos_ausentes``, com o
+
+        tipo da lacuna e o motivo - a validacao reconcilia os dois, entao as duas
+
+        leituras nunca se contradizem. Zero nao e ausencia: carga horaria e numero
+
+        de participantes sao positivos ou nulos.'
+    StructuringJobAccepted:
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          title: Job Id
+        demand_id:
+          type: string
+          title: Demand Id
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - job_id
+      - demand_id
+      - status
+      - created_at
+      title: StructuringJobAccepted
+      description: Confirmacao de que o pedido entrou na fila, sem esperar o resultado.
+      examples:
+      - created_at: '2026-09-22T10:00:00Z'
+        demand_id: dem-2026-0042
+        job_id: 3f1c2a54-9a1b-4f0e-8a77-0b9f1c2d3e4f
+        status: PENDENTE
+    StructuringJobError:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - code
+      - message
+      title: StructuringJobError
+      description: Falha que encerrou a execucao, no mesmo vocabulario do envelope (RNF02).
+    StructuringJobRead:
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          title: Job Id
+        demand_id:
+          type: string
+          title: Demand Id
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+        total_elapsed_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Total Elapsed Ms
+        result:
+          anyOf:
+          - $ref: '#/components/schemas/StructuringResponse'
+          - type: 'null'
+        execution:
+          anyOf:
+          - $ref: '#/components/schemas/ExecutionMetadata'
+          - type: 'null'
+        error:
+          anyOf:
+          - $ref: '#/components/schemas/StructuringJobError'
+          - type: 'null'
+      type: object
+      required:
+      - job_id
+      - demand_id
+      - status
+      - created_at
+      - started_at
+      - finished_at
+      - total_elapsed_ms
+      - result
+      - execution
+      - error
+      title: StructuringJobRead
+      description: 'Estado da execucao e, quando houver, o que ela produziu.
+
+
+        ``total_elapsed_ms`` mede do aceite ao desfecho, incluindo a espera na
+
+        fila - e diferente do ``elapsed_ms`` de ``execution``, que mede so a
+
+        chamada ao provedor. O primeiro e o tempo que o operador sente (RNF06); o
+
+        segundo e o que se compara entre modelos (RNF04).'
+    StructuringRequest:
+      properties:
+        demand_id:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Demand Id
+          description: Identificador da demanda na negociacao, usado para correlacionar log, metrica e reprocessamento.
+        text:
+          type: string
+          maxLength: 50000
+          minLength: 1
+          title: Text
+          description: Texto da demanda ja normalizado pelo ingestion-service (RF10).
+        prompt_version:
+          type: string
+          title: Prompt Version
+          description: Versao do prompt de extracao a usar, no formato 'v1'. Acompanha o resultado para
+            que a execucao seja reproduzivel (RNF04).
+          default: v3
+      additionalProperties: false
+      type: object
+      required:
+      - demand_id
+      - text
+      title: StructuringRequest
+      description: 'Texto normalizado que entra na estruturacao (RF11).
+
+
+        ``extra="forbid"`` recusa campo desconhecido na entrada: chamador fora de
+
+        sincronia com o contrato recebe 422 em vez de ter o campo ignorado em
+
+        silencio (RNF02).'
+      examples:
+      - demand_id: dem-2026-0042
+        prompt_version: v3
+        text: Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
+          da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias de 8 horas, no proprio site. Fico no
+          aguardo da proposta.
+    StructuringResponse:
+      properties:
+        demand_id:
+          type: string
+          title: Demand Id
+        course:
+          $ref: '#/components/schemas/StructuredCourse'
+        execution:
+          $ref: '#/components/schemas/ExecutionMetadata'
+      type: object
+      required:
+      - demand_id
+      - course
+      - execution
+      title: StructuringResponse
+      description: 'Curso estruturado devolvido pela estruturacao (RF11, RF12).
+
+
+        O curso vai aninhado em ``course`` de proposito: e exatamente a forma que o
+
+        pipeline-service vai gravar como artefato da negociacao (RF13), sem que a
+
+        proveniencia da execucao se misture aos campos pedagogicos.'
+      examples:
+      - course:
+          campos_ausentes:
+          - campo: ementa
+            motivo: O cliente nao descreveu o conteudo do treinamento.
+            tipo: ausente
+          - campo: objetivos_aprendizagem
+            motivo: O texto nao diz o que o participante deve saber fazer ao final.
+            tipo: ausente
+          carga_horaria: 16
+          ementa: []
+          formato: presencial
+          numero_participantes: 25
+          objetivos_aprendizagem: []
+          observacoes:
+          - O cliente nao descreveu o conteudo nem os objetivos do treinamento.
+          publico_alvo: Tecnicos de manutencao da planta 2
+          tema: NR-12 (seguranca em maquinas e equipamentos)
+        demand_id: dem-2026-0042
+        execution:
+          attempts: 1
+          completion_tokens: 210
+          elapsed_ms: 861.7
+          model: mock
+          prompt: extract-requirements.v3
+          prompt_tokens: 940
+          provider: mock
+          provider_latency_ms: 820.4
+          total_tokens: 1150
+    SyllabusModule:
+      properties:
+        titulo:
+          type: string
+          minLength: 1
+          title: Titulo
+        topicos:
+          items:
+            type: string
+          type: array
+          title: Topicos
+        carga_horaria:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Carga Horaria
+      additionalProperties: false
+      type: object
+      required:
+      - titulo
+      title: SyllabusModule
+      description: "Modulo da ementa: um bloco de conteudo com titulo, topicos e carga.\n\nAttributes:\n\
+        \    titulo: nome do modulo, nos termos do cliente.\n    topicos: assuntos do modulo, na ordem em\
+        \ que aparecem.\n    carga_horaria: duracao do modulo em horas; ``None`` quando o texto nao\n  \
+        \      permite saber sem supor."
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

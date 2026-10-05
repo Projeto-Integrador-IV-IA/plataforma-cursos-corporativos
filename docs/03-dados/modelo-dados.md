@@ -77,11 +77,18 @@ erDiagram
         uuid id PK
         uuid artifact_id FK
         int number
+        text raw_content
         jsonb content
         text origin
         jsonb ai_metadata
         uuid author_id FK
         timestamptz created_at
+    }
+
+    ARTIFACT_SOURCES {
+        uuid artifact_id PK, FK
+        uuid raw_input_id PK, FK
+        uuid demand_id FK
     }
 ```
 
@@ -95,6 +102,7 @@ erDiagram
 | `raw_inputs` | Texto heterogêneo como chegou, mais sua versão normalizada. | RF09, RF10 |
 | `stage_transitions` | Histórico imutável de mudanças de etapa. | RF07 |
 | `artifacts` | Documento lógico atrelado à negociação. | RF15 |
+| `artifact_sources` | Fontes que originaram cada resultado da IA. | RF16.1 |
 | `artifact_versions` | Cada versão do conteúdo do artefato. | RF08 |
 
 ## Decisões de modelagem
@@ -141,9 +149,10 @@ histórico das negociações dele — o oposto de RNF09 e de RF15.
 
 ### 6. Fonte e artefato pertencem à mesma demanda
 
-Quando `artifacts.raw_input_id` é informado, a chave estrangeira composta
-`(raw_input_id, demand_id)` garante que a fonte e o artefato pertençam à mesma demanda. Assim, não é
-possível formar uma cadeia válida individualmente, mas inconsistente entre clientes ou demandas.
+`artifacts.raw_input_id` preserva compatibilidade com a primeira fonte. A tabela
+`artifact_sources` registra todas as fontes usadas e suas duas chaves estrangeiras compostas garantem
+que fonte e artefato pertençam à mesma demanda. Assim, não é possível formar uma cadeia válida
+individualmente, mas inconsistente entre clientes ou demandas.
 
 ## Máquina de estados do pipeline
 

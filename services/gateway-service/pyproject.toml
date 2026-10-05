@@ -10,7 +10,10 @@ dependencies = [
   "pydantic-settings>=2.6",
   "httpx>=0.27",
   "pyjwt>=2.9",
-  "passlib[bcrypt]>=1.7",
+  # bcrypt direto, sem passlib: a 1.7.4 (ultima release, de 2020) le a versao
+  # do bcrypt por `__about__`, atributo removido na 4.1 e que na 5.0 quebra o
+  # hash. Usar a biblioteca do algoritmo evita carregar um wrapper parado.
+  "bcrypt>=4.1",
 ]
 
 [project.optional-dependencies]

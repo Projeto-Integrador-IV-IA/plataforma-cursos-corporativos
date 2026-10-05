@@ -1,6 +1,8 @@
 # =============================================================================
 # Contrato do ingestion-service (RNF02).
-# Estado: ESQUELETO - os caminhos sao definidos na Fase 2 (ate 15/09).
+# Estado: EM CONSTRUCAO - a captacao de texto bruto (RF09) esta implementada e
+# verificada contra o openapi.json do servico; a normalizacao (RF10) e o
+# reprocessamento seguem como caminhos previstos no card #109.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -23,12 +25,91 @@ servers:
 tags:
   - name: health
     description: Liveness e readiness
+  - name: ingestion
+    description: |
+      Porta de entrada do texto bruto multicanal (RF09). A captacao so e
+      confirmada depois que o pipeline-service commita o original.
 
 security:
   - bearerAuth: []
 
-paths: {}
-# TODO(Fase 2): declarar os caminhos conforme docs/02-arquitetura/contratos-api.md
+paths:
+  /health:
+    get:
+      tags:
+      - health
+      summary: Health
+      description: Confirma que o processo HTTP esta apto a responder.
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /api/v1/ingestion:
+    post:
+      tags:
+      - ingestion
+      summary: Captar texto bruto multicanal
+      description: Persiste o texto original no pipeline-service e somente entao confirma a captacao.
+        Nenhuma normalizacao ou chamada a IA ocorre antes desse commit.
+      operationId: capture_raw_text_api_v1_ingestion_post
+      parameters:
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionRead'
+        '404':
+          description: Demanda ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Referencia removida durante a persistencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Texto, origem, demanda ou operador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Falha de comunicacao ou resposta invalida do pipeline-service.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout ao persistir no pipeline-service.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:
@@ -37,5 +118,98 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
-  schemas: {}
-  # TODO(Fase 2): referenciar ../schemas/*.json
+  schemas:
+    ErrorBody:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Details
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      title: ErrorBody
+    ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+      type: object
+      required:
+      - error
+      title: ErrorResponse
+    IngestionCreate:
+      properties:
+        text:
+          type: string
+          minLength: 1
+          title: Text
+          description: Texto bruto preservado sem alteracoes.
+        source_type:
+          $ref: '#/components/schemas/SourceKind'
+          description: Canal de origem declarado pelo operador.
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+          description: Demanda existente no pipeline-service.
+      additionalProperties: false
+      type: object
+      required:
+      - text
+      - source_type
+      - demand_id
+      title: IngestionCreate
+      description: Texto, origem declarada e demanda de destino.
+    IngestionRead:
+      properties:
+        raw_input_id:
+          type: string
+          format: uuid
+          title: Raw Input Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        source_type:
+          $ref: '#/components/schemas/SourceKind'
+        status:
+          type: string
+          const: RECEBIDA
+          title: Status
+          default: RECEBIDA
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - raw_input_id
+      - demand_id
+      - source_type
+      - created_at
+      title: IngestionRead
+      description: Resposta emitida somente depois da confirmacao do pipeline-service.
+    SourceKind:
+      type: string
+      enum:
+      - EMAIL
+      - TRANSCRICAO
+      - MENSAGENS
+      - ANOTACAO
+      - OUTRO
+      title: SourceKind
+      description: Origens aceitas, alinhadas ao vocabulario persistido pelo pipeline.

@@ -12,7 +12,9 @@ A resposta fixa segue a forma canonica do curso estruturado descrita em
 ``app.domain.course``: campos extraidos (RF11), campos gerados (RF12) e os
 metadados de confianca. Enquanto
 ``packages/contracts/schemas/structured-course.schema.json`` for um esqueleto,
-e esta forma que serve de referencia para a fatia vertical da pre-banca.
+e esta forma que serve de referencia para a fatia vertical da pre-banca - por
+isso ela traz uma lacuna classificada em ``campos_ausentes``, no formato
+``{campo, tipo, motivo}`` que a tela de revisao consome (RF14, RNF03).
 
 O provedor nao inventa nada a partir do prompt: a saida e sempre a mesma, para
 que qualquer medicao ou teste seja reproduzivel.
@@ -35,7 +37,7 @@ RESPOSTA_FIXA: Final[dict[str, object]] = {
     "tema": "Seguranca do trabalho em ambiente industrial",
     "nicho": "Industria metalurgica",
     "publico_alvo": "Operadores de chao de fabrica e lideres de turno",
-    "numero_participantes": 40,
+    "numero_participantes": None,
     "carga_horaria": 16,
     "formato": "presencial",
     "objetivos_aprendizagem": [
@@ -60,7 +62,16 @@ RESPOSTA_FIXA: Final[dict[str, object]] = {
             "carga_horaria": 6,
         },
     ],
-    "campos_ausentes": ["orcamento"],
+    "campos_ausentes": [
+        {
+            "campo": "numero_participantes",
+            "tipo": "ambigua",
+            "motivo": (
+                "o texto fala em 'uns 40 operadores, fora os lideres de turno', sem numero "
+                "fechado - a quantidade precisa de confirmacao do cliente."
+            ),
+        },
+    ],
     "observacoes": [
         "Resposta gerada pelo provedor mock - nao houve chamada a nenhum modelo de linguagem.",
     ],

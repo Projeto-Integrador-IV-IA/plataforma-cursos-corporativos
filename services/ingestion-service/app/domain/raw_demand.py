@@ -1,17 +1,39 @@
-"""Dominio da demanda bruta (RF09).
+"""Dominio da captacao multicanal de texto bruto (RF09)."""
 
-Uma demanda bruta e um texto heterogeneo colado pelo operador: corpo de e-mail,
-transcricao de reuniao, sequencia de mensagens de WhatsApp ou anotacao livre.
-Nao ha formato garantido - e exatamente isso que a camada de IA precisa
-resolver.
+from dataclasses import dataclass
+from datetime import datetime
+from enum import StrEnum
+from uuid import UUID
 
-Conceitos:
-    RawDemand        conteudo original, integro, exatamente como recebido
-    SourceKind       origem declarada: EMAIL, TRANSCRICAO, MENSAGENS, ANOTACAO, OUTRO
-    NormalizedText   texto limpo e pronto para o prompt (RF10)
 
-Invariante central (RNF05): o conteudo original nunca e descartado nem alterado
-pela normalizacao - normalizar produz um novo texto, nao substitui o de entrada.
+class SourceKind(StrEnum):
+    """Origens aceitas, alinhadas ao vocabulario persistido pelo pipeline."""
 
-TODO(scaffolding): implementar as estruturas do dominio.
-"""
+    EMAIL = "EMAIL"
+    TRANSCRICAO = "TRANSCRICAO"
+    MENSAGENS = "MENSAGENS"
+    ANOTACAO = "ANOTACAO"
+    OUTRO = "OUTRO"
+
+
+@dataclass(frozen=True, slots=True)
+class RawDemand:
+    """Conteudo imutavel exatamente como recebido do operador."""
+
+    demand_id: UUID
+    text: str
+    source_type: SourceKind
+
+    def __post_init__(self) -> None:
+        if not self.text.strip():
+            raise ValueError("text must not be blank")
+
+
+@dataclass(frozen=True, slots=True)
+class PersistedRawDemand:
+    """Confirmacao de que o pipeline concluiu a transacao do texto bruto."""
+
+    raw_input_id: UUID
+    demand_id: UUID
+    source_type: SourceKind
+    created_at: datetime

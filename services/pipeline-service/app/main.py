@@ -14,12 +14,14 @@ from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.api.v1.routes.health import router as health_router
+from app.core.exceptions import register_exception_handlers
 
 
 def create_app() -> FastAPI:
     """Cria a aplicacao e registra as fronteiras HTTP publicas."""
 
     application = FastAPI(title="pipeline-service", version="0.1.0")
+    register_exception_handlers(application)
     application.include_router(health_router)
     application.include_router(api_router)
     return application

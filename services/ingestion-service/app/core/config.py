@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     log_level: str = Field(min_length=1)
     ingestion_port: int = Field(ge=1, le=65535)
     pipeline_service_url: str = Field(min_length=1)
+    pipeline_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     ai_structuring_service_url: str = Field(min_length=1)
 
 

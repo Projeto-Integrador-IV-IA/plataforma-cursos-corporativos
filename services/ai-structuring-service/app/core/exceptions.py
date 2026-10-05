@@ -30,7 +30,7 @@ existir.
 """
 
 from collections.abc import Mapping
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 
 class PlatformError(Exception):
@@ -58,6 +58,27 @@ class PlatformError(Exception):
         self.message = message or self.default_message
         self.details: dict[str, Any] = dict(details or {})
         super().__init__(self.message)
+
+    def add_context(self, **contexto: Any) -> Self:
+        """Acrescenta contexto aos detalhes sem sobrescrever o que ja existe.
+
+        Serve para a camada de caso de uso completar o erro levantado mais
+        abaixo com o que so ela conhece - qual demanda estava sendo
+        processada, quantas tentativas foram gastas - sem precisar construir
+        outra excecao e perder o tipo original (RNF05).
+
+        Valor ``None`` e ignorado, para nao poluir o corpo de erro com campo
+        vazio. Contexto nunca carrega credencial (RNF11) nem dado pessoal do
+        cliente (RNF10).
+
+        Returns:
+            A propria excecao, para encadear com ``raise``.
+        """
+
+        for chave, valor in contexto.items():
+            if valor is not None:
+                self.details.setdefault(chave, valor)
+        return self
 
     def to_error_payload(self, request_id: str | None = None) -> dict[str, Any]:
         """Monta o corpo de erro no formato unico da plataforma (RNF02).
@@ -91,7 +112,8 @@ class LLMProviderError(UpstreamError):
 
     Attributes:
         retryable: indica se repetir a chamada tem chance de sucesso. Orienta a
-            politica de retentativa do provedor concreto (``LLM_MAX_RETRIES``).
+            politica de retentativa do caso de uso
+            (``app.services.structuring_service``, ``LLM_MAX_RETRIES``).
     """
 
     code: ClassVar[str] = "LLM_ERROR"
@@ -187,3 +209,29 @@ class LLMInvalidResponseError(LLMProviderError):
     http_status: ClassVar[int] = 502
     default_message: ClassVar[str] = "Resposta do provedor de LLM fora do formato esperado."
     retryable: ClassVar[bool] = False
+
+    def violated_fields(self) -> tuple[str, ...]:
+        """Nomes dos campos que violaram o contrato, na ordem em que foram reportados.
+
+        Le o resumo de violacoes que a validacao do dominio deixa em
+        ``details["violacoes"]`` - cada item traz o caminho do campo, o tipo do
+        erro e a mensagem. Aqui sai apenas o caminho: e o que identifica onde o
+        contrato foi rompido, sem repetir o valor recusado, que carrega texto da
+        demanda do cliente (RNF10).
+
+        Returns:
+            Tupla com os caminhos dos campos, sem repeticao. Vazia quando a
+            falha nao veio da validacao de schema - resposta ilegivel ou
+            requisicao recusada pelo fornecedor nao tem campo a apontar.
+        """
+
+        violacoes = self.details.get("violacoes")
+        if not isinstance(violacoes, list):
+            return ()
+        campos: dict[str, None] = {}
+        for violacao in violacoes:
+            if isinstance(violacao, Mapping):
+                campo = violacao.get("campo")
+                if isinstance(campo, str) and campo:
+                    campos.setdefault(campo, None)
+        return tuple(campos)
