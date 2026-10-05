@@ -11,6 +11,7 @@ pronto" — item pendente significa card em andamento.
 - [ ] CI verde no PR
 - [ ] Revisado e aprovado conforme o [fluxo](fluxo-git.md#5-review)
 - [ ] Nenhum segredo commitado (RNF11)
+- [ ] Configuração sensível lida somente do ambiente e senhas armazenadas como hash (RNF11)
 - [ ] [Matriz de rastreabilidade](../01-requisitos/matriz-rastreabilidade.md) atualizada
 - [ ] Nada de código comentado, `console.log` esquecido ou `TODO` sem card correspondente
 

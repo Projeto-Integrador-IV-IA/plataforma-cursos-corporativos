@@ -1,27 +1,61 @@
-"""Enumeracoes do dominio.
+"""Fonte unica dos vocabularios fechados do dominio (RNF02)."""
 
-Vocabulario fechado do negocio. Estes valores sao contrato: aparecem na API, no
-banco e na interface, entao mudanca aqui e mudanca de contrato (RNF02).
+from enum import StrEnum
 
-PipelineStage - as cinco etapas percorridas por uma negociacao (RF05):
-    CAPTACAO        demanda registrada, ainda bruta
-    ESTRUTURACAO    demanda enviada / retornada da camada de IA
-    PRODUTO         curso estruturado revisado pelo operador (RF14)
-    PROPOSTA        proposta montada para o cliente
-    ACOMPANHAMENTO  pos-proposta, negociacao em andamento
 
-    O avanco e sequencial, mas o retrocesso e livre para qualquer etapa
-    anterior (RF06) - o cliente muda escopo a qualquer momento.
+class PipelineStage(StrEnum):
+    """Etapas percorridas por uma demanda no pipeline (RF05)."""
 
-DemandStatus - situacao da negociacao, ortogonal a etapa:
-    ABERTA, GANHA, PERDIDA, CANCELADA
+    CAPTACAO = "CAPTACAO"
+    ESTRUTURACAO = "ESTRUTURACAO"
+    PRODUTO = "PRODUTO"
+    PROPOSTA = "PROPOSTA"
+    ACOMPANHAMENTO = "ACOMPANHAMENTO"
 
-ArtifactType - natureza do artefato consolidado (RF15):
-    DEMANDA_BRUTA, REQUISITOS_EXTRAIDOS, EMENTA, PROPOSTA, OUTRO
 
-TODO(scaffolding): implementar os enums como ``StrEnum``.
-"""
+class DemandStatus(StrEnum):
+    """Situacoes da demanda, ortogonais a etapa corrente."""
 
-# TODO: class PipelineStage(StrEnum): ...
-# TODO: class DemandStatus(StrEnum): ...
-# TODO: class ArtifactType(StrEnum): ...
+    ABERTA = "ABERTA"
+    GANHA = "GANHA"
+    PERDIDA = "PERDIDA"
+    CANCELADA = "CANCELADA"
+
+
+class RawInputSource(StrEnum):
+    """Origens aceitas para uma fonte bruta."""
+
+    EMAIL = "EMAIL"
+    TRANSCRICAO = "TRANSCRICAO"
+    MENSAGENS = "MENSAGENS"
+    ANOTACAO = "ANOTACAO"
+    OUTRO = "OUTRO"
+
+
+class ArtifactType(StrEnum):
+    """Naturezas aceitas para um artefato consolidado (RF15)."""
+
+    DEMANDA_BRUTA = "DEMANDA_BRUTA"
+    REQUISITOS_EXTRAIDOS = "REQUISITOS_EXTRAIDOS"
+    EMENTA = "EMENTA"
+    PROPOSTA = "PROPOSTA"
+    OUTRO = "OUTRO"
+
+
+class ArtifactOrigin(StrEnum):
+    """Autores logicos possiveis para uma versao de artefato."""
+
+    IA = "IA"
+    HUMANO = "HUMANO"
+
+
+def enum_values(enum_type: type[StrEnum]) -> tuple[str, ...]:
+    """Retorna os valores persistidos de uma enumeracao de contrato."""
+
+    return tuple(item.value for item in enum_type)
+
+
+def sql_enum_values(enum_type: type[StrEnum]) -> str:
+    """Formata valores controlados para uso em um ``CheckConstraint``."""
+
+    return ", ".join(f"'{value}'" for value in enum_values(enum_type))

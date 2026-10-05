@@ -47,7 +47,7 @@
 | ID | Requisito | Prioridade | Onde se materializa |
 |---|---|---|---|
 | **RNF10** | Controle de acesso à plataforma; dados de clientes não expostos publicamente. | Essencial | `gateway-service` |
-| **RNF11** | Chaves de API e segredos mantidos fora do código-fonte (variáveis de ambiente). | Essencial | [`.env.example`](../../.env.example), job de segurança da CI |
+| **RNF11** | Chaves de API, tokens e credenciais fora do código-fonte, exclusivamente em variáveis de ambiente; senhas de usuários somente como hash. | Essencial | Classes `Settings`, [`.env.example`](../../.env.example), hash bcrypt e job de segurança da CI |
 
 ### Custo e infraestrutura
 

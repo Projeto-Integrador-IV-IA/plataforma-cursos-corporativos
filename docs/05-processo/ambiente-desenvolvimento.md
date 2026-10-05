@@ -21,6 +21,10 @@ cp .env.example .env
 Abra o `.env` e preencha os valores locais. **Nunca versione este arquivo** (RNF11) — ele já está no
 `.gitignore`, e a CI reprova o PR se ele aparecer.
 
+Os campos sensíveis do template ficam vazios de propósito. Gere valores fortes localmente e
+distribua-os por um gerenciador de segredos. O Docker Compose injeta o `.env` nos processos; a
+aplicação não carrega arquivos nem possui fallback para chaves, tokens ou credenciais.
+
 Chave da API de linguagem: solicite à gerência. Enquanto não tiver, use `LLM_PROVIDER=mock`, que
 funciona sem chave e sem custo.
 
@@ -59,10 +63,13 @@ make down        # derruba a stack
 
 ## Trabalhar em um serviço isolado
 
+Exporte no shell todas as variáveis listadas no `.env.example` do serviço antes de iniciar. Os
+templates são somente documentação e nunca são carregados automaticamente pela aplicação.
+
 ```bash
 cd services/pipeline-service
 pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --reload --port "$PIPELINE_PORT"
 ```
 
 Use ambiente virtual por serviço (`python -m venv .venv`) para não misturar dependências.
