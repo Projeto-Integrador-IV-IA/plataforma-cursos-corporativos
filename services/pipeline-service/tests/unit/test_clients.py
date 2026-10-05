@@ -1,4 +1,4 @@
-"""Criterios de aceite HTTP e persistencia de RF01.2."""
+"""Criterios de aceite HTTP e persistencia de RF01.1 e RF01.2."""
 
 from collections.abc import Iterator
 from uuid import UUID, uuid4
@@ -13,6 +13,7 @@ from app.db.base import Base
 from app.db.session import get_session
 from app.main import create_app
 from app.models import Client
+from app.schemas.client import CNPJ_PATTERN, PHONE_PATTERN
 
 
 @pytest.fixture
@@ -66,6 +67,72 @@ def seed_client(client_engine: Engine, *, name: str = "Empresa Exemplo") -> UUID
         session.add(client)
         session.commit()
         return client.id
+
+
+def valid_client_payload() -> dict[str, str]:
+    return {
+        "name": "Empresa Exemplo",
+        "cnpj": "12.345.678/0001-90",
+        "segment": "Tecnologia",
+        "contact_name": "Maria Silva",
+        "contact_email": "maria@example.com",
+        "contact_phone": "+55 11 99999-0000",
+        "notes": "Cliente prioritario",
+    }
+
+
+def test_create_accepts_only_required_field(clients_api: TestClient) -> None:
+    response = clients_api.post("/api/v1/clients", json={"name": "Empresa Exemplo"})
+
+    assert response.status_code == 201
+    assert response.json()["name"] == "Empresa Exemplo"
+    assert response.json()["cnpj"] is None
+
+
+def test_create_normalizes_formatted_cnpj_and_accepts_contact_formats(
+    clients_api: TestClient,
+) -> None:
+    response = clients_api.post("/api/v1/clients", json=valid_client_payload())
+
+    assert response.status_code == 201
+    assert response.json()["cnpj"] == "12345678000190"
+    assert response.json()["contact_email"] == "maria@example.com"
+    assert response.json()["contact_phone"] == "+55 11 99999-0000"
+
+
+def test_create_reports_every_invalid_field_in_one_422(clients_api: TestClient) -> None:
+    response = clients_api.post(
+        "/api/v1/clients",
+        json={
+            "cnpj": "12.345.678/0001",
+            "contact_email": "email-invalido",
+            "contact_phone": "telefone-invalido",
+        },
+    )
+
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "VALIDATION_ERROR"
+    assert error["message"] == "Os dados informados sao invalidos."
+
+    issues = {issue["location"][-1]: issue for issue in error["details"]["issues"]}
+    assert set(issues) == {"name", "cnpj", "contact_email", "contact_phone"}
+    assert issues["name"]["type"] == "missing"
+    assert all(issue["message"] for issue in issues.values())
+
+
+@pytest.mark.parametrize(
+    "phone",
+    ["(11) 99999-0000", "11999990000", "+55 11 99999-0000", "+5511999990000"],
+)
+def test_create_accepts_supported_phone_formats(clients_api: TestClient, phone: str) -> None:
+    response = clients_api.post(
+        "/api/v1/clients",
+        json={"name": f"Empresa {phone}", "contact_phone": phone},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["contact_phone"] == phone
 
 
 def test_list_and_get_client(clients_api: TestClient, client_engine: Engine) -> None:
@@ -143,4 +210,13 @@ def test_swagger_documents_client_queries_and_patch(clients_api: TestClient) -> 
     assert (
         detail["patch"]["requestBody"]["content"]["application/json"]["schema"]["$ref"]
         == "#/components/schemas/ClientUpdate"
+    )
+
+    create_schema = document["components"]["schemas"]["ClientCreate"]
+    assert create_schema["required"] == ["name"]
+    assert create_schema["properties"]["name"]["maxLength"] == 200
+    assert create_schema["properties"]["cnpj"]["anyOf"][0]["pattern"] == CNPJ_PATTERN.pattern
+    assert create_schema["properties"]["contact_email"]["anyOf"][0]["format"] == "email"
+    assert (
+        create_schema["properties"]["contact_phone"]["anyOf"][0]["pattern"] == PHONE_PATTERN.pattern
     )
