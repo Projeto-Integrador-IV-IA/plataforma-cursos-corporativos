@@ -94,12 +94,15 @@ def list_demands(
         "description registra o contexto; owner_id indica um usuario responsavel existente."
     ),
     responses={
-        404: {"model": ErrorResponse, "description": "Cliente ou responsavel inexistente."},
+        404: {"model": ErrorResponse, "description": "Responsavel inexistente."},
         409: {
             "model": ErrorResponse,
             "description": "Referencia removida durante a criacao.",
         },
-        422: {"model": ErrorResponse, "description": "Dados de entrada invalidos."},
+        422: {
+            "model": ErrorResponse,
+            "description": "Campos invalidos ou cliente inexistente.",
+        },
     },
 )
 def create_demand(

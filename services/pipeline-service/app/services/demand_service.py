@@ -11,7 +11,12 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import (
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+    issue_de_validacao,
+)
 from app.domain.enums import DemandStatus, PipelineStage
 from app.models import Client, Demand, User
 from app.repositories.demand_repository import DemandRepository
@@ -29,10 +34,18 @@ class DemandService:
         """Valida referencias e persiste; a FK protege tambem contra concorrencia."""
 
         if self.session.get(Client, data.client_id) is None:
-            raise NotFoundError(
-                code="CLIENT_NOT_FOUND",
-                message="Cliente nao encontrado.",
-                details={"client_id": str(data.client_id)},
+            raise ValidationError(
+                code="VALIDATION_ERROR",
+                message="Os dados informados sao invalidos.",
+                details={
+                    "issues": [
+                        issue_de_validacao(
+                            localizacao=["body", "client_id"],
+                            mensagem="O cliente informado nao existe.",
+                            tipo="value_error.client_not_found",
+                        )
+                    ]
+                },
             )
         if data.owner_id is not None and self.session.get(User, data.owner_id) is None:
             raise NotFoundError(
