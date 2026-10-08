@@ -194,6 +194,15 @@ paths:
           default: 20
           title: Size
         description: Itens por pagina.
+      - name: include_inactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Inclui clientes inativos quando verdadeiro.
+          default: false
+          title: Include Inactive
+        description: Inclui clientes inativos quando verdadeiro.
       responses:
         '200':
           description: Successful Response
@@ -283,6 +292,74 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Dados de entrada invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/clients/{client_id}/deactivate:
+    post:
+      tags:
+      - clients
+      summary: Inativar cliente
+      description: Inativa o cliente sem excluir seus dados nem o historico relacionado.
+      operationId: deactivate_client_api_v1_clients__client_id__deactivate_post
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Client Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRead'
+        '404':
+          description: Cliente inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/clients/{client_id}/reactivate:
+    post:
+      tags:
+      - clients
+      summary: Reativar cliente
+      description: Reativa o cliente preservando seus dados e o historico relacionado.
+      operationId: reactivate_client_api_v1_clients__client_id__reactivate_post
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Client Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRead'
+        '404':
+          description: Cliente inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador invalido.
           content:
             application/json:
               schema:
