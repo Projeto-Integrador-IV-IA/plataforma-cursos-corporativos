@@ -197,6 +197,32 @@ describe('listagem de demandas', () => {
     expect(ultimosFiltros().offset).toBe(0);
   });
 
+  it('filtra por responsavel e reinicia a paginacao', async () => {
+    const usuario = userEvent.setup();
+    const owner = 'aabbccdd-1111-4111-8111-111111111111';
+    vi.mocked(listDemands).mockImplementation(async (params) => ({
+      items: [criarDemanda(1, { owner_id: owner })], total: 1, page: 1, size: 20,
+    }));
+    renderRoute('/demandas?pagina=2');
+    await screen.findByRole('row', { name: /Demanda 01/ });
+    await usuario.selectOptions(screen.getByLabelText('Responsavel'), owner);
+    await waitFor(() => expect(ultimosFiltros().owner_id).toBe(owner));
+    expect(ultimosFiltros().offset).toBe(0);
+    expect(screen.getByLabelText<HTMLSelectElement>('Responsavel').value).toBe(owner);
+  });
+
+  it('combina cliente e responsavel recebidos pela URL e permite limpar ambos', async () => {
+    const usuario = userEvent.setup();
+    const owner = 'aabbccdd-1111-4111-8111-111111111111';
+    renderRoute(`/demandas?cliente=${BETA.id}&responsavel=${owner}`);
+    await screen.findByRole('row', { name: /Demanda 01/ });
+    expect(ultimosFiltros().client_id).toBe(BETA.id);
+    expect(ultimosFiltros().owner_id).toBe(owner);
+    await usuario.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    await waitFor(() => expect(ultimosFiltros().owner_id).toBeUndefined());
+    expect(ultimosFiltros().client_id).toBeUndefined();
+  });
+
   it('trata lista vazia sem filtro convidando a abrir a primeira demanda', async () => {
     comPagina([], 0);
     renderRoute('/demandas');
