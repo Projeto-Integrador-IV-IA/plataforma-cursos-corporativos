@@ -200,7 +200,7 @@ describe('listagem de demandas', () => {
   it('filtra por responsavel e reinicia a paginacao', async () => {
     const usuario = userEvent.setup();
     const owner = 'aabbccdd-1111-4111-8111-111111111111';
-    vi.mocked(listDemands).mockImplementation(async (params) => ({
+    vi.mocked(listDemands).mockImplementation(async () => ({
       items: [criarDemanda(1, { owner_id: owner })], total: 1, page: 1, size: 20,
     }));
     renderRoute('/demandas?pagina=2');

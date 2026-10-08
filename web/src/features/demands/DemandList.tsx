@@ -50,6 +50,7 @@ const PARAM = {
   page: 'pagina',
   status: 'situacao',
   client: 'cliente',
+  owner: 'responsavel',
 } as const;
 
 const GENERIC_FAILURE = 'Nao foi possivel carregar as demandas. Tente novamente.';
@@ -88,21 +89,28 @@ export function DemandList() {
 
   const statusFieldId = useId();
   const clientFieldId = useId();
+  const ownerFieldId = useId();
 
   const page = readPage(searchParams);
   const status = readStatus(searchParams);
   const clientId = readClient(searchParams);
-  const filtered = status !== undefined || clientId !== undefined;
+const ownerId = searchParams.get(PARAM.owner) || undefined;
+
+const filtered =
+  status !== undefined ||
+  clientId !== undefined ||
+  ownerId !== undefined;
 
   const params = useMemo(
-    () => ({
-      limit: PAGE_SIZE,
-      offset: (page - 1) * PAGE_SIZE,
-      status,
-      client_id: clientId,
-    }),
-    [page, status, clientId],
-  );
+  () => ({
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+    status,
+    client_id: clientId,
+    owner_id: ownerId,
+  }),
+  [page, status, clientId, ownerId],
+);
 
   const demands = useQuery({
     queryKey: ['demands', params],
@@ -149,12 +157,23 @@ export function DemandList() {
   }
 
   function clearFilters() {
-    changeSearch({ [PARAM.status]: '', [PARAM.client]: '', [PARAM.page]: '' });
-  }
+  changeSearch({
+    [PARAM.status]: '',
+    [PARAM.client]: '',
+    [PARAM.owner]: '',
+    [PARAM.page]: '',
+  });
+}
 
   const total = demands.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const items = demands.data?.items ?? [];
+  const owners = Array.from(
+  new Set(
+    [ownerId, ...items.map((item) => item.owner_id)]
+      .filter((id): id is string => Boolean(id))
+  )
+).sort();
 
   return (
     <section className="demand-list">
@@ -201,6 +220,38 @@ export function DemandList() {
             ))}
           </select>
         </div>
+        <div className="form__field">
+  <label className="form__label" htmlFor={ownerFieldId}>
+    Responsavel
+  </label>
+
+  <select
+    id={ownerFieldId}
+    className="form__control"
+    value={ownerId ?? ''}
+    onChange={(event) =>
+      handleFilterChange(PARAM.owner, event.target.value)
+    }
+  >
+    <option value="">Todos</option>
+
+    {owners.map((id) => (
+      <option key={id} value={id}>
+        {id}
+      </option>
+    ))}
+  </select>
+</div>
+
+{filtered && (
+  <button
+    type="button"
+    className="button"
+    onClick={clearFilters}
+  >
+    Limpar filtros
+  </button>
+)}
       </form>
 
       {clients.isError ? (
@@ -230,9 +281,6 @@ export function DemandList() {
           {filtered ? (
             <>
               <p>Nenhuma demanda atende a este filtro.</p>
-              <button type="button" className="button" onClick={clearFilters}>
-                Limpar filtros
-              </button>
             </>
           ) : (
             <p>
