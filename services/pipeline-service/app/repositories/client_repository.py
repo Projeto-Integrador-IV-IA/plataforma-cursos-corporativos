@@ -1,4 +1,4 @@
-"""Persistencia de clientes (RF01.1 e RF01.2)."""
+"""Persistencia de clientes (RF01.1, RF01.2 e RF01.3)."""
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
@@ -24,11 +24,18 @@ class ClientRepository:
     def get_by_id(self, client_id: UUID) -> Client | None:
         return self.session.get(Client, client_id)
 
-    def list(self, *, page: int, size: int) -> tuple[list[Client], int]:
-        total = self.session.scalar(select(func.count()).select_from(Client)) or 0
+    def list(
+        self, *, page: int, size: int, include_inactive: bool = False
+    ) -> tuple[list[Client], int]:
+        count_statement = select(func.count()).select_from(Client)
+        statement = select(Client)
+        if not include_inactive:
+            count_statement = count_statement.where(Client.active.is_(True))
+            statement = statement.where(Client.active.is_(True))
+
+        total = self.session.scalar(count_statement) or 0
         statement = (
-            select(Client)
-            .order_by(Client.created_at.desc(), Client.id)
+            statement.order_by(Client.created_at.desc(), Client.id)
             .offset((page - 1) * size)
             .limit(size)
         )
@@ -44,6 +51,15 @@ class ClientRepository:
     def update(self, client: Client, changes: Mapping[str, Any]) -> Client:
         for field, value in changes.items():
             setattr(client, field, value)
+        client.updated_at = datetime.now(UTC)
+        self.session.flush()
+        self.session.refresh(client)
+        return client
+
+    def set_active(self, client: Client, active: bool) -> Client:
+        if client.active is active:
+            return client
+        client.active = active
         client.updated_at = datetime.now(UTC)
         self.session.flush()
         self.session.refresh(client)

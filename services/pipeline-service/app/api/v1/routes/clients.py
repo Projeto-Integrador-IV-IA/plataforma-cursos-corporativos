@@ -1,4 +1,4 @@
-"""Cadastro, consulta e edicao parcial de clientes (RF01.1 e RF01.2)."""
+"""Cadastro, consulta, edicao e situacao de clientes (RF01)."""
 
 from typing import Annotated
 from uuid import UUID
@@ -59,8 +59,12 @@ def list_clients(
     service: Annotated[ClientService, Depends(get_client_service)],
     page: Annotated[int, Query(ge=1, description="Pagina iniciada em 1.")] = 1,
     size: Annotated[int, Query(ge=1, le=100, description="Itens por pagina.")] = 20,
+    include_inactive: Annotated[
+        bool,
+        Query(description="Inclui clientes inativos quando verdadeiro."),
+    ] = False,
 ) -> ClientPage:
-    return service.list(page=page, size=size)
+    return service.list(page=page, size=size, include_inactive=include_inactive)
 
 
 @router.get(
@@ -112,3 +116,49 @@ def update_client(
     service: Annotated[ClientService, Depends(get_client_service)],
 ) -> ClientRead:
     return ClientRead.model_validate(service.update(client_id, payload))
+
+
+@router.post(
+    "/{client_id}/deactivate",
+    response_model=ClientRead,
+    summary="Inativar cliente",
+    description="Inativa o cliente sem excluir seus dados nem o historico relacionado.",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Cliente inexistente.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ErrorResponse,
+            "description": "Identificador invalido.",
+        },
+    },
+)
+def deactivate_client(
+    client_id: UUID,
+    service: Annotated[ClientService, Depends(get_client_service)],
+) -> ClientRead:
+    return ClientRead.model_validate(service.deactivate(client_id))
+
+
+@router.post(
+    "/{client_id}/reactivate",
+    response_model=ClientRead,
+    summary="Reativar cliente",
+    description="Reativa o cliente preservando seus dados e o historico relacionado.",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Cliente inexistente.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ErrorResponse,
+            "description": "Identificador invalido.",
+        },
+    },
+)
+def reactivate_client(
+    client_id: UUID,
+    service: Annotated[ClientService, Depends(get_client_service)],
+) -> ClientRead:
+    return ClientRead.model_validate(service.reactivate(client_id))
