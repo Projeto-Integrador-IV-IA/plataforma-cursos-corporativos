@@ -57,6 +57,7 @@ E atualize o número do Card para incluir #123 e o Status para ✅ (concluído).
 | RNF14 | Fluxo Card → PR → Merge no GitHub | Alta | | 1 | ✅ | [CONTRIBUTING.md](../../CONTRIBUTING.md), templates e [CI](../../.github/workflows/ci.yml) disparando em PR para `main` **e `dev`** — antes só `main`, e nenhum PR do time passava pelo portão. A varredura de segredos passou a olhar as linhas adicionadas pela mudança, não todo o histórico. O passo de testes do backend perdeu o `continue-on-error`: teste quebrado agora reprova o job nos quatro serviços — antes só lint e formatação reprovavam. Pré-requisito da remoção foi trocar `passlib` por `bcrypt` direto em [`app/auth/password.py`](../../services/gateway-service/app/auth/password.py), que deixava a suíte do `gateway-service` vermelha em ambiente limpo (RNF11). O job de frontend acompanhou: passou a executar `npm run test`, que o workflow nem chamava, e perdeu o `continue-on-error` do lint e do build — quebra no `web` também reprova |
 | RNF15 | Portabilidade como serviço web | Média | | 4 | ⬜ | |
 | RNF16 | Rastreabilidade no GitHub Projects | Média | | 1 | 🟡 | Este documento + templates de issue |
+| RNF23 | Custos de API, hospedagem e banco estimados e controlados | Alta | #121 | 3 | ✅ | Custos operacionais, premissas de volume e STT documentados em [`docs/04-ia/custos-operacao.md`](../04-ia/custos-operacao.md) (#121) |
 
 ## Cobertura por serviço
 
