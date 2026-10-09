@@ -65,6 +65,8 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 
 ## `raw_inputs` — demanda bruta (RF09, RF10)
 
+## `raw_inputs` — demanda bruta (RF09, RF10)
+
 | Campo | Tipo | Nulo | Descrição |
 |---|---|---|---|
 | `id` | uuid PK | não | |
@@ -72,6 +74,7 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 | `original_content` | text | **não** | Texto exatamente como chegou. **Nunca alterado** — é a garantia de RNF05. |
 | `normalized_content` | text | sim | Resultado de RF10. Nulo enquanto não normalizado. |
 | `source` | text | não | `EMAIL`, `TRANSCRICAO`, `MENSAGENS`, `ANOTACAO`, `OUTRO`. |
+| `embedding` | vector | sim | Vetor semântico (`pgvector`) para busca por similaridade (ADR-0007). |
 | `truncated` | boolean | não | Indica corte por limite de tamanho na normalização. |
 | `author_id` | uuid FK → `users.id` | não | Quem registrou. |
 | `created_at` | timestamptz | não | |
