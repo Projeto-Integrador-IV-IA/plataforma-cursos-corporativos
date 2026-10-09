@@ -69,6 +69,7 @@ montar o conjunto de avaliação com casos reais anonimizados do cliente (meta: 
 - **Prazo:** definição até 15/09; primeira medição até 06/10
 - **Status:** ⬜ em aberto
 
+- ~~**Q3 — Definição da métrica de qualidade da IA**~~ *(Fechado na Sprint 07 - Card #122 - ver [`docs/04-ia/metricas-qualidade.md`](../04-ia/metricas-qualidade.md))*
 ---
 
 ## Q4 — Fronteira do custeio
