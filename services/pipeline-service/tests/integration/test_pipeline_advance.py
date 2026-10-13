@@ -4,6 +4,7 @@ Cobre os criterios do card: transicao aplicada e registrada, atomicidade,
 recusa na ultima etapa e ausencia de caminho que altere ou apague a trilha.
 """
 
+from itertools import pairwise
 from uuid import UUID, uuid4
 
 import pytest
@@ -80,7 +81,7 @@ def test_advance_walks_the_pipeline_with_one_trail_event_per_transition(
 ) -> None:
     author_id = _create_user(engine)
     demand_id = _create_demand(engine, company)
-    expected = list(zip(ORDER, ORDER[1:], strict=False))
+    expected = list(pairwise(ORDER))
 
     for index, (origin, destination) in enumerate(expected):
         # A primeira chamada leva justificativa; as demais vao sem corpo.
@@ -180,11 +181,9 @@ def test_author_header_is_required(api: TestClient, engine: Engine, company: UUI
 def test_trail_has_no_update_or_delete_path(api: TestClient) -> None:
     public = {name for name in dir(TransitionRepository) if not name.startswith("_")}
     assert "record" in public
-    assert not {
-        name for name in public if name.startswith(("update", "delete", "remove", "edit"))
-    }
+    assert not {name for name in public if name.startswith(("update", "delete", "remove", "edit"))}
 
     paths = api.app.openapi()["paths"]
     for path, operations in paths.items():
-        if "transition" in path or path.endswith("/advance"):
+        if "transition" in path or path.endswith(("/advance", "/rollback")):
             assert not set(operations) & {"put", "patch", "delete"}, path

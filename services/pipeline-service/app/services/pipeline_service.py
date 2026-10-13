@@ -16,7 +16,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError, issue_de_validacao
 from app.domain.enums import DemandStatus, PipelineStage
 from app.domain.rules import can_transition, next_stage
 from app.models.user import User
@@ -125,6 +125,104 @@ class PipelineService:
             )
 
         transition = self.transitions.record(demand.id, current, target, reason, author_id)
+        self.repository.update(
+            demand,
+            {"current_stage": target.value, "updated_at": datetime.now(UTC)},
+        )
+
+        return StageChangeRead(
+            transition_id=transition.id,
+            demand_id=demand.id,
+            from_stage=current,
+            current_stage=target,
+            reason=transition.reason,
+            author_id=transition.author_id,
+            occurred_at=transition.occurred_at,
+        )
+
+    def rollback(
+        self,
+        demand_id: UUID,
+        to_stage: PipelineStage,
+        author_id: UUID,
+        reason: str,
+    ) -> StageChangeRead:
+        """Retrocede a qualquer etapa anterior sem alterar o agregado da demanda.
+
+        Somente ``current_stage`` e ``updated_at`` mudam na demanda. Fontes,
+        artefatos e eventos anteriores nao sao atualizados nem removidos; um novo
+        evento append-only registra o retrocesso na mesma transacao.
+        """
+
+        normalized_reason = reason.strip() if isinstance(reason, str) else ""
+        if not normalized_reason:
+            raise ValidationError(
+                code="ROLLBACK_REASON_REQUIRED",
+                message="A justificativa do retrocesso e obrigatoria.",
+                details={
+                    "issues": [
+                        issue_de_validacao(
+                            localizacao=["body", "reason"],
+                            mensagem="A justificativa do retrocesso e obrigatoria.",
+                            tipo="value_error",
+                        )
+                    ]
+                },
+            )
+        if len(normalized_reason) > 1000:
+            raise ValidationError(
+                code="ROLLBACK_REASON_TOO_LONG",
+                message="A justificativa do retrocesso deve ter no maximo 1000 caracteres.",
+                details={
+                    "issues": [
+                        issue_de_validacao(
+                            localizacao=["body", "reason"],
+                            mensagem="A justificativa deve ter no maximo 1000 caracteres.",
+                            tipo="string_too_long",
+                        )
+                    ]
+                },
+            )
+
+        demand = self.repository.get_for_update(demand_id)
+        if demand is None:
+            raise NotFoundError(code="DEMAND_NOT_FOUND", message="Demanda nao encontrada.")
+        if self.session.get(User, author_id) is None:
+            raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
+
+        current = PipelineStage(demand.current_stage)
+        target = PipelineStage(to_stage)
+        stages = tuple(PipelineStage)
+        if stages.index(target) >= stages.index(current):
+            raise ConflictError(
+                code="ROLLBACK_TARGET_NOT_PREVIOUS",
+                message=(
+                    f"O retrocesso de {current.value} para {target.value} nao e permitido: "
+                    "o destino deve ser uma etapa anterior."
+                ),
+                details={"current_stage": current.value, "target_stage": target.value},
+            )
+
+        if not can_transition(current, target, demand.status):
+            if demand.status != DemandStatus.ABERTA.value:
+                raise ConflictError(
+                    code="DEMAND_NOT_OPEN",
+                    message="Demandas encerradas nao mudam de etapa.",
+                    details={"status": demand.status},
+                )
+            raise ConflictError(
+                code="INVALID_STAGE_TRANSITION",
+                message=f"Transicao de {current.value} para {target.value} nao e permitida.",
+                details={"current_stage": current.value, "target_stage": target.value},
+            )
+
+        transition = self.transitions.record(
+            demand.id,
+            current,
+            target,
+            normalized_reason,
+            author_id,
+        )
         self.repository.update(
             demand,
             {"current_stage": target.value, "updated_at": datetime.now(UTC)},
