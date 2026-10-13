@@ -134,6 +134,17 @@ class DemandRepository:
         items = list(self.session.scalars(items_statement).all())
         return items, total
 
+    def get_for_update(self, demand_id: UUID) -> Demand | None:
+        """Le a demanda travando a linha ate o fim da transacao.
+
+        Usado por quem decide a partir da etapa atual (RF06): sem o lock, dois
+        avancos simultaneos leriam a mesma etapa e gravariam duas transicoes a
+        partir dela. O SQLite dos testes ignora ``FOR UPDATE``; o PostgreSQL nao.
+        """
+
+        statement = sa.select(Demand).where(Demand.id == demand_id).with_for_update()
+        return self.session.scalar(statement)
+
     def get_detail(self, demand_id: UUID) -> Demand | None:
         """Carrega o agregado necessario pela tela em consultas agrupadas."""
 
