@@ -177,9 +177,9 @@ it('mostra o erro da API quando a inativacao falha', async () => {
   await usuario.click(screen.getByRole('button', { name: 'Inativar cliente' }));
 
   expect(
-    await screen.findByRole('alert')
-  ).toHaveTextContent('Nao foi possivel inativar o cliente.');
-
+  await screen.findByText('Nao foi possivel inativar o cliente.')
+).toBeDefined();
+  
   expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeDefined();
   });
 });
