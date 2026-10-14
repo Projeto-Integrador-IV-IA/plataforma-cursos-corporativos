@@ -181,7 +181,9 @@ it('mostra o erro da API quando a inativacao falha', async () => {
   ).toHaveTextContent('Nao foi possivel inativar o cliente.');
 
   expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeDefined();
+  });
 });
+
 describe('edicao do cadastro do cliente', () => {
   it('salva o que foi alterado e reflete na consulta seguinte', async () => {
     const usuario = await abrirDetalhe();
