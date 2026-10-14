@@ -17,6 +17,7 @@ from app.domain.course import (
     CAMPOS_INFERIVEIS,
     GapKind,
     StructuredCourse,
+    _justificativa_do_descarte,
     validar_curso_estruturado,
 )
 
@@ -410,6 +411,64 @@ def test_lacuna_sem_nome_de_campo_e_recusada() -> None:
         validar_curso_estruturado(
             resposta(carga_horaria=None, campos_ausentes=[{"tipo": "ausente"}])
         )
+
+
+def test_tipo_da_lacuna_que_nem_e_texto_e_recusado() -> None:
+    """Tipo fora de texto nao vira ``ausente`` por conveniencia: a resposta e recusada."""
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            resposta(carga_horaria=None, campos_ausentes=[{"campo": "carga_horaria", "tipo": 3}])
+        )
+
+    assert [v["campo"] for v in excinfo.value.details["violacoes"]] == ["campos_ausentes.0.tipo"]
+
+
+def test_motivo_da_lacuna_que_nem_e_texto_e_recusado() -> None:
+    """O motivo e a frase que o revisor le; estrutura no lugar dela e fora do contrato."""
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            resposta(
+                carga_horaria=None,
+                campos_ausentes=[{"campo": "carga_horaria", "motivo": ["adiado"]}],
+            )
+        )
+
+    violacoes = [v["campo"] for v in excinfo.value.details["violacoes"]]
+    assert any(campo.startswith("campos_ausentes.0.motivo") for campo in violacoes)
+
+
+@pytest.mark.parametrize("registradas", ["carga_horaria: o cliente adiou.", [12]])
+def test_observacoes_fora_do_tipo_declarado_e_recusado(registradas: Any) -> None:
+    """Texto solto, ou item que nao e texto, nao serve de registro para o revisor.
+
+    A reconciliacao segue classificando a lacuna, mas nao escreve em observacoes
+    que nao tem a forma do contrato - e a validacao normal recusa a resposta.
+    """
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            resposta(
+                carga_horaria=None,
+                campos_ausentes=["carga_horaria"],
+                observacoes=registradas,
+            )
+        )
+
+    violacoes = [v["campo"] for v in excinfo.value.details["violacoes"]]
+    assert any(campo.startswith("observacoes") for campo in violacoes)
+
+
+def test_descarte_sem_tipo_utilizavel_cai_na_explicacao_da_ausencia() -> None:
+    """Caminho defensivo da justificativa, chamado direto porque a validacao o barra antes.
+
+    Tipo que nem e texto faz a reconciliacao se afastar, entao a observacao de
+    descarte nunca e escrita com ele. Mesmo assim nenhum descarte pode ficar sem
+    explicacao para o revisor (RF14).
+    """
+
+    assert _justificativa_do_descarte(None) == _justificativa_do_descarte(GapKind.AUSENTE.value)
 
 
 # ----------------------------------------------------------------------

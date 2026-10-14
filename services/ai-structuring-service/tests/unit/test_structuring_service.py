@@ -504,6 +504,25 @@ def test_desfecho_sem_resultado_e_sem_falha_nao_passa_silenciosamente() -> None:
         outcome.raise_for_error()
 
 
+async def test_saida_bruta_sem_curso_validado_nao_vira_resposta(
+    montar_servico: Callable[..., StructuringService],
+) -> None:
+    """``structure`` devolve o bruto; sem passar pelo schema nao ha curso a responder.
+
+    A rota chama ``raise_for_course``: ou ha curso na forma canonica, ou ha erro
+    identificado - nunca um meio-termo (RF11, RNF03).
+    """
+
+    servico = montar_servico(_ProviderProgramado(RESPOSTA_DO_MODELO))
+
+    outcome = await servico.structure(DEMANDA)
+
+    assert outcome.succeeded
+    assert outcome.course is None
+    with pytest.raises(LLMInvalidResponseError):
+        outcome.raise_for_course()
+
+
 async def test_chave_do_provedor_nunca_aparece_no_desfecho_da_falha(
     make_settings: MakeSettings,
     relogio: _Relogio,
