@@ -18,7 +18,7 @@
  *    bloco daqui so mostra as primeiras com o caminho para a listagem.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -28,7 +28,7 @@ import { ClientDetailForm } from '@/features/clients/ClientDetailForm';
 import { clientDetailKey } from '@/features/clients/ClientDetailQueryKeys';
 import { formatarDataHora, ouSemInformacao } from '@/features/demands/DemandDetailLabels';
 import { isApiError } from '@/services/api';
-import { getClient } from '@/services/clients';
+import { deactivateClient, getClient, reactivateClient } from '@/services/clients';
 import type { Uuid } from '@/types/api';
 
 /** Mensagem exibida quando a falha nao veio no envelope da plataforma. */
@@ -64,6 +64,19 @@ interface ClientDetailViewProps {
 
 export function ClientDetailView({ clientId }: ClientDetailViewProps) {
   const [editando, setEditando] = useState(false);
+  const queryClient = useQueryClient();
+
+const alterarSituacao = useMutation({
+  mutationFn: async (active: boolean) => {
+    return active
+      ? deactivateClient(clientId)
+      : reactivateClient(clientId);
+  },
+  onSuccess: (clienteAtualizado) => {
+    queryClient.setQueryData(clientDetailKey(clientId), clienteAtualizado);
+    void queryClient.invalidateQueries({ queryKey: ['clients'] });
+  },
+});
 
   const detalhe = useQuery({
     queryKey: clientDetailKey(clientId),
@@ -134,8 +147,24 @@ export function ClientDetailView({ clientId }: ClientDetailViewProps) {
                 Editar cadastro
               </button>
             </div>
-            {/* TODO(RF01.3): inativar o cliente daqui quando a operacao propria
-                for publicada. O PATCH de cadastro nao aceita `active`. */}
+           <button
+  className="button"
+  type="button"
+  disabled={alterarSituacao.isPending}
+  onClick={() => alterarSituacao.mutate(cliente.active)}
+>
+  {alterarSituacao.isPending
+    ? 'Atualizando...'
+    : cliente.active
+      ? 'Inativar cliente'
+      : 'Reativar cliente'}
+</button>
+
+{alterarSituacao.isError && (
+  <p className="client-detail__failure" role="alert">
+    {mensagemDeErro(alterarSituacao.error)}
+  </p>
+)}
             <p className="client-detail__note">
               Inativar o cliente ainda nao e possivel por esta tela: a operacao pertence ao RF01.3
               e nao foi publicada no contrato.
