@@ -11,6 +11,7 @@ export const PATHS = {
   clients: '/clientes',
   clientNew: '/clientes/novo',
   clientDetail: '/clientes/:clientId',
+  pipeline: '/pipeline',
   demands: '/demandas',
   demandNew: '/demandas/nova',
   demandDetail: '/demandas/:demandId',

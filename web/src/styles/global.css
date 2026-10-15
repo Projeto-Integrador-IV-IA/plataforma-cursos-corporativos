@@ -807,3 +807,119 @@ body {
   color: var(--cor-texto-suave);
   font-size: 0.875rem;
 }
+
+/*
+ * Quadro do pipeline (RF05, card #93).
+ *
+ * As colunas ficam em linha e a rolagem horizontal mora em
+ * `.pipeline-board__viewport`, nunca no corpo da pagina: cabecalho e navegacao
+ * nao saem de vista enquanto o operador varre as etapas, e a largura do quadro
+ * nao empurra o resto do layout para o lado.
+ *
+ * Coluna de largura fixa de proposito (`flex: 0 0`): coluna que encolhe com o
+ * numero de cartoes faria a etapa vazia parecer inexistente, e e justamente a
+ * etapa vazia que conta parte do andamento.
+ */
+
+/* Esta tela usa a largura toda: o quadro e largo por natureza. */
+.page--wide {
+  max-width: none;
+}
+
+.pipeline-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.pipeline-board__state {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
+.pipeline-board__state p {
+  margin: 0 0 0.5rem;
+}
+
+.pipeline-board__state p:last-child {
+  margin-bottom: 0;
+}
+
+.pipeline-board__state--error {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.pipeline-board__viewport {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.pipeline-board__viewport:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
+}
+
+.pipeline-board__columns {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espaco);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pipeline-board__column {
+  flex: 0 0 15rem;
+}
+
+.pipeline-board__summary {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.pipeline-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.pipeline-column__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pipeline-column__count {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+/* Etapa sem demanda: area anunciada, e nao espaco em branco. */
+.pipeline-column__empty {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: var(--raio);
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+.pipeline-column__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
