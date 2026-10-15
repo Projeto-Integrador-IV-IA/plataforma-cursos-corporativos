@@ -15,17 +15,16 @@
  * O numero no cabecalho e o total da etapa, nao o de cartoes desenhados; o
  * porque esta em `PipelineBoardLabels`.
  *
- * TODO(RF05, card #94): a demanda aparece aqui como link para o detalhe. O
- * cartao com cliente, responsavel, situacao e sinal de atencao e o card
- * seguinte e entra no lugar deste link.
+ * A coluna nao sabe o que vai dentro do cartao: quem desenha a demanda e
+ * `PipelineCard`. Aqui so fica a lista ordenada que a sustenta, para a ordem
+ * dos cartoes dentro da etapa ser a que o servico devolveu.
  */
 
 import { useId } from 'react';
-import { Link } from 'react-router-dom';
 
-import { buildPath } from '@/app/paths';
 import { STAGE_LABELS } from '@/features/demands/DemandListLabels';
 import { stageCount } from '@/features/pipeline/PipelineBoardLabels';
+import { PipelineCard } from '@/features/pipeline/PipelineCard';
 import type { PipelineStageGroup } from '@/types/api';
 
 interface PipelineStageColumnProps {
@@ -49,7 +48,7 @@ export function PipelineStageColumn({ group }: PipelineStageColumnProps) {
           <ol className="pipeline-column__cards">
             {group.items.map((card) => (
               <li key={card.id}>
-                <Link to={buildPath.demandDetail(card.id)}>{card.title}</Link>
+                <PipelineCard card={card} />
               </li>
             ))}
           </ol>

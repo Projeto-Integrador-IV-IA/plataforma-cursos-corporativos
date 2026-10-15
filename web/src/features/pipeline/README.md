@@ -4,6 +4,9 @@ Lógica de interface do pipeline (RF05): o quadro das demandas por etapa.
   ordem devolvida pelo serviço, com a rolagem horizontal contida no próprio quadro.
 - `PipelineStageColumn.tsx` — uma coluna: título da etapa, total e os cartões;
   etapa sem demanda tem apresentação própria.
+- `PipelineCard.tsx` — o cartão: cliente, título, responsável e situação, clicável
+  por inteiro até o detalhe da demanda. Demanda sem responsável é sinalizada por
+  texto, borda e cor, nunca só por cor.
 - `PipelineBoardLabels.ts` — contagens da coluna. Os nomes de etapa e situação vêm
   de `features/demands/DemandListLabels`, para quadro e listagem dizerem o mesmo.
 
