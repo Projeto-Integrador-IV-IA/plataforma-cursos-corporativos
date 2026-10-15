@@ -554,3 +554,83 @@ export interface StructuredCourse {
   readonly campos_ausentes: readonly FieldGap[];
   readonly observacoes: readonly string[];
 }
+
+// ---------------------------------------------------------------------------
+// Execucao da estruturacao - DERIVADO de
+// packages/contracts/openapi/ai-structuring-service.yaml
+// (`StructuringRequest`, `StructuringJobAccepted`, `StructuringJobRead`)
+// ---------------------------------------------------------------------------
+
+/**
+ * Texto que entra na estruturacao (RF11, RF17).
+ *
+ * `demand_id` correlaciona log, metrica e reprocessamento; `text` e o texto da
+ * demanda. `prompt_version` tem valor padrao no servico e por isso nao e
+ * enviada: escolher versao de prompt e decisao de quem opera o modelo, nao da
+ * tela.
+ */
+export interface StructuringRequest {
+  readonly demand_id: string;
+  readonly text: string;
+  readonly prompt_version?: string;
+}
+
+/** Estados possiveis de uma execucao de estruturacao (RF24). */
+export const JOB_STATUSES = ['PENDENTE', 'PROCESSANDO', 'CONCLUIDA', 'ERRO'] as const;
+
+export type JobStatus = (typeof JOB_STATUSES)[number];
+
+/** Confirmacao de que o pedido entrou na fila, sem esperar o resultado. */
+export interface StructuringJobAccepted {
+  readonly job_id: Uuid;
+  readonly demand_id: string;
+  readonly status: JobStatus;
+  readonly created_at: IsoDateTime;
+}
+
+/** Falha que encerrou a execucao, no mesmo vocabulario do envelope (RNF02). */
+export interface StructuringJobError {
+  readonly code: string;
+  readonly message: string;
+}
+
+/** Proveniencia da execucao que produziu o curso (RNF04, RNF09). */
+export interface ExecutionMetadata {
+  readonly provider: string;
+  readonly model: string;
+  readonly prompt: string;
+  readonly attempts: number;
+  readonly prompt_tokens: number;
+  readonly completion_tokens: number;
+  readonly total_tokens: number;
+  readonly provider_latency_ms: number;
+  readonly elapsed_ms: number;
+}
+
+/** Curso estruturado devolvido pela estruturacao, com a proveniencia. */
+export interface StructuringResponse {
+  readonly demand_id: string;
+  readonly course: StructuredCourse;
+  readonly execution: ExecutionMetadata;
+}
+
+/**
+ * Estado da execucao e, quando houver, o que ela produziu.
+ *
+ * `result` vem nulo enquanto nao concluiu: nao existe curso parcial, e exibir
+ * um esqueleto vazio faria a tela mostrar campos que ninguem preencheu
+ * (RNF03). `total_elapsed_ms` mede do aceite ao desfecho - e o tempo que o
+ * operador sente (RNF06).
+ */
+export interface StructuringJobRead {
+  readonly job_id: Uuid;
+  readonly demand_id: string;
+  readonly status: JobStatus;
+  readonly created_at: IsoDateTime;
+  readonly started_at: IsoDateTime | null;
+  readonly finished_at: IsoDateTime | null;
+  readonly total_elapsed_ms: number | null;
+  readonly result: StructuringResponse | null;
+  readonly execution: ExecutionMetadata | null;
+  readonly error: StructuringJobError | null;
+}

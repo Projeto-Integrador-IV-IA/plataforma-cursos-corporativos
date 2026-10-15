@@ -10,7 +10,8 @@
  * demanda. Dublar as duas pontas e o que prova que a tela liga uma na outra.
  */
 
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/services/api';
@@ -18,7 +19,9 @@ import type {
   ArtifactResultRead,
   DemandDetail,
   DemandRawInputRead,
+  JobStatus,
   JsonObject,
+  StructuringJobRead,
 } from '@/types/api';
 
 vi.mock('@/services/demands', () => ({
@@ -36,8 +39,14 @@ vi.mock('@/services/artifacts', () => ({
   createArtifactVersion: vi.fn(),
 }));
 
+vi.mock('@/services/structuring', () => ({
+  submitStructuringJob: vi.fn(),
+  getStructuringJob: vi.fn(),
+}));
+
 const { getDemand } = await import('@/services/demands');
 const { listArtifacts } = await import('@/services/artifacts');
+const { getStructuringJob, submitStructuringJob } = await import('@/services/structuring');
 const { renderRoute } = await import('@/test/renderRoute');
 
 const DEMAND_ID = '22222222-2222-4222-8222-222222222222';
@@ -119,14 +128,43 @@ function artefatoCom(content: JsonObject): ArtifactResultRead {
   };
 }
 
+const JOB_ID = '88888888-8888-4888-8888-888888888888';
+
+function execucaoCom(status: JobStatus): StructuringJobRead {
+  const encerrada = status === 'CONCLUIDA' || status === 'ERRO';
+
+  return {
+    job_id: JOB_ID,
+    demand_id: DEMAND_ID,
+    status,
+    created_at: '2026-10-14T10:00:00-03:00',
+    started_at: status === 'PENDENTE' ? null : '2026-10-14T10:00:01-03:00',
+    finished_at: encerrada ? '2026-10-14T10:00:12-03:00' : null,
+    total_elapsed_ms: encerrada ? 12_400 : null,
+    result: null,
+    execution: null,
+    error:
+      status === 'ERRO'
+        ? { code: 'LLM_UNAVAILABLE', message: 'O provedor de LLM esta indisponivel.' }
+        : null,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getDemand).mockResolvedValue(DEMANDA);
   vi.mocked(listArtifacts).mockResolvedValue([artefatoCom(CURSO)]);
+  vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('CONCLUIDA'));
+  vi.mocked(submitStructuringJob).mockResolvedValue({
+    job_id: JOB_ID,
+    demand_id: DEMAND_ID,
+    status: 'PENDENTE',
+    created_at: '2026-10-14T10:00:00-03:00',
+  });
 });
 
-async function abrirRevisao() {
-  renderRoute(`/demandas/${DEMAND_ID}/estruturacao`);
+async function abrirRevisao(busca = '') {
+  renderRoute(`/demandas/${DEMAND_ID}/estruturacao${busca}`);
   await screen.findByRole('heading', { level: 2, name: 'Estrutura gerada' });
 }
 
@@ -286,6 +324,91 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(textoDaTela()).toContain('A estruturacao nao apontou lacuna nenhuma.');
+  });
+
+  it('exibe o estado da execucao que o servico devolve', async () => {
+    vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('PROCESSANDO'));
+
+    await abrirRevisao(`?execucao=${JOB_ID}`);
+
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
+
+    const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
+    expect(estado.textContent).toContain('Processando');
+    expect(estado.textContent).toContain('o modelo esta trabalhando');
+  });
+
+  it('bloqueia o reenvio enquanto a execucao esta em curso', async () => {
+    vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('PROCESSANDO'));
+
+    await abrirRevisao(`?execucao=${JOB_ID}`);
+    await screen.findByRole('status', { name: 'Estado da execucao' });
+
+    const reenviar = screen.getByRole('button', { name: 'Reenviar a estruturacao' });
+    await waitFor(() => expect(reenviar.hasAttribute('disabled')).toBe(true));
+    expect(textoDaTela()).toContain('Reenvio bloqueado enquanto houver execucao em curso');
+  });
+
+  it('libera o reenvio quando a execucao termina', async () => {
+    vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('CONCLUIDA'));
+
+    await abrirRevisao(`?execucao=${JOB_ID}`);
+    const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
+
+    // A transicao para concluido fica visivel: nome do estado, explicacao e o
+    // tempo de ponta a ponta.
+    expect(estado.textContent).toContain('Concluida');
+    expect(textoDaTela()).toContain('Tempo total: 12,4 s');
+
+    const reenviar = screen.getByRole('button', { name: 'Reenviar a estruturacao' });
+    await waitFor(() => expect(reenviar.hasAttribute('disabled')).toBe(false));
+  });
+
+  it('informa a falha que encerrou a execucao', async () => {
+    vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('ERRO'));
+
+    await abrirRevisao(`?execucao=${JOB_ID}`);
+    const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
+
+    expect(estado.textContent).toContain('Falhou');
+    expect(textoDaTela()).toContain('O provedor de LLM esta indisponivel.');
+    expect(textoDaTela()).toContain('LLM_UNAVAILABLE');
+  });
+
+  it('envia a demanda para estruturacao e passa a acompanhar a execucao aceita', async () => {
+    vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('PENDENTE'));
+
+    const usuario = userEvent.setup();
+    await abrirRevisao();
+
+    expect(getStructuringJob).not.toHaveBeenCalled();
+    expect(textoDaTela()).toContain('Nenhuma execucao acompanhada nesta tela.');
+
+    await usuario.click(screen.getByRole('button', { name: 'Estruturar com IA' }));
+
+    await waitFor(() => expect(submitStructuringJob).toHaveBeenCalledTimes(1));
+    // O texto enviado e o da fonte captada, nunca um resumo escrito pela tela.
+    expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
+      demand_id: DEMAND_ID,
+      text: FONTE.original_content,
+    });
+
+    // O identificador vai para o endereco, e e por ele que o estado passa a
+    // ser consultado - o que faz a tela sobreviver a um recarregamento.
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
+    const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
+    expect(estado.textContent).toContain('Na fila');
+  });
+
+  it('nao oferece envio quando a demanda nao tem fonte captada', async () => {
+    vi.mocked(getDemand).mockResolvedValue({ ...DEMANDA, raw_inputs: [] });
+
+    await abrirRevisao();
+
+    expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
+    expect(screen.queryByRole('button', { name: 'Estruturar com IA' })).toBeNull();
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {

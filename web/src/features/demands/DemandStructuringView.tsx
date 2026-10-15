@@ -19,6 +19,10 @@
  * revisao depende de saber o que se esta lendo - saida do modelo ou texto que
  * uma pessoa ja corrigiu.
  *
+ * O estado da execucao que produz essa estrutura fica na propria tela (RF24),
+ * no bloco de processamento: e onde o operador ve se ainda ha algo em curso -
+ * e onde o reenvio fica bloqueado enquanto houver.
+ *
  * O que esta tela nao faz, e por que:
  *  - editar os campos e decidir sobre a estrutura sao cards proprios (#101 e
  *    #102), e cada um registra versao nova no artefato (RF08, RNF09);
@@ -36,11 +40,19 @@ import { DemandStructuringCourse } from '@/features/demands/DemandStructuringCou
 import { DemandStructuringGapList } from '@/features/demands/DemandStructuringGaps';
 import { demandArtifactsKey } from '@/features/demands/DemandStructuringQueryKeys';
 import { DemandStructuringSources } from '@/features/demands/DemandStructuringSources';
+import { DemandStructuringStatus } from '@/features/demands/DemandStructuringStatus';
 import { lerCursoEstruturado } from '@/features/demands/StructuredCourseContent';
 import { isApiError } from '@/services/api';
 import { listArtifacts } from '@/services/artifacts';
 import { getDemand } from '@/services/demands';
-import type { ArtifactResultRead, ArtifactResultVersionRead, ArtifactType, Uuid } from '@/types/api';
+import type {
+  ArtifactResultRead,
+  ArtifactResultVersionRead,
+  ArtifactType,
+  DemandDetail,
+  DemandRawInputRead,
+  Uuid,
+} from '@/types/api';
 
 /** Mensagem exibida quando a falha nao veio no envelope da plataforma. */
 const FALHA_GENERICA = 'Nao foi possivel carregar a estrutura gerada. Tente novamente.';
@@ -67,6 +79,25 @@ function artefatoEmRevisao(
         ? candidato
         : escolhido;
     }, undefined);
+}
+
+/**
+ * Fonte captada mais recente da demanda.
+ *
+ * E o texto que vai para a estruturacao (RF24): nao ha no contrato nenhuma
+ * operacao que escolha fonte, e a mais recente e a que reflete o ultimo
+ * contato com o cliente.
+ */
+function fonteMaisRecente(demand: DemandDetail): DemandRawInputRead | undefined {
+  return demand.raw_inputs.reduce<DemandRawInputRead | undefined>((escolhida, candidata) => {
+    if (escolhida === undefined) {
+      return candidata;
+    }
+
+    return new Date(candidata.created_at) > new Date(escolhida.created_at)
+      ? candidata
+      : escolhida;
+  }, undefined);
 }
 
 /** Versao corrente: a de maior numero, que e a que vale hoje (RF08). */
@@ -127,6 +158,13 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
           </>
         )}
       </p>
+
+      <section className="demand-detail__section" aria-labelledby="estrutura-processamento">
+        <h2 className="demand-detail__section-title" id="estrutura-processamento">
+          Processamento
+        </h2>
+        <DemandStructuringStatus demandId={demandId} source={fonteMaisRecente(demanda.data)} />
+      </section>
 
       {curso === undefined ? null : (
         <section className="demand-detail__section" aria-labelledby="estrutura-lacunas">

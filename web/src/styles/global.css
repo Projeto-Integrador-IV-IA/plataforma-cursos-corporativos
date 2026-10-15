@@ -902,6 +902,80 @@ body {
 }
 
 /*
+ * Estado de processamento da estruturacao (RF24, card #82).
+ *
+ * Como nas lacunas, a distincao entre estados nao pode depender de cor: o nome
+ * do estado vai por escrito, a marca tem forma propria e a borda muda de
+ * espessura e de estilo conforme o estado - solida fina para o que aguarda,
+ * grossa para o que esta em curso, dupla para o que terminou.
+ */
+
+.structuring-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.structuring-status__state {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--cor-borda);
+  border-left-width: 4px;
+  border-radius: var(--raio);
+  background: var(--cor-fundo);
+}
+
+.structuring-status__state--pendente {
+  border-left-style: solid;
+  border-left-color: var(--cor-texto-suave);
+}
+
+.structuring-status__state--processando {
+  border-left-style: solid;
+  border-left-width: 8px;
+  border-left-color: var(--cor-destaque);
+}
+
+.structuring-status__state--concluida {
+  border-left-style: double;
+  border-left-width: 6px;
+  border-left-color: var(--cor-sucesso);
+  background: var(--cor-sucesso-fundo);
+}
+
+.structuring-status__state--erro {
+  border-left-style: dashed;
+  border-left-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+}
+
+.structuring-status__mark {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+  font-weight: 700;
+  line-height: 1.4rem;
+  text-align: center;
+}
+
+.structuring-status__name {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.structuring-status__meta {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/*
  * Campos sinalizados como incertos (RF15, card #103).
  *
  * O destaque nao pode depender de cor: quem le em tons de cinza, com

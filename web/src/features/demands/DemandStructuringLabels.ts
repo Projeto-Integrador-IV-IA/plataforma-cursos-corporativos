@@ -16,7 +16,7 @@ import {
   type CampoDoCurso,
   type LacunaLida,
 } from '@/features/demands/StructuredCourseContent';
-import type { GapKind } from '@/types/api';
+import type { GapKind, JobStatus } from '@/types/api';
 
 const CAMPOS: Readonly<Record<CampoDoCurso, string>> = {
   tema: 'Tema',
@@ -113,6 +113,58 @@ const ACOES_DE_LACUNA: Readonly<Record<GapKind, string>> = {
   ambigua: 'a fonte admite mais de uma leitura: esclareca com o cliente.',
   contraditoria: 'a fonte se contradiz neste ponto: confronte os trechos com o cliente.',
 };
+
+// ---------------------------------------------------------------------------
+// Estado da execucao (RF24)
+// ---------------------------------------------------------------------------
+
+/** Nome do estado da execucao, no vocabulario do operador. */
+const ESTADOS: Readonly<Record<JobStatus, string>> = {
+  PENDENTE: 'Na fila',
+  PROCESSANDO: 'Processando',
+  CONCLUIDA: 'Concluida',
+  ERRO: 'Falhou',
+};
+
+/**
+ * Marca de cada estado, usada junto ao nome e nunca sozinha.
+ *
+ * Como nas lacunas, a distincao nao pode depender de cor: o nome do estado vai
+ * por escrito e a marca e `aria-hidden` no componente.
+ */
+const MARCAS_DE_ESTADO: Readonly<Record<JobStatus, string>> = {
+  PENDENTE: '…',
+  PROCESSANDO: '◐',
+  CONCLUIDA: '✓',
+  ERRO: '!',
+};
+
+/** O que cada estado significa para quem espera a estrutura. */
+const EXPLICACOES_DE_ESTADO: Readonly<Record<JobStatus, string>> = {
+  PENDENTE: 'o pedido foi aceito e aguarda a vez na fila.',
+  PROCESSANDO: 'o modelo esta trabalhando; pode levar dezenas de segundos.',
+  CONCLUIDA: 'a execucao terminou e o resultado ja pode ser revisado.',
+  ERRO: 'a execucao terminou sem resultado. A demanda captada continua intacta.',
+};
+
+export function rotuloDoEstado(status: JobStatus): string {
+  return ESTADOS[status];
+}
+
+export function marcaDoEstado(status: JobStatus): string {
+  return MARCAS_DE_ESTADO[status];
+}
+
+export function explicacaoDoEstado(status: JobStatus): string {
+  return EXPLICACOES_DE_ESTADO[status];
+}
+
+/** Duracao de ponta a ponta da execucao, em segundos (RNF06). */
+export function formatarDuracao(milissegundos: number): string {
+  const segundos = milissegundos / 1000;
+
+  return `${segundos.toFixed(1).replace('.', ',')} s`;
+}
 
 /** Nome do tipo da lacuna; tipo fora do contrato sai como o servico o declarou. */
 export function rotuloDoTipoDeLacuna(lacuna: LacunaLida): string {
