@@ -807,3 +807,144 @@ body {
   color: var(--cor-texto-suave);
   font-size: 0.875rem;
 }
+
+/*
+ * Revisao da estruturacao por IA (RF19, card #100).
+ *
+ * Reaproveita a moldura de secao do detalhe da demanda (`demand-detail__*`):
+ * as duas telas sao a mesma leitura empilhada em cartoes, e duplicar as regras
+ * faria uma divergir da outra no primeiro ajuste. O que e proprio daqui sao os
+ * campos do curso, os modulos da ementa e as fontes de origem.
+ */
+
+.structuring {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.structuring__meta {
+  margin: 0 0 0.75rem;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.structuring-course {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+}
+
+.structuring-course__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.structuring-course__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.structuring-course__term {
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+.structuring-course__value {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.structuring-course__block-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.structuring-course__list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.structuring-course__modules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.structuring-course__module-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.structuring-course__module-load {
+  color: var(--cor-texto-suave);
+  font-weight: 400;
+}
+
+.structuring-course__module-empty {
+  margin: 0.15rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.structuring-course__topics {
+  margin: 0.15rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.structuring-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0 0 var(--espaco);
+  padding: 0;
+}
+
+.structuring-sources__item {
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.structuring-sources__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+.structuring-sources__meta {
+  margin: 0.25rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.structuring-sources__text {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.structuring-sources__text summary {
+  cursor: pointer;
+}
+
+.structuring-sources__content {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  border-left: 3px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-fundo);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
