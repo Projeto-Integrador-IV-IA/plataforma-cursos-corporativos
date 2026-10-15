@@ -11,11 +11,17 @@
  * em branco: a IA nunca inventa valor, entao o vazio aqui e informacao e tem
  * de ser lido como tal.
  *
+ * Campo apontado em `campos_ausentes` vem destacado no lugar onde e lido, com
+ * o tipo da lacuna e o motivo (RF15): quem confere o campo precisa ver ali,
+ * junto do valor, que aquele valor nao foi confirmado por ninguem.
+ *
  * O que esta tela nao faz: editar os campos (#101) e decidir sobre a estrutura
  * - aprovar, rejeitar ou devolver (#102). Sao cards proprios.
  */
 
 import { SEM_INFORMACAO } from '@/features/demands/DemandDetailLabels';
+import { DemandStructuringGapNote } from '@/features/demands/DemandStructuringGaps';
+import { classesDoDestaque, lacunasDoCampo } from '@/features/demands/DemandStructuringGapStyles';
 import {
   formatarCargaHoraria,
   formatarParticipantes,
@@ -62,25 +68,43 @@ interface DemandStructuringCourseProps {
 }
 
 export function DemandStructuringCourse({ course }: DemandStructuringCourseProps) {
+  const lacunasDosObjetivos = lacunasDoCampo(course.campos_ausentes, 'objetivos_aprendizagem');
+  const lacunasDaEmenta = lacunasDoCampo(course.campos_ausentes, 'ementa');
+
   return (
     <div className="structuring-course">
       <dl className="structuring-course__fields">
         {ESCALARES.map((campo) => {
           const valor = valorDoCampo(course, campo);
+          const lacunas = lacunasDoCampo(course.campos_ausentes, campo);
 
           return (
-            <div className="structuring-course__field" key={campo}>
+            <div
+              className={`structuring-course__field${classesDoDestaque(lacunas)}`}
+              key={campo}
+            >
               <dt className="structuring-course__term">{rotuloDoCampo(campo)}</dt>
-              <dd className="structuring-course__value">{valor ?? SEM_INFORMACAO}</dd>
+              <dd className="structuring-course__value">
+                {valor ?? SEM_INFORMACAO}
+                {lacunas.map((lacuna, indice) => (
+                  <DemandStructuringGapNote key={`${indice}-${lacuna.tipoDeclarado}`} lacuna={lacuna} />
+                ))}
+              </dd>
             </div>
           );
         })}
       </dl>
 
-      <section className="structuring-course__block" aria-labelledby="estrutura-objetivos">
+      <section
+        className={`structuring-course__block${classesDoDestaque(lacunasDosObjetivos)}`}
+        aria-labelledby="estrutura-objetivos"
+      >
         <h3 className="structuring-course__block-title" id="estrutura-objetivos">
           {rotuloDoCampo('objetivos_aprendizagem')}
         </h3>
+        {lacunasDosObjetivos.map((lacuna, indice) => (
+          <DemandStructuringGapNote key={`${indice}-${lacuna.tipoDeclarado}`} lacuna={lacuna} />
+        ))}
         {course.objetivos_aprendizagem.length === 0 ? (
           <p className="demand-detail__empty">
             A estrutura nao traz objetivos de aprendizagem. Confirme com o cliente o que o
@@ -95,10 +119,16 @@ export function DemandStructuringCourse({ course }: DemandStructuringCourseProps
         )}
       </section>
 
-      <section className="structuring-course__block" aria-labelledby="estrutura-ementa">
+      <section
+        className={`structuring-course__block${classesDoDestaque(lacunasDaEmenta)}`}
+        aria-labelledby="estrutura-ementa"
+      >
         <h3 className="structuring-course__block-title" id="estrutura-ementa">
           {rotuloDoCampo('ementa')}
         </h3>
+        {lacunasDaEmenta.map((lacuna, indice) => (
+          <DemandStructuringGapNote key={`${indice}-${lacuna.tipoDeclarado}`} lacuna={lacuna} />
+        ))}
         {course.ementa.length === 0 ? (
           <p className="demand-detail__empty">
             A estrutura nao traz modulos de ementa. O conteudo do treinamento ainda precisa ser

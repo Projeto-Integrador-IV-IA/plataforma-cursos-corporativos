@@ -26,6 +26,7 @@ export function DemandStructuringPage() {
         <h1 className="page__title">Revisao da estruturacao</h1>
         <p className="page__requirements">
           <span className="tag">RF19</span>
+          <span className="tag">RF15</span>
           <span className="tag">RF14</span>
         </p>
         <p className="page__description">

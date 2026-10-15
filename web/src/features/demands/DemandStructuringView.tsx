@@ -33,6 +33,7 @@ import { buildPath } from '@/app/paths';
 import { formatarDataHora, rotuloDaOrigem } from '@/features/demands/DemandDetailLabels';
 import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import { DemandStructuringCourse } from '@/features/demands/DemandStructuringCourse';
+import { DemandStructuringGapList } from '@/features/demands/DemandStructuringGaps';
 import { demandArtifactsKey } from '@/features/demands/DemandStructuringQueryKeys';
 import { DemandStructuringSources } from '@/features/demands/DemandStructuringSources';
 import { lerCursoEstruturado } from '@/features/demands/StructuredCourseContent';
@@ -112,6 +113,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
 
   const artefato = artefatoEmRevisao(artefatos.data);
   const versao = artefato === undefined ? undefined : versaoCorrente(artefato);
+  const curso = versao === undefined ? undefined : lerCursoEstruturado(versao.structured_content);
 
   return (
     <div className="structuring">
@@ -126,11 +128,24 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
         )}
       </p>
 
+      {curso === undefined ? null : (
+        <section className="demand-detail__section" aria-labelledby="estrutura-lacunas">
+          <h2 className="demand-detail__section-title" id="estrutura-lacunas">
+            Campos a confirmar ({curso.campos_ausentes.length})
+          </h2>
+          <p className="structuring__meta">
+            O que a IA admitiu nao saber fica aqui, reunido, e tambem destacado no proprio campo
+            mais abaixo. Nada disso foi confirmado por ninguem ainda.
+          </p>
+          <DemandStructuringGapList lacunas={curso.campos_ausentes} />
+        </section>
+      )}
+
       <section className="demand-detail__section" aria-labelledby="estrutura-gerada">
         <h2 className="demand-detail__section-title" id="estrutura-gerada">
           Estrutura gerada
         </h2>
-        {artefato === undefined || versao === undefined ? (
+        {artefato === undefined || versao === undefined || curso === undefined ? (
           <p className="demand-detail__empty">
             Nenhuma estrutura foi anexada a esta demanda ate agora. Ela aparece aqui depois que a
             estruturacao por IA concluir.
@@ -141,7 +156,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
               {artefato.title ?? 'Requisitos extraidos'}: versao {versao.number} (
               {rotuloDaOrigem(versao.origin)}) gerada em {formatarDataHora(versao.created_at)}.
             </p>
-            <DemandStructuringCourse course={lerCursoEstruturado(versao.structured_content)} />
+            <DemandStructuringCourse course={curso} />
             <p className="page__description">
               <Link to={buildPath.artifactVersions(artefato.id)}>
                 Ver o historico de versoes ({artefato.versions.length})

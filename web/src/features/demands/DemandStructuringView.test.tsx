@@ -204,6 +204,90 @@ describe('revisao da estruturacao', () => {
     expect(textoDaTela()).toContain('Nenhuma estrutura foi anexada a esta demanda');
   });
 
+  it('destaca os tres tipos de lacuna e os distingue entre si', async () => {
+    vi.mocked(listArtifacts).mockResolvedValue([
+      artefatoCom({
+        ...CURSO,
+        campos_ausentes: [
+          { campo: 'nicho', tipo: 'ausente', motivo: 'O cliente nao disse o setor.' },
+          { campo: 'carga_horaria', tipo: 'ambigua', motivo: '"Dois dias" pode ser 8 ou 16 horas.' },
+          {
+            campo: 'numero_participantes',
+            tipo: 'contraditoria',
+            motivo: 'O texto fala de 25 e depois de 40 tecnicos.',
+          },
+        ],
+      }),
+    ]);
+
+    await abrirRevisao();
+
+    const texto = textoDaTela();
+    // Cada tipo e nomeado por escrito: a distincao nao depende de cor.
+    expect(texto).toContain('Ausente');
+    expect(texto).toContain('Ambigua');
+    expect(texto).toContain('Contraditoria');
+    // E cada tipo pede uma conversa diferente com o cliente.
+    expect(texto).toContain('a fonte nao traz esta informacao: pergunte ao cliente.');
+    expect(texto).toContain('a fonte admite mais de uma leitura: esclareca com o cliente.');
+    expect(texto).toContain('a fonte se contradiz neste ponto: confronte os trechos com o cliente.');
+    // E o motivo de cada lacuna fica acessivel na tela.
+    expect(texto).toContain('O cliente nao disse o setor.');
+    expect(texto).toContain('"Dois dias" pode ser 8 ou 16 horas.');
+    expect(texto).toContain('O texto fala de 25 e depois de 40 tecnicos.');
+
+    const lacunas = screen.getByRole('region', { name: /Campos a confirmar/ });
+    expect(within(lacunas).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('marca o campo lido com a forma propria do tipo da lacuna', async () => {
+    vi.mocked(listArtifacts).mockResolvedValue([
+      artefatoCom({
+        ...CURSO,
+        campos_ausentes: [
+          { campo: 'nicho', tipo: 'ausente', motivo: null },
+          { campo: 'carga_horaria', tipo: 'ambigua', motivo: null },
+          { campo: 'ementa', tipo: 'contraditoria', motivo: null },
+        ],
+      }),
+    ]);
+
+    await abrirRevisao();
+
+    // Forma, e nao cor: cada tipo marca o campo com uma classe propria, que o
+    // CSS traduz em borda tracejada, pontilhada ou dupla.
+    expect(document.querySelectorAll('.structuring-gap-host--ausente').length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.structuring-gap-host--ambigua').length).toBeGreaterThan(0);
+    expect(
+      document.querySelectorAll('.structuring-gap-host--contraditoria').length,
+    ).toBeGreaterThan(0);
+    // Lacuna sem motivo continua visivel, declarando que o motivo nao veio.
+    expect(textoDaTela()).toContain('O modelo nao registrou o motivo desta lacuna.');
+  });
+
+  it('nao perde lacuna de campo que a tela nao apresenta', async () => {
+    vi.mocked(listArtifacts).mockResolvedValue([
+      artefatoCom({
+        ...CURSO,
+        campos_ausentes: [
+          { campo: 'orcamento', tipo: 'ausente', motivo: 'Campo fora dos apresentados.' },
+        ],
+      }),
+    ]);
+
+    await abrirRevisao();
+
+    const lacunas = screen.getByRole('region', { name: /Campos a confirmar/ });
+    expect(within(lacunas).getByText('orcamento')).toBeDefined();
+    expect(within(lacunas).getByText(/Campo fora dos apresentados\./)).toBeDefined();
+  });
+
+  it('diz quando a estruturacao nao apontou lacuna nenhuma', async () => {
+    await abrirRevisao();
+
+    expect(textoDaTela()).toContain('A estruturacao nao apontou lacuna nenhuma.');
+  });
+
   it('mostra a mensagem do servico quando a consulta falha', async () => {
     vi.mocked(listArtifacts).mockRejectedValue(
       new ApiError({

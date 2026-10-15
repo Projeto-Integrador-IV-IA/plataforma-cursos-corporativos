@@ -11,7 +11,12 @@
  * IA, dado escondido e pior que dado estranho.
  */
 
-import { CAMPOS_DO_CURSO, type CampoDoCurso } from '@/features/demands/StructuredCourseContent';
+import {
+  CAMPOS_DO_CURSO,
+  type CampoDoCurso,
+  type LacunaLida,
+} from '@/features/demands/StructuredCourseContent';
+import type { GapKind } from '@/types/api';
 
 const CAMPOS: Readonly<Record<CampoDoCurso, string>> = {
   tema: 'Tema',
@@ -63,4 +68,69 @@ export function formatarCargaHoraria(horas: number): string {
 /** Numero de participantes com a unidade. */
 export function formatarParticipantes(pessoas: number): string {
   return pessoas === 1 ? '1 participante' : `${pessoas} participantes`;
+}
+
+// ---------------------------------------------------------------------------
+// Lacunas (RF15)
+// ---------------------------------------------------------------------------
+
+/**
+ * Nome do tipo da lacuna.
+ *
+ * O nome vai por escrito, e nao so em cor ou em icone: e o unico canal que
+ * chega igual a quem le a tela, a quem usa leitor de tela e a quem imprime o
+ * PDF da revisao em preto e branco.
+ */
+const TIPOS_DE_LACUNA: Readonly<Record<GapKind, string>> = {
+  ausente: 'Ausente',
+  ambigua: 'Ambigua',
+  contraditoria: 'Contraditoria',
+};
+
+/**
+ * Marca de cada tipo, usada junto ao nome e nunca sozinha.
+ *
+ * Tres formas diferentes de proposito - circulo vazio para o que nao existe
+ * no texto, interrogacao para o que admite mais de uma leitura, desigualdade
+ * para o que se contradiz. Sao `aria-hidden` no componente: quem usa leitor
+ * de tela recebe o nome do tipo, nao o desenho.
+ */
+const MARCAS_DE_LACUNA: Readonly<Record<GapKind, string>> = {
+  ausente: '○',
+  ambigua: '?',
+  contraditoria: '≠',
+};
+
+/**
+ * O que fazer com cada tipo de lacuna.
+ *
+ * E a razao de a tela distinguir os tres: cada um pede uma conversa diferente
+ * com o cliente. Isto e texto de interface, nao regra - quem classifica a
+ * lacuna e o servico (RNF03).
+ */
+const ACOES_DE_LACUNA: Readonly<Record<GapKind, string>> = {
+  ausente: 'a fonte nao traz esta informacao: pergunte ao cliente.',
+  ambigua: 'a fonte admite mais de uma leitura: esclareca com o cliente.',
+  contraditoria: 'a fonte se contradiz neste ponto: confronte os trechos com o cliente.',
+};
+
+/** Nome do tipo da lacuna; tipo fora do contrato sai como o servico o declarou. */
+export function rotuloDoTipoDeLacuna(lacuna: LacunaLida): string {
+  if (lacuna.tipo === null) {
+    return lacuna.tipoDeclarado === '' ? 'Sem tipo declarado' : lacuna.tipoDeclarado;
+  }
+
+  return TIPOS_DE_LACUNA[lacuna.tipo];
+}
+
+/** Marca do tipo da lacuna. Tipo desconhecido usa a marca neutra. */
+export function marcaDoTipoDeLacuna(lacuna: LacunaLida): string {
+  return lacuna.tipo === null ? '!' : MARCAS_DE_LACUNA[lacuna.tipo];
+}
+
+/** O que a lacuna pede do operador. */
+export function acaoDoTipoDeLacuna(lacuna: LacunaLida): string {
+  return lacuna.tipo === null
+    ? 'o servico apontou uma lacuna que esta tela nao sabe classificar: confirme com o cliente.'
+    : ACOES_DE_LACUNA[lacuna.tipo];
 }
