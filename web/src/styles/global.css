@@ -18,6 +18,13 @@
   --cor-sucesso-fundo: #e7f4ed;
   --cor-erro: #9d2222;
   --cor-erro-fundo: #fbeaea;
+  /*
+   * Atencao e distinto de erro (card #94): a demanda que exige acao nao esta
+   * com defeito. Tom ambar escuro o suficiente para contrastar com a
+   * superficie branca, e nunca o unico portador do aviso - o texto diz o mesmo.
+   */
+  --cor-atencao: #8a5300;
+  --cor-atencao-fundo: #fdf3e3;
   --espaco: 1rem;
   --raio: 6px;
   --sombra: 0 2px 8px rgb(28 36 48 / 18%);
@@ -806,6 +813,235 @@ body {
   margin: 0.25rem 0 0;
   color: var(--cor-texto-suave);
   font-size: 0.875rem;
+}
+
+/*
+ * Quadro do pipeline (RF05, card #93).
+ *
+ * As colunas ficam em linha e a rolagem horizontal mora em
+ * `.pipeline-board__viewport`, nunca no corpo da pagina: cabecalho e navegacao
+ * nao saem de vista enquanto o operador varre as etapas, e a largura do quadro
+ * nao empurra o resto do layout para o lado.
+ *
+ * Coluna de largura fixa de proposito (`flex: 0 0`): coluna que encolhe com o
+ * numero de cartoes faria a etapa vazia parecer inexistente, e e justamente a
+ * etapa vazia que conta parte do andamento.
+ */
+
+/* Esta tela usa a largura toda: o quadro e largo por natureza. */
+.page--wide {
+  max-width: none;
+}
+
+.pipeline-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.pipeline-board__state {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
+.pipeline-board__state p {
+  margin: 0 0 0.5rem;
+}
+
+.pipeline-board__state p:last-child {
+  margin-bottom: 0;
+}
+
+.pipeline-board__state--error {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.pipeline-board__viewport {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.pipeline-board__viewport:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
+}
+
+.pipeline-board__columns {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espaco);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pipeline-board__column {
+  flex: 0 0 15rem;
+}
+
+.pipeline-board__summary {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.pipeline-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.pipeline-column__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pipeline-column__count {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+/* Etapa sem demanda: area anunciada, e nao espaco em branco. */
+.pipeline-column__empty {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: var(--raio);
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+.pipeline-column__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Cartao da demanda (RF05, card #94).
+ *
+ * O cartao inteiro e o link: `display: grid` empilha cliente, titulo e meta
+ * dentro do proprio `a`, entao a area de clique e o cartao e nao so o texto do
+ * titulo.
+ *
+ * A demanda que exige atencao se distingue por tres caminhos que dizem o
+ * mesmo - cor da borda, espessura da borda esquerda e o texto do aviso -, para
+ * que nem o daltonico nem a impressao em preto e branco perca o sinal.
+ */
+
+.pipeline-card {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-left: 3px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  text-decoration: none;
+}
+
+.pipeline-card:hover {
+  border-color: var(--cor-destaque);
+}
+
+.pipeline-card:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
+}
+
+.pipeline-card__client {
+  color: var(--cor-texto-suave);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.pipeline-card__title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pipeline-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.pipeline-card__owner {
+  color: var(--cor-texto-suave);
+}
+
+.pipeline-card__status {
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  white-space: nowrap;
+}
+
+.pipeline-card__status--aberta {
+  border-color: var(--cor-destaque);
+  color: var(--cor-destaque);
+}
+
+.pipeline-card__status--ganha {
+  border-color: var(--cor-sucesso);
+  background: var(--cor-sucesso-fundo);
+  color: var(--cor-sucesso);
+}
+
+.pipeline-card__status--perdida {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.pipeline-card__status--cancelada {
+  color: var(--cor-texto-suave);
+}
+
+.pipeline-card--attention {
+  border-color: var(--cor-atencao);
+  border-left-width: 5px;
+}
+
+.pipeline-card__attention {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cor-atencao);
+  font-weight: 600;
+}
+
+/* Marcador de forma, para o aviso nao se apoiar apenas na cor. */
+.pipeline-card__attention-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--cor-atencao);
+  border-radius: 50%;
+  background: var(--cor-atencao-fundo);
+  font-size: 0.6875rem;
+  line-height: 1;
 }
 
 /*

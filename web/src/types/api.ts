@@ -365,6 +365,85 @@ export interface StageTransitionCreate {
 }
 
 // ---------------------------------------------------------------------------
+// Visao de pipeline - DERIVADO de packages/contracts/openapi/pipeline-service.yaml
+// (`PipelineBoard` e seus agregados: resposta de GET /api/v1/pipeline)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cliente ou responsavel como o cartao os recebe: nome e identificador, nada
+ * mais.
+ *
+ * Nao e `Client` nem um recorte dele: o quadro reduz de proposito a pessoa ao
+ * que a coluna desenha. Reaproveitar `Client` aqui faria o cartao prometer
+ * CNPJ, segmento e contato que a resposta do quadro nao traz.
+ */
+export interface PipelineCardPersonRead {
+  readonly id: Uuid;
+  readonly name: string;
+}
+
+/**
+ * Demanda como ela aparece na coluna de uma etapa.
+ *
+ * O cliente e o responsavel vem resolvidos em nome, diferente de `DemandRead`,
+ * que entrega apenas `client_id` e `owner_id`: o quadro mostra dezenas de
+ * cartoes de uma vez e nao teria como traduzir identificador em nome sem uma
+ * consulta por cartao. `owner` e nulo quando ninguem assumiu a demanda.
+ *
+ * Nao ha `current_stage`: a etapa e a da coluna que contem o cartao.
+ */
+export interface PipelineCardRead {
+  readonly id: Uuid;
+  readonly title: string;
+  readonly status: DemandStatus;
+  readonly client: PipelineCardPersonRead;
+  readonly owner: PipelineCardPersonRead | null;
+  readonly created_at: IsoDateTime;
+  readonly updated_at: IsoDateTime;
+}
+
+/**
+ * Uma coluna do quadro.
+ *
+ * `total` conta todas as demandas da etapa que passam pelos filtros, nao
+ * apenas as que vieram em `items` - o recorte por coluna tem teto (`limit`).
+ * Por isso a coluna mostra o total do servidor, e nunca `items.length`.
+ */
+export interface PipelineStageGroup {
+  readonly stage: PipelineStage;
+  readonly total: number;
+  readonly items: readonly PipelineCardRead[];
+}
+
+/**
+ * Quadro completo: as cinco etapas, inclusive as vazias, e o total do recorte.
+ *
+ * A ordem das colunas e a que o servico devolve. A interface nao a recalcula:
+ * a sequencia das etapas e regra de negocio do pipeline-service, e duplica-la
+ * aqui criaria duas versoes da mesma regra para divergirem com o tempo.
+ */
+export interface PipelineBoard {
+  readonly stages: readonly PipelineStageGroup[];
+  readonly total: number;
+}
+
+/**
+ * Filtros de `GET /api/v1/pipeline`, combinados com AND. Sao os mesmos da
+ * listagem de demandas (RF03), menos `stage`: o agrupamento ja e por etapa, e
+ * o servico recusa o parametro com 422 em vez de ignora-lo em silencio.
+ *
+ * `limit` corta cartoes por coluna e nao afeta o `total` de cada etapa.
+ */
+export interface PipelineBoardParams {
+  readonly client_id?: Uuid;
+  readonly owner_id?: Uuid;
+  readonly status?: DemandStatus;
+  readonly from?: IsoDateTime;
+  readonly to?: IsoDateTime;
+  readonly limit?: number;
+}
+
+// ---------------------------------------------------------------------------
 // Artefatos - PREVISTO (RF08, RF15), conforme `artifacts`/`artifact_versions`
 // ---------------------------------------------------------------------------
 
