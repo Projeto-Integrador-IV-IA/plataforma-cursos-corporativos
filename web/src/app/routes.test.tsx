@@ -21,7 +21,7 @@ describe('mapa de rotas', () => {
     [PATHS.demands, 'Demandas'],
     ['/demandas/abc-123', 'Detalhe da demanda'],
     ['/demandas/abc-123/ingestao', 'Ingestao da demanda'],
-    ['/demandas/abc-123/estruturacao', 'Estruturacao por IA'],
+    ['/demandas/abc-123/estruturacao', 'Revisao da estruturacao'],
     ['/artefatos/abc-123/versoes', 'Versoes do artefato'],
   ];
 

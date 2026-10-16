@@ -5,16 +5,17 @@
  * (packages/contracts/openapi/). Tipos de entrada e saida vivem em `src/types`
  * e derivam do mesmo contrato (RNF02).
  *
- * Estado do contrato: `pipeline-service.yaml` ainda nao declara os caminhos de
- * artefato (RF08, RF15). Os caminhos seguem as convencoes de
- * docs/02-arquitetura/contratos-api.md e os campos seguem o dicionario de
- * dados; serao CONFIRMADOS quando o contrato for publicado.
+ * Estado do contrato: `GET /api/v1/demands/{demand_id}/artifacts` ja esta
+ * declarada em `pipeline-service.yaml` e `listArtifacts` espelha o que ela
+ * devolve. Os caminhos por artefato (`/artifacts/...`) seguem PREVISTOS: as
+ * convencoes de docs/02-arquitetura/contratos-api.md e o dicionario de dados
+ * valem ate o contrato publica-los.
  */
 
 import { api, type RequestContext } from '@/services/api';
 import type {
   Artifact,
-  ArtifactType,
+  ArtifactResultRead,
   ArtifactVersion,
   ArtifactVersionCreate,
   Page,
@@ -25,21 +26,21 @@ import type {
 const DEMANDS = '/demands';
 const ARTIFACTS = '/artifacts';
 
-/** Filtros da listagem de artefatos de uma demanda (RF15). */
-export interface ArtifactListParams extends PageParams {
-  readonly type?: ArtifactType;
-}
-
-/** Lista os artefatos de uma demanda (RF04, RF15). */
+/**
+ * Lista os resultados anexados a uma demanda, com as fontes que originaram
+ * cada um e suas versoes (RF13, RF15, RF19).
+ *
+ * A resposta e uma lista simples, e nao um envelope `Page`: a operacao nao
+ * pagina nem aceita filtro por tipo. Enquanto o contrato nao estava publicado
+ * este modulo prometia `Page<Artifact>` e enviava `page`/`size`/`type`; o
+ * servico descartaria os parametros e a tela leria `items` de um array, que
+ * viria sempre vazio.
+ */
 export function listArtifacts(
   demandId: Uuid,
-  params: ArtifactListParams = {},
   context: RequestContext = {},
-): Promise<Page<Artifact>> {
-  return api.get<Page<Artifact>>(`${DEMANDS}/${demandId}/artifacts`, {
-    ...context,
-    query: { page: params.page, size: params.size, type: params.type },
-  });
+): Promise<readonly ArtifactResultRead[]> {
+  return api.get<readonly ArtifactResultRead[]>(`${DEMANDS}/${demandId}/artifacts`, context);
 }
 
 /** Busca um artefato pelo identificador. */
