@@ -21,6 +21,15 @@ dev = [
   # Le o contrato OpenAPI no teste que o compara com o openapi.json do servico.
   "pyyaml>=6.0",
 ]
+# Roda notebooks/avaliacao-de-modelos.ipynb, que compara modelos sobre o conjunto
+# de avaliacao (RNF04). Separado de `dev` porque o CI nao executa notebook: quem
+# roda a avaliacao instala com `pip install -e ".[dev,avaliacao]"`.
+avaliacao = [
+  "jupyter>=1.1",
+  "nbclient>=0.10",
+  "nbformat>=5.10",
+  "ipykernel>=6.29",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

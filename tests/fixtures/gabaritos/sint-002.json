@@ -1,0 +1,20 @@
+{
+  "procedencia": "sintetico",
+  "observacoes": "Caso sintetico derivado do exemplo de conversa de WhatsApp que ja existia em tests/integration/test_extract_requirements.py. Exercita o par cobertura/alucinacao: tres campos nao tem base nenhuma no texto. A carga horaria e negada explicitamente ('ainda nao fechou quantas horas'), entao preenche-la e alucinacao e declara-la ausente e acerto.",
+  "esperado": {
+    "tema": "lideranca para coordenadores recem-promovidos",
+    "publico_alvo": "coordenadores promovidos no ano corrente",
+    "numero_participantes": 12,
+    "objetivos_aprendizagem": [
+      "Dar e receber feedback de forma estruturada",
+      "Mediar conflito dentro da equipe",
+      "Conduzir reuniao de equipe com objetivo e fechamento"
+    ],
+    "ementa": [
+      {"titulo": "Feedback", "topicos": ["Feedback descritivo", "Conversa dificil"], "carga_horaria": null},
+      {"titulo": "Gestao de conflito", "topicos": ["Origem do conflito", "Mediacao"], "carga_horaria": null},
+      {"titulo": "Conducao de reuniao", "topicos": ["Pauta e objetivo", "Encaminhamentos"], "carga_horaria": null}
+    ]
+  },
+  "sem_base": ["nicho", "carga_horaria", "formato"]
+}

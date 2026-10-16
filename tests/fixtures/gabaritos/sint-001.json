@@ -1,0 +1,23 @@
+{
+  "procedencia": "sintetico",
+  "observacoes": "Caso sintetico derivado do exemplo de e-mail que ja existia em tests/integration/test_extract_requirements.py. Todos os campos extraidos tem base literal no texto: 16h vem de 'dois dias de 8 horas' e o formato presencial de 'no proprio site'. Nicho industrial e sustentado por 'planta 2', 'manutencao' e pela propria NR-12, que e norma de seguranca em maquinas.",
+  "esperado": {
+    "tema": "NR-12: seguranca em maquinas e equipamentos",
+    "nicho": "industrial",
+    "publico_alvo": "tecnicos de manutencao da planta 2",
+    "numero_participantes": 25,
+    "carga_horaria": 16,
+    "formato": "presencial",
+    "objetivos_aprendizagem": [
+      "Identificar os riscos em maquinas cobertos pela NR-12",
+      "Aplicar os dispositivos de seguranca exigidos pela norma",
+      "Executar o bloqueio e a etiquetagem antes da manutencao"
+    ],
+    "ementa": [
+      {"titulo": "Fundamentos da NR-12", "topicos": ["Escopo da norma", "Responsabilidades"], "carga_horaria": 4},
+      {"titulo": "Protecoes e dispositivos de seguranca", "topicos": ["Protecoes fixas e moveis", "Dispositivos de parada"], "carga_horaria": 6},
+      {"titulo": "Procedimentos de manutencao segura", "topicos": ["Bloqueio e etiquetagem", "Permissao de trabalho"], "carga_horaria": 6}
+    ]
+  },
+  "sem_base": []
+}
