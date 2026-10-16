@@ -17,6 +17,7 @@ describe('mapa de rotas', () => {
     [PATHS.login, 'Entrar'],
     [PATHS.clients, 'Clientes'],
     ['/clientes/abc-123', 'Detalhe do cliente'],
+    [PATHS.pipeline, 'Pipeline'],
     [PATHS.demands, 'Demandas'],
     ['/demandas/abc-123', 'Detalhe da demanda'],
     ['/demandas/abc-123/ingestao', 'Ingestao da demanda'],
