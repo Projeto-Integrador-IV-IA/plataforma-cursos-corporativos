@@ -112,9 +112,55 @@ sequenceDiagram
 | [ADR-0004](decisoes/ADR-0004-banco-unico-com-dono.md) | Banco único, com o `pipeline-service` como dono exclusivo. |
 | [ADR-0005](decisoes/ADR-0005-gateway-como-fronteira-de-autenticacao.md) | Autenticação concentrada no gateway. |
 | [ADR-0006](decisoes/ADR-0006-saida-da-ia-com-schema-fixo.md) | Saída da IA validada contra JSON Schema versionado. |
+| [ADR-0008](decisoes/ADR-0008-fronteira-nucleo-bloco-b.md) | Fronteira entre o núcleo do MVP e o Bloco B, verificada no CI. |
 
 ## O que a arquitetura precisa suportar depois
 
 O MVP não implementa custeio, busca de instrutores, geração de slides nem integrações externas.
 A arquitetura foi desenhada para que cada um deles entre como **serviço novo**, consumindo o
 `pipeline-service` por API — sem reescrever o núcleo (RNF13, RF-F1 a RF-F5).
+
+### Ponto de extensão
+
+Um módulo do Bloco B entra **ao lado** do núcleo, nunca dentro dele. A dependência tem uma só
+direção: o módulo chama o `pipeline-service`; o núcleo não chama, não importa e não nomeia o módulo
+([ADR-0008](decisoes/ADR-0008-fronteira-nucleo-bloco-b.md)).
+
+```mermaid
+flowchart LR
+    W["web"] --> G["gateway-service"]
+    G --> N["núcleo<br/><small>ingestion · ai-structuring · pipeline</small>"]
+    G -.-> M["módulo novo<br/><small>ex.: custeio-service</small>"]
+    M -->|"HTTP, contrato do pipeline"| P["pipeline-service"]
+```
+
+Para acoplar um módulo novo (por exemplo, `custeio-service`) sem alterar o núcleo:
+
+1. **Serviço próprio** em `services/<modulo>-service`, com contrato em
+   `packages/contracts/openapi/<modulo>-service.yaml` (contrato antes de código, RNF02).
+2. **Domínio pelo contrato do `pipeline-service`**, com um cliente HTTP — o mesmo padrão que o
+   `ingestion-service` já usa em `app/clients/pipeline_client.py`. O módulo não acessa o PostgreSQL
+   ([ADR-0004](decisoes/ADR-0004-banco-unico-com-dono.md)).
+3. **Resultado como artefato da demanda** (`POST /api/v1/demands/{id}/artifacts`) quando for um
+   documento: já nasce versionado, atrelado à demanda e recuperável (RF08, RF15). Um tipo de
+   artefato novo é mudança **aditiva** no contrato do pipeline — a [ADR-0001](decisoes/ADR-0001-arquitetura-microsservicos.md)
+   já prevê que o pipeline muda quando surge um tipo novo —, não reescrita.
+4. **Rota no `gateway-service`**, que segue como único ponto de autenticação
+   ([ADR-0005](decisoes/ADR-0005-gateway-como-fronteira-de-autenticacao.md)) e propaga o
+   `X-User-ID`.
+5. **Entrada no `docker-compose.yml`** e feature própria em `web/src/features/<modulo>/`.
+6. **Diretórios do módulo na lista de permitidos** da verificação de fronteira (abaixo), no mesmo
+   PR que o cria.
+
+O núcleo não oferece eventos, fila nem ganchos de plugin, de propósito (princípio 6): o módulo é
+acionado pelo operador, pela web, via gateway. Persistência própria de módulo, quando o dado não
+couber em artefato, é decisão da ADR que escopar o primeiro módulo.
+
+### Verificação da fronteira
+
+O job `fronteira-bloco-b` do [CI](../../.github/workflows/ci.yml) procura `custeio`, `orçamento`,
+`instrutor`, `proposta comercial` e `slide` em `services/`, `packages/` e `web/` e reprova o PR se
+achar fora da lista [`fronteira-bloco-b-permitidos.txt`](../../.github/fronteira-bloco-b-permitidos.txt).
+A fala do cliente "depende do orçamento", usada em exemplos de prompt e em fixtures, é permitida.
+A etapa e o tipo de artefato `PROPOSTA` são vocabulário do núcleo (RF05); o que é Bloco B é
+*gerar* a proposta (RF-F2). O critério completo para classificar uma ocorrência está na ADR-0008.
