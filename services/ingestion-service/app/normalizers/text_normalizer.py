@@ -5,8 +5,9 @@ import re
 import unicodedata
 from html.parser import HTMLParser
 from typing import ClassVar
+from uuid import NAMESPACE_URL, UUID, uuid5
 
-from app.domain.raw_demand import SourceKind
+from app.domain.raw_demand import SourceKind, SourceSegment
 
 _EMAIL_HEADER = re.compile(
     r"^(?:from|de|sent|enviado em|date|data|to|para|cc|bcc|subject|assunto|reply-to):\s*",
@@ -105,6 +106,33 @@ def normalize_text(text: str, source_type: SourceKind) -> str:
     normalized = _HORIZONTAL_SPACE.sub(" ", normalized)
     normalized = _BLANK_LINES.sub("\n\n", normalized)
     return normalized.strip()
+
+
+def segment_text(
+    text: str,
+    source_type: SourceKind,
+    *,
+    source_id: UUID,
+) -> tuple[SourceSegment, ...]:
+    """Sanitiza e divide a fonte em linhas logicas citaveis e estaveis.
+
+    Cada linha nao vazia do texto sanitizado vira um trecho. A posicao e
+    baseada em 1 e preserva a ordem original. O UUIDv5 deriva do identificador
+    imutavel da fonte, da posicao e do conteudo; portanto, reprocessar a mesma
+    fonte produz os mesmos IDs sem depender de banco ou estado em memoria.
+    """
+
+    normalized = normalize_text(text, source_type)
+    logical_lines = (line for line in normalized.splitlines() if line.strip())
+    return tuple(
+        SourceSegment(
+            id=uuid5(NAMESPACE_URL, f"raw-input:{source_id}:segment:{position}:{line}"),
+            source_id=source_id,
+            position=position,
+            text=line,
+        )
+        for position, line in enumerate(logical_lines, start=1)
+    )
 
 
 def _strip_html(text: str) -> str:

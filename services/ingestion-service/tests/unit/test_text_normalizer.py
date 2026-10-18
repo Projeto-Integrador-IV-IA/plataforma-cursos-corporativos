@@ -1,7 +1,9 @@
-"""Aceite da sanitizacao sem reescrita do conteudo semantico."""
+"""Aceite da sanitizacao e da segmentacao estavel da fonte."""
+
+from uuid import UUID, uuid4
 
 from app.domain.raw_demand import SourceKind
-from app.normalizers.text_normalizer import normalize_text
+from app.normalizers.text_normalizer import normalize_text, segment_text
 
 
 def test_removes_email_headers_signature_html_and_redundant_spacing() -> None:
@@ -61,3 +63,44 @@ def test_keeps_plain_semantic_content_unchanged() -> None:
     original = "Tema: LGPD\nPúblico: gestores\nCarga horária: 4 horas"
 
     assert normalize_text(original, SourceKind.OUTRO) == original
+
+
+def test_segments_each_nonblank_logical_line_in_original_order() -> None:
+    source_id = UUID("b46f05f7-2394-43a5-a864-38f62ce2e8f4")
+    original = (
+        "# Briefing\n\n- Tema: Seguranca de dados\n- Publico: gestores\n\n> Formato presencial"
+    )
+
+    segments = segment_text(original, SourceKind.ANOTACAO, source_id=source_id)
+
+    assert [(segment.position, segment.text) for segment in segments] == [
+        (1, "Briefing"),
+        (2, "Tema: Seguranca de dados"),
+        (3, "Publico: gestores"),
+        (4, "Formato presencial"),
+    ]
+    assert all(segment.source_id == source_id for segment in segments)
+
+
+def test_reprocessing_the_same_source_produces_the_same_segment_ids() -> None:
+    source_id = UUID("57754d48-b635-45d3-8449-a531ec02268f")
+    original = "Tema: LGPD\r\n\r\nPublico: gestores\r\nCarga horaria: 4 horas"
+
+    first = segment_text(original, SourceKind.OUTRO, source_id=source_id)
+    second = segment_text(original, SourceKind.OUTRO, source_id=source_id)
+
+    assert [segment.id for segment in first] == [segment.id for segment in second]
+    assert [str(segment.id) for segment in first] == [
+        "4d6bbfc3-58db-5828-a4e3-e777774b10e8",
+        "2cf6fe08-8db2-5194-afb1-7f9d85e855d0",
+        "ce6a5f99-afbd-5311-95ec-923d6b350905",
+    ]
+
+
+def test_equal_text_from_different_sources_does_not_share_segment_ids() -> None:
+    text = "Tema: LGPD\nPublico: gestores"
+
+    first = segment_text(text, SourceKind.OUTRO, source_id=uuid4())
+    second = segment_text(text, SourceKind.OUTRO, source_id=uuid4())
+
+    assert [segment.id for segment in first] != [segment.id for segment in second]
