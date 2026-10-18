@@ -14,6 +14,7 @@ from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.api.v1.routes.health import router as health_router
+from app.api.v1.routes.internal_auth import router as internal_auth_router
 from app.core.exceptions import register_exception_handlers
 
 
@@ -23,6 +24,9 @@ def create_app() -> FastAPI:
     application = FastAPI(title="pipeline-service", version="0.1.0")
     register_exception_handlers(application)
     application.include_router(health_router)
+    # Fronteira exclusiva entre servicos; fica fora do agregador publico para
+    # nao sugerir que esta rota de credenciais faz parte do BFF.
+    application.include_router(internal_auth_router)
     application.include_router(api_router)
     return application
 
