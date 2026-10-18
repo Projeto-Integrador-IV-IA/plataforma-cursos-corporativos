@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.enums import DemandStatus, PipelineStage
 from app.models import Demand, StageTransition, User
+from app.repositories.demand_repository import DemandRepository
 
 
 def _create_user(engine: Engine) -> UUID:
@@ -207,6 +208,7 @@ def test_rollback_rejects_the_current_or_a_later_stage(
         None,
         {"to_stage": PipelineStage.CAPTACAO.value},
         {"to_stage": PipelineStage.CAPTACAO.value, "reason": "   "},
+        {"to_stage": PipelineStage.CAPTACAO.value, "reason": "x" * 1001},
     ],
 )
 def test_rollback_requires_a_reason(
@@ -230,25 +232,93 @@ def test_rollback_requires_a_reason(
     assert _events(engine, demand_id) == []
 
 
+@pytest.mark.parametrize(
+    "status", [DemandStatus.GANHA, DemandStatus.PERDIDA, DemandStatus.CANCELADA]
+)
+@pytest.mark.parametrize("target", list(PipelineStage))
 def test_closed_demand_does_not_rollback(
     api: TestClient,
     engine: Engine,
     company: UUID,
+    status: DemandStatus,
+    target: PipelineStage,
 ) -> None:
     author_id = _create_user(engine)
     demand_id = _create_demand(
         engine,
         company,
         stage=PipelineStage.PROPOSTA,
-        status=DemandStatus.GANHA,
+        status=status,
     )
 
-    response = _rollback(api, demand_id, author_id, PipelineStage.CAPTACAO)
+    response = _rollback(api, demand_id, author_id, target)
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "DEMAND_NOT_OPEN"
     assert _stage_of(engine, demand_id) == PipelineStage.PROPOSTA.value
     assert _events(engine, demand_id) == []
+
+
+def test_unknown_demand_is_not_found(api: TestClient, engine: Engine) -> None:
+    author_id = _create_user(engine)
+
+    response = _rollback(api, uuid4(), author_id, PipelineStage.CAPTACAO)
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "DEMAND_NOT_FOUND"
+
+
+def test_unknown_author_is_not_found_and_changes_nothing(
+    api: TestClient, engine: Engine, company: UUID
+) -> None:
+    demand_id = _create_demand(engine, company, stage=PipelineStage.PROPOSTA)
+
+    response = _rollback(api, demand_id, uuid4(), PipelineStage.CAPTACAO)
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "USER_NOT_FOUND"
+    assert _stage_of(engine, demand_id) == PipelineStage.PROPOSTA.value
+    assert _events(engine, demand_id) == []
+
+
+def test_failure_after_recording_rolls_back_stage_timestamp_and_new_event(
+    api: TestClient,
+    engine: Engine,
+    company: UUID,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    author_id = _create_user(engine)
+    demand_id = _create_demand(engine, company)
+    assert _advance(api, demand_id, author_id).status_code == 200
+    previous_events = {event.id for event in _events(engine, demand_id)}
+    with Session(engine) as session:
+        previous_updated_at = session.get(Demand, demand_id).updated_at
+
+    original_update = DemandRepository.update
+
+    def broken_update(self: DemandRepository, demand: Demand, changes: dict[str, Any]) -> Demand:
+        # Confirma que o evento ja foi inserido e falha apos a segunda escrita.
+        assert (
+            self.session.scalar(
+                sa.select(sa.func.count())
+                .select_from(StageTransition)
+                .where(StageTransition.demand_id == demand_id)
+            )
+            == len(previous_events) + 1
+        )
+        original_update(self, demand, changes)
+        self.session.flush()
+        raise RuntimeError("falha simulada depois de atualizar a demanda")
+
+    monkeypatch.setattr(DemandRepository, "update", broken_update)
+
+    with pytest.raises(RuntimeError, match="falha simulada"):
+        _rollback(api, demand_id, author_id, PipelineStage.CAPTACAO)
+
+    assert _stage_of(engine, demand_id) == PipelineStage.ESTRUTURACAO.value
+    assert {event.id for event in _events(engine, demand_id)} == previous_events
+    with Session(engine) as session:
+        assert session.get(Demand, demand_id).updated_at == previous_updated_at
 
 
 def test_rollback_is_declared_in_swagger(api: TestClient) -> None:

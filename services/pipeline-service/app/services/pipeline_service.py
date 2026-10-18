@@ -16,7 +16,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, NotFoundError, ValidationError, issue_de_validacao
+from app.core.exceptions import ConflictError, NotFoundError
 from app.domain.enums import DemandStatus, PipelineStage
 from app.domain.rules import can_transition, next_stage
 from app.models.user import User
@@ -152,37 +152,10 @@ class PipelineService:
         Somente ``current_stage`` e ``updated_at`` mudam na demanda. Fontes,
         artefatos e eventos anteriores nao sao atualizados nem removidos; um novo
         evento append-only registra o retrocesso na mesma transacao.
-        """
 
-        normalized_reason = reason.strip() if isinstance(reason, str) else ""
-        if not normalized_reason:
-            raise ValidationError(
-                code="ROLLBACK_REASON_REQUIRED",
-                message="A justificativa do retrocesso e obrigatoria.",
-                details={
-                    "issues": [
-                        issue_de_validacao(
-                            localizacao=["body", "reason"],
-                            mensagem="A justificativa do retrocesso e obrigatoria.",
-                            tipo="value_error",
-                        )
-                    ]
-                },
-            )
-        if len(normalized_reason) > 1000:
-            raise ValidationError(
-                code="ROLLBACK_REASON_TOO_LONG",
-                message="A justificativa do retrocesso deve ter no maximo 1000 caracteres.",
-                details={
-                    "issues": [
-                        issue_de_validacao(
-                            localizacao=["body", "reason"],
-                            mensagem="A justificativa deve ter no maximo 1000 caracteres.",
-                            tipo="string_too_long",
-                        )
-                    ]
-                },
-            )
+        O chamador fornece a justificativa validada e normalizada por
+        ``RollbackRequest``, que concentra as restricoes de texto.
+        """
 
         demand = self.repository.get_for_update(demand_id)
         if demand is None:
@@ -192,6 +165,13 @@ class PipelineService:
 
         current = PipelineStage(demand.current_stage)
         target = PipelineStage(to_stage)
+        if demand.status != DemandStatus.ABERTA.value:
+            raise ConflictError(
+                code="DEMAND_NOT_OPEN",
+                message="Demandas encerradas nao mudam de etapa.",
+                details={"status": demand.status},
+            )
+
         stages = tuple(PipelineStage)
         if stages.index(target) >= stages.index(current):
             raise ConflictError(
@@ -204,12 +184,6 @@ class PipelineService:
             )
 
         if not can_transition(current, target, demand.status):
-            if demand.status != DemandStatus.ABERTA.value:
-                raise ConflictError(
-                    code="DEMAND_NOT_OPEN",
-                    message="Demandas encerradas nao mudam de etapa.",
-                    details={"status": demand.status},
-                )
             raise ConflictError(
                 code="INVALID_STAGE_TRANSITION",
                 message=f"Transicao de {current.value} para {target.value} nao e permitida.",
@@ -220,7 +194,7 @@ class PipelineService:
             demand.id,
             current,
             target,
-            normalized_reason,
+            reason,
             author_id,
         )
         self.repository.update(
