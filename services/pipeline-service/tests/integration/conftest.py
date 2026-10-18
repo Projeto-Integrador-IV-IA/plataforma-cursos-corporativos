@@ -44,6 +44,7 @@ def engine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Engine]:
     monkeypatch.setenv("LOG_LEVEL", "INFO")
     monkeypatch.setenv("PIPELINE_PORT", "8001")
     monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("AUTH_SERVICE_KEY", "chave-interna-de-teste-com-32-caracteres")
     get_settings.cache_clear()
     config = Config("alembic.ini")
     command.upgrade(config, "head")

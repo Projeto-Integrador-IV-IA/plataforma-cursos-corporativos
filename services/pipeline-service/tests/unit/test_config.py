@@ -14,6 +14,7 @@ def test_database_url_comes_from_environment_and_is_masked(
     monkeypatch.setenv("LOG_LEVEL", "INFO")
     monkeypatch.setenv("PIPELINE_PORT", "8001")
     monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("AUTH_SERVICE_KEY", "chave-interna-de-teste-com-32-caracteres")
 
     settings = Settings()
 
@@ -25,6 +26,7 @@ def test_database_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("LOG_LEVEL", "INFO")
     monkeypatch.setenv("PIPELINE_PORT", "8001")
+    monkeypatch.setenv("AUTH_SERVICE_KEY", "chave-interna-de-teste-com-32-caracteres")
     monkeypatch.delenv("DATABASE_URL", raising=False)
 
     with pytest.raises(ValidationError):
