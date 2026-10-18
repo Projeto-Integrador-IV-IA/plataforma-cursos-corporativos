@@ -725,6 +725,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}:
+    get:
+      tags:
+      - raw-inputs
+      summary: Consultar fonte e proveniencia
+      description: Recupera o conteudo original e a copia normalizada com o canal de origem,
+        o operador que captou a fonte e a data de recebimento registrada pelo banco.
+      operationId: get_raw_input_api_v1_raw_inputs__raw_input_id__get
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputRead'
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
   /api/v1/raw-inputs/{raw_input_id}/normalization:
     patch:
       tags:

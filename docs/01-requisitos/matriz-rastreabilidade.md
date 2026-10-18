@@ -37,6 +37,29 @@ E atualize o número do Card para incluir #123 e o Status para ✅ (concluído).
 | RF16 | Autenticar o usuário | Alta | gateway | | 3 | ⬜ | |
 | RF17 | Estado de processamento da IA | Alta | ai-structuring + web | #21 | 3 | 🟡 | `POST /api/v1/structuring/jobs` aceita o pedido com **202** e devolve o identificador da execucao; `GET /api/v1/structuring/jobs/{job_id}` informa o estado (`PENDENTE`, `PROCESSANDO`, `CONCLUIDA`, `ERRO`) e, so quando concluiu, o curso. Enquanto nao terminou `result` e nulo: nao existe curso parcial, e devolver um esqueleto vazio faria a tela exibir campos que ninguem preencheu (RNF03). Implementacao em [`job_service.py`](../../services/ai-structuring-service/app/services/job_service.py), dominio em [`domain/jobs.py`](../../services/ai-structuring-service/app/domain/jobs.py), DTOs em [`schemas/jobs.py`](../../services/ai-structuring-service/app/schemas/jobs.py), rotas em [`routes/structuring.py`](../../services/ai-structuring-service/app/api/v1/routes/structuring.py). O caminho sincrono continua existindo: e por ele que a avaliacao de qualidade (RNF04) exercita o mesmo codigo sem fila. Aceite em [`test_structuring_jobs.py`](../../services/ai-structuring-service/tests/integration/test_structuring_jobs.py). Corresponde ao **RNF10** do Documento Consolidado v1.0 (card #21). **Limite conhecido**: o registro de execucoes vive em memoria — reiniciar o servico perde as execucoes em andamento, e com mais de uma replica o identificador so e encontrado na replica que o emitiu. O `ai-structuring-service` nao tem banco proprio e nao acessa o de outro servico (ADR-0001); persistir a execucao e trabalho do `pipeline-service`, junto do artefato (RF13). O que nao se perde em nenhum caso e a demanda bruta, ja gravada pelo `ingestion-service` (RNF05): o custo e reprocessar, nunca perder o texto. **Interface**: bloco de processamento da tela de revisão em [`features/demands/DemandStructuringStatus.tsx`](../../web/src/features/demands/DemandStructuringStatus.tsx), com as chamadas em [`services/structuring.ts`](../../web/src/services/structuring.ts) (card #82, **RF24 na numeração das issues**): exibe o estado devolvido por `GET /api/v1/structuring/jobs/{job_id}` e o tempo de ponta a ponta (RNF06), distinguindo os estados por nome escrito, marca de forma própria e estilo de borda — **não por cor** —, em região `role="status"` com `aria-live`, para a transição até concluído ser percebida também por quem usa leitor de tela. O **reenvio fica bloqueado** enquanto o pedido anterior está sendo aceito, enquanto a execução está `PENDENTE` ou `PROCESSANDO`, enquanto o estado da execução indicada no endereço ainda não chegou — na dúvida não se reenvia — e quando a demanda não tem nenhuma fonte captada, caso em que não há o que estruturar. O identificador da execução fica na query string (`?execucao=`) para o acompanhamento sobreviver a um recarregamento, e o texto enviado é o da fonte captada mais recente, já que nenhuma operação publicada expõe a cópia sanitizada (RF10). Aceite em [`DemandStructuringView.test.tsx`](../../web/src/features/demands/DemandStructuringView.test.tsx). **Pendente**: a consulta periódica até o estado final (#107) |
 
+### RF10 do Documento Consolidado v1.0 — proveniência (card #31)
+
+A linha RF10 da tabela acima usa a numeração antiga da normalização (RF11 no
+Consolidado). O card [#31](https://github.com/Projeto-Integrador-IV-IA/plataforma-cursos-corporativos/issues/31)
+entrega **registro de proveniência**, apoiado na captação #30 já integrada:
+`source` registra o canal/tipo de origem, `author_id` identifica o operador que
+captou a fonte e `created_at` registra a data de recebimento atribuída pelo banco.
+As colunas de [`RawInput`](../../services/pipeline-service/app/models/raw_input.py)
+são reutilizadas, sem alteração do schema do banco.
+
+[`source_detector.py`](../../services/ingestion-service/app/normalizers/source_detector.py)
+infere o canal quando `source_type` é omitido ou nulo na captação; a declaração
+do operador sempre prevalece. `GET /api/v1/raw-inputs/{raw_input_id}` recupera
+conteúdo e proveniência persistidos; os metadados também continuam acessíveis
+em `GET /api/v1/demands/{demand_id}`. Normalizar não altera origem, autor, data
+ou conteúdo original. Contratos em [`ingestion-service.yaml`](../../packages/contracts/openapi/ingestion-service.yaml)
+e [`pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml).
+Aceite em [`test_source_detector.py`](../../services/ingestion-service/tests/unit/test_source_detector.py),
+[`test_ingestion_endpoint.py`](../../services/ingestion-service/tests/integration/test_ingestion_endpoint.py)
+e [`test_raw_inputs.py`](../../services/pipeline-service/tests/integration/test_raw_inputs.py).
+**Estado:** proveniência do card #31 implementada; ordenação de recebimento
+continua no card #32, que complementa o RF10 consolidado.
+
 ## Bloco A — Requisitos não funcionais
 
 | ID | Requisito (resumo) | Prioridade | Card | Fase | Status | Evidência |

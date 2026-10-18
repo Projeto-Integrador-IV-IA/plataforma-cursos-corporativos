@@ -32,6 +32,37 @@ Cabecalhos e assinaturas de e-mail, metadados de WhatsApp, HTML, Markdown,
 caracteres invisiveis e espacamento redundante sao removidos sem resumir ou
 reescrever o conteudo semantico.
 
+## Proveniencia da fonte (RF10, card #31)
+
+`POST /api/v1/ingestion` aceita `source_type` opcional. Quando omitido ou nulo,
+`normalizers/source_detector.py` identifica marcas explicitas de e-mail,
+mensagens exportadas, transcricao ou anotacao. Sem marcas suficientes, usa
+`OUTRO`. Um `source_type` informado pelo operador sempre prevalece, inclusive
+`OUTRO`; valores desconhecidos ou vazios continuam sendo rejeitados com 422.
+A inferencia examina o texto original antes da normalizacao, sem modifica-lo.
+
+Exemplo com inferencia:
+
+```json
+{
+  "demand_id": "<UUID da demanda>",
+  "text": "De: marina@example.com\nAssunto: Treinamento\n\nPrecisamos de 20 vagas."
+}
+```
+
+Enviar o cabecalho `X-User-ID` com o UUID do operador. A resposta confirma o
+`source_type` efetivamente gravado e o `raw_input_id`. Para substituir a
+sugestao na captacao, informar por exemplo `"source_type": "ANOTACAO"`.
+
+O `pipeline-service` expoe `GET /api/v1/raw-inputs/{raw_input_id}` com `source`
+(canal/tipo de origem), `author_id` (operador que recebeu a fonte), `created_at`
+(data de recebimento registrada pelo banco), `demand_id`, `original_content`
+e `normalized_content`. Esses metadados tambem estao na fonte do detalhe da
+demanda; o texto normalizado e consultavel na rota individual da fonte.
+O remetente citado no texto nao e confundido com o operador identificado pelo
+cabecalho `X-User-ID`. Nao ha novo campo nem migration: a proveniencia reutiliza as colunas
+introduzidas no RF09. A ordenacao de recebimento pertence ao card #32.
+
 ## Testes
 
 ```bash

@@ -185,3 +185,72 @@ def test_demand_without_sources_reports_an_empty_list(api: TestClient, demand: U
     """A tela distingue "sem fontes" de "campo ausente"; o contrato sempre traz a chave."""
 
     assert api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"] == []
+
+
+@pytest.mark.parametrize("source", ["EMAIL", "TRANSCRICAO", "MENSAGENS", "ANOTACAO", "OUTRO"])
+def test_source_query_recovers_persisted_provenance(
+    api: TestClient, engine: Engine, demand: UUID, operator: UUID, source: str
+) -> None:
+    created = captar(api, demand, operator, source=source)
+    assert created.status_code == 201, created.text
+    body = created.json()
+
+    response = api.get(f"/api/v1/raw-inputs/{body['id']}")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == body
+    with Session(engine) as session:
+        stored = session.get(RawInput, UUID(body["id"]))
+        assert stored.source == body["source"] == source
+        assert str(stored.author_id) == body["author_id"] == str(operator)
+        assert stored.created_at.isoformat() == body["created_at"]
+        assert str(stored.demand_id) == body["demand_id"] == str(demand)
+
+    in_detail = api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"][0]
+    for field in ("id", "source", "author_id", "created_at", "original_content"):
+        assert in_detail[field] == body[field]
+
+
+def test_normalization_preserves_source_provenance(
+    api: TestClient, demand: UUID, operator: UUID
+) -> None:
+    original = captar(api, demand, operator).json()
+    normalized = api.patch(
+        f"/api/v1/raw-inputs/{original['id']}/normalization",
+        json={"normalized_content": "Texto sanitizado"},
+    )
+    assert normalized.status_code == 200, normalized.text
+
+    queried = api.get(f"/api/v1/raw-inputs/{original['id']}").json()
+    assert queried["normalized_content"] == "Texto sanitizado"
+    for field in ("source", "author_id", "created_at", "original_content", "demand_id"):
+        assert queried[field] == original[field]
+
+
+def test_query_unknown_source_returns_404(api: TestClient) -> None:
+    response = api.get(f"/api/v1/raw-inputs/{uuid4()}")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "RAW_INPUT_NOT_FOUND"
+
+
+def test_query_invalid_source_id_returns_422(api: TestClient) -> None:
+    assert api.get("/api/v1/raw-inputs/identificador-invalido").status_code == 422
+
+
+def test_capture_body_cannot_override_operator_header_or_reception_date(
+    api: TestClient, demand: UUID, operator: UUID
+) -> None:
+    response = api.post(
+        f"/api/v1/demands/{demand}/raw-inputs",
+        headers={"X-User-ID": str(operator)},
+        json={
+            "original_content": TEXTO_DE_WHATSAPP,
+            "source": "EMAIL",
+            "author_id": str(uuid4()),
+            "created_at": "2000-01-01T00:00:00Z",
+        },
+    )
+
+    assert response.status_code == 422
+    assert api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"] == []
