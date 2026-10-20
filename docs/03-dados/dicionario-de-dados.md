@@ -81,6 +81,17 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 
 ---
 
+## `source_segments` — trechos citáveis das fontes (issue #151)
+
+| Campo | Tipo | Nulo | Descrição |
+|---|---|---|---|
+| `id` | uuid PK | não | Identificador estável produzido na segmentação da fonte. |
+| `raw_input_id` | uuid FK → `raw_inputs.id` | **não** | Fonte obrigatória; `ON DELETE RESTRICT` impede trecho órfão. |
+| `position` | integer | **não** | Ordem iniciada em 1, única dentro da fonte. |
+| `content` | text | **não** | Conteúdo citável; vazio ou apenas espaços é recusado pelo banco. |
+
+---
+
 ## `stage_transitions` — histórico de etapas (RF07, RNF09)
 
 **Append-only.** Sem UPDATE, sem DELETE.
