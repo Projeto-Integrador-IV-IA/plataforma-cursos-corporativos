@@ -12,7 +12,7 @@ dados que nenhuma coluna mostra.
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.enums import DemandStatus, PipelineStage
 
@@ -62,4 +62,62 @@ class PipelineBoard(BaseModel):
     """
 
     stages: list[PipelineStageGroup]
+    total: int
+
+
+class StageChangeRequest(BaseModel):
+    """Corpo opcional do avanco: so a justificativa; o destino vem da maquina de estados.
+
+    O autor nao entra aqui de proposito: vem do cabecalho ``X-User-ID`` (RNF10).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Justificativa opcional do avanco; texto em branco equivale a ausente.",
+    )
+
+    @field_validator("reason")
+    @classmethod
+    def _blank_reason_is_absent(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class StageChangeRead(BaseModel):
+    """Resultado de uma mudanca de etapa: o evento gravado e a etapa resultante."""
+
+    transition_id: UUID
+    demand_id: UUID
+    from_stage: PipelineStage
+    current_stage: PipelineStage
+    reason: str | None
+    author_id: UUID
+    occurred_at: datetime
+
+
+class StageTransitionRead(BaseModel):
+    """Um evento da trilha: de onde, para onde, quem moveu e quando.
+
+    ``from_stage`` e nulo so no evento inicial de uma demanda, se existir.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    demand_id: UUID
+    from_stage: PipelineStage | None
+    to_stage: PipelineStage
+    reason: str | None
+    author: PipelineCardPersonRead
+    occurred_at: datetime
+
+
+class StageTransitionTimeline(BaseModel):
+    """Linha do tempo de uma demanda, do mais antigo ao mais recente."""
+
+    items: list[StageTransitionRead]
     total: int

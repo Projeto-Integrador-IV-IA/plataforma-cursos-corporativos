@@ -1,11 +1,13 @@
 """Registro historico de uma mudanca de etapa da demanda."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import event
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Mapped, Mapper, mapped_column, relationship
 
 from app.db.base import Base
 from app.domain.enums import PipelineStage, sql_enum_values
@@ -16,8 +18,18 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
+class AppendOnlyViolationError(RuntimeError):
+    """Tentativa de alterar ou apagar um evento da trilha de auditoria (RNF09)."""
+
+
 class StageTransition(Base):
-    """Evento append-only que preserva origem, destino, autor e instante."""
+    """Evento append-only que preserva origem, destino, autor e instante.
+
+    A garantia tem duas camadas. Aqui, os eventos ``before_update`` e
+    ``before_delete`` (no fim do modulo) recusam a operacao pelo ORM, com erro
+    claro. No banco, os gatilhos da migration ``20261020_1200`` recusam qualquer
+    UPDATE ou DELETE, inclusive os em massa que o ORM nao intercepta.
+    """
 
     __tablename__ = "stage_transitions"
     __table_args__ = (
@@ -76,3 +88,11 @@ class StageTransition(Base):
 
     demand: Mapped["Demand"] = relationship(back_populates="stage_transitions")
     author: Mapped["User"] = relationship(back_populates="stage_transitions")
+
+
+@event.listens_for(StageTransition, "before_update")
+@event.listens_for(StageTransition, "before_delete")
+def _refuse_change(mapper: Mapper[Any], connection: Connection, target: StageTransition) -> None:
+    raise AppendOnlyViolationError(
+        "stage_transitions e append-only: eventos nao podem ser alterados nem apagados."
+    )
