@@ -1,6 +1,7 @@
 """Contrato RNF08 entre os modelos ORM e o dicionario de dados."""
 
 import importlib
+from uuid import uuid4
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
@@ -21,6 +22,7 @@ from app.models import (
     Client,
     Demand,
     RawInput,
+    SourceSegment,
     StageTransition,
     User,
 )
@@ -62,6 +64,7 @@ EXPECTED_COLUMNS = {
         "author_id",
         "created_at",
     },
+    "source_segments": {"id", "raw_input_id", "position", "content"},
     "stage_transitions": {
         "id",
         "demand_id",
@@ -99,6 +102,7 @@ def test_required_domain_relationships_are_not_nullable() -> None:
         ("demands", "client_id"),
         ("raw_inputs", "demand_id"),
         ("raw_inputs", "author_id"),
+        ("source_segments", "raw_input_id"),
         ("stage_transitions", "demand_id"),
         ("stage_transitions", "author_id"),
         ("artifacts", "demand_id"),
@@ -177,6 +181,12 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
         original_content="Conteudo original",
         source="EMAIL",
     )
+    segment = SourceSegment(
+        id=uuid4(),
+        raw_input=raw_input,
+        position=1,
+        content="Conteudo original",
+    )
     transition = StageTransition(
         demand=demand,
         author=user,
@@ -199,12 +209,13 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
     )
 
     with Session(engine) as session:
-        session.add_all([transition, version])
+        session.add_all([segment, transition, version])
         session.commit()
 
         assert session.scalar(sa.select(sa.func.count(Client.id))) == 1
         assert session.scalar(sa.select(sa.func.count(Demand.id))) == 1
         assert session.scalar(sa.select(sa.func.count(RawInput.id))) == 1
+        assert session.scalar(sa.select(sa.func.count(SourceSegment.id))) == 1
         assert session.scalar(sa.select(sa.func.count(StageTransition.id))) == 1
         assert session.scalar(sa.select(sa.func.count(Artifact.id))) == 1
         assert session.scalar(sa.select(sa.func.count(ArtifactVersion.id))) == 1
