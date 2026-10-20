@@ -594,6 +594,100 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/demands/{demand_id}/advance:
+    post:
+      tags:
+      - pipeline
+      summary: Avancar demanda para a proxima etapa
+      description: Move a demanda para a etapa seguinte do pipeline e registra a transicao na trilha,
+        na mesma transacao. O destino e definido pela maquina de estados, nao pelo chamador. O autor
+        vem do cabecalho X-User-ID. A justificativa e opcional.
+      operationId: advance_demand_api_v1_demands__demand_id__advance_post
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/StageChangeRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageChangeRead'
+        '404':
+          description: Demanda ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Demanda na ultima etapa ou encerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador ou justificativa invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/demands/{demand_id}/transitions:
+    get:
+      tags:
+      - pipeline
+      summary: Consultar a linha do tempo de etapas da demanda
+      description: Devolve todas as mudancas de etapa da demanda, da mais antiga a mais recente, com
+        etapa de origem, etapa de destino, autor, justificativa e instante. Demanda sem movimentacao
+        devolve lista vazia.
+      operationId: get_demand_timeline_api_v1_demands__demand_id__transitions_get
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageTransitionTimeline'
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/demands/{demand_id}/raw-inputs:
     post:
       tags:
@@ -1732,3 +1826,108 @@ components:
       - OUTRO
       title: RawInputSource
       description: Origens aceitas para uma fonte bruta.
+    StageChangeRead:
+      properties:
+        transition_id:
+          type: string
+          format: uuid
+          title: Transition Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        from_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        current_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        author_id:
+          type: string
+          format: uuid
+          title: Author Id
+        occurred_at:
+          type: string
+          format: date-time
+          title: Occurred At
+      type: object
+      required:
+      - transition_id
+      - demand_id
+      - from_stage
+      - current_stage
+      - reason
+      - author_id
+      - occurred_at
+      title: StageChangeRead
+      description: 'Resultado de uma mudanca de etapa: o evento gravado e a etapa resultante.'
+    StageChangeRequest:
+      properties:
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Reason
+          description: Justificativa opcional do avanco; texto em branco equivale a ausente.
+      additionalProperties: false
+      type: object
+      title: StageChangeRequest
+      description: 'Corpo opcional do avanco: so a justificativa; o destino vem da maquina de estados.'
+    StageTransitionRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        from_stage:
+          anyOf:
+          - $ref: '#/components/schemas/PipelineStage'
+          - type: 'null'
+        to_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        author:
+          $ref: '#/components/schemas/PipelineCardPersonRead'
+        occurred_at:
+          type: string
+          format: date-time
+          title: Occurred At
+      type: object
+      required:
+      - id
+      - demand_id
+      - from_stage
+      - to_stage
+      - reason
+      - author
+      - occurred_at
+      title: StageTransitionRead
+      description: 'Um evento da trilha: de onde, para onde, quem moveu e quando.'
+    StageTransitionTimeline:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/StageTransitionRead'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: StageTransitionTimeline
+      description: Linha do tempo de uma demanda, do mais antigo ao mais recente.
