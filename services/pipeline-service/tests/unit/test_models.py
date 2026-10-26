@@ -53,6 +53,7 @@ EXPECTED_COLUMNS = {
         "updated_at",
     },
     "raw_inputs": {
+        "received_order",
         "id",
         "demand_id",
         "original_content",
@@ -172,6 +173,7 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
     client = Client(name="Cliente")
     demand = Demand(client=client, owner=user, title="Demanda")
     raw_input = RawInput(
+        received_order=1,
         demand=demand,
         author=user,
         original_content="Conteudo original",

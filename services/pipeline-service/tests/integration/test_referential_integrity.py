@@ -36,8 +36,9 @@ def test_raw_input_cannot_reference_missing_demand(database: Connection) -> None
     assert_rejected(
         database,
         """
-        INSERT INTO raw_inputs (id, demand_id, original_content, source, author_id)
-        VALUES (:id, :parent_id, 'Conteudo', 'EMAIL', :author_id)
+        INSERT INTO raw_inputs
+                (id, demand_id, original_content, source, author_id, received_order)
+        VALUES (:id, :parent_id, 'Conteudo', 'EMAIL', :author_id, 1)
         """,
         {"id": RAW_INPUT_ID, "parent_id": DEMAND_ID, "author_id": USER_ID},
     )
@@ -73,8 +74,9 @@ def test_artifact_cannot_reference_source_from_another_demand(database: Connecti
     database.execute(
         sa.text(
             """
-            INSERT INTO raw_inputs (id, demand_id, original_content, source, author_id)
-            VALUES (:id, :demand_id, 'Conteudo', 'EMAIL', :author_id)
+            INSERT INTO raw_inputs
+                (id, demand_id, original_content, source, author_id, received_order)
+            VALUES (:id, :demand_id, 'Conteudo', 'EMAIL', :author_id, 1)
             """
         ),
         {"id": RAW_INPUT_ID, "demand_id": OTHER_DEMAND_ID, "author_id": USER_ID},
@@ -174,8 +176,9 @@ def test_valid_client_demand_source_and_artifact_chain_is_persisted(
     database.execute(
         sa.text(
             """
-            INSERT INTO raw_inputs (id, demand_id, original_content, source, author_id)
-            VALUES (:id, :demand_id, 'Conteudo', 'EMAIL', :author_id)
+            INSERT INTO raw_inputs
+                (id, demand_id, original_content, source, author_id, received_order)
+            VALUES (:id, :demand_id, 'Conteudo', 'EMAIL', :author_id, 1)
             """
         ),
         {"id": RAW_INPUT_ID, "demand_id": DEMAND_ID, "author_id": USER_ID},

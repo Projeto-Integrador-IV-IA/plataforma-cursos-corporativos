@@ -27,6 +27,10 @@ class RawInput(Base):
             name="source",
         ),
         sa.UniqueConstraint("id", "demand_id", name="uq_raw_inputs_id_demand_id"),
+        sa.UniqueConstraint(
+            "demand_id", "received_order", name="uq_raw_inputs_demand_received_order"
+        ),
+        sa.CheckConstraint("received_order > 0", name="received_order_positive"),
         sa.Index("ix_raw_inputs_demand_created_at", "demand_id", "created_at"),
         sa.Index("ix_raw_inputs_author_id", "author_id"),
     )
@@ -47,6 +51,7 @@ class RawInput(Base):
         nullable=False,
     )
     original_content: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    received_order: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     normalized_content: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     source: Mapped[str] = mapped_column(sa.Text, nullable=False)
     truncated: Mapped[bool] = mapped_column(

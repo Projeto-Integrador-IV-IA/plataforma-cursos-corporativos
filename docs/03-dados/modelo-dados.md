@@ -49,6 +49,7 @@ erDiagram
     RAW_INPUTS {
         uuid id PK
         uuid demand_id FK
+        int received_order "positivo e unico por demanda"
         text original_content
         text normalized_content
         text source
@@ -175,6 +176,7 @@ Demanda com status diferente de `ABERTA` não muda de etapa.
 | `stage_transitions` | `(demand_id, occurred_at)` | Histórico cronológico de RF04 e RF07 |
 | `artifact_versions` | `(artifact_id, number)` único | Garante numeração sequencial sem lacuna (RF08) |
 | `raw_inputs` | `(demand_id, created_at)` | Recuperação do bruto |
+| `raw_inputs` | `(demand_id, received_order)` único | Ordem de recebimento sem desempate por UUID (RF10, #32) |
 | `raw_inputs` | `embedding vector_cosine_ops` (HNSW/IVFFlat) | Busca vetorial semântica via `pgvector` (ADR-0007) |
 | `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) — **pendente** |
 

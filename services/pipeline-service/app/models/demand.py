@@ -102,7 +102,7 @@ class Demand(Base):
     raw_inputs: Mapped[list["RawInput"]] = relationship(
         back_populates="demand",
         passive_deletes=True,
-        order_by="RawInput.created_at, RawInput.id",
+        order_by="RawInput.received_order",
     )
     stage_transitions: Mapped[list["StageTransition"]] = relationship(
         back_populates="demand",
