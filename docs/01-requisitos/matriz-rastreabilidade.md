@@ -58,6 +58,17 @@ E atualize o número do Card para incluir #123 e o Status para ✅ (concluído).
 | RNF15 | Portabilidade como serviço web | Média | | 4 | ⬜ | |
 | RNF16 | Rastreabilidade no GitHub Projects | Média | | 1 | 🟡 | Este documento + templates de issue |
 
+## Cobertura por serviço
+
+| Serviço | Requisitos sob sua responsabilidade |
+|---|---|
+| `gateway-service` | RF16, RF17, RNF02, RNF10 |
+| `pipeline-service` | RF01–RF08, RF13, RF14, RF15, RNF07, RNF08, RNF09 |
+| `ingestion-service` | RF09, RF10, RF17, RNF05 |
+| `ai-structuring-service` | RF11, RF12, RF13, RNF03, RNF04, RNF05, RNF06, RNF12 |
+| `web` | RF03, RF04, RF05, RF06, RF09, RF14, RF17 |
+| Processo / repositório | RNF11, RNF13, RNF14, RNF15, RNF16 |
+
 ## RF10 consolidado — ordem e preservação (card #32)
 
 O RF10 do Documento Consolidado v1.0 exige proveniência e ordem de recebimento;
@@ -77,17 +88,6 @@ e [`test_receipt_order_migration.py`](../../services/pipeline-service/tests/inte
 A migration `20261025_1200` preserva os conteúdos e numera o legado por data e
 UUID; empates históricos não permitem recuperar a chegada real.
 A proveniência e sua consulta individual pertencem à dependência #31 (PR #244).
-
-## Cobertura por serviço
-
-| Serviço | Requisitos sob sua responsabilidade |
-|---|---|
-| `gateway-service` | RF16, RF17, RNF02, RNF10 |
-| `pipeline-service` | RF01–RF08, RF13, RF14, RF15, RNF07, RNF08, RNF09 |
-| `ingestion-service` | RF09, RF10, RF17, RNF05 |
-| `ai-structuring-service` | RF11, RF12, RF13, RNF03, RNF04, RNF05, RNF06, RNF12 |
-| `web` | RF03, RF04, RF05, RF06, RF09, RF14, RF17 |
-| Processo / repositório | RNF11, RNF13, RNF14, RNF15, RNF16 |
 
 ## Bloco B — Evoluções futuras
 

@@ -6,6 +6,26 @@ Nucleo do CRM: clientes, demandas, etapas do pipeline, historico e artefatos ver
 - **Requisitos atendidos:** RF01-RF08, RF13, RF15, RNF07, RNF08, RNF09
 - **Contrato de API:** [`packages/contracts/openapi/pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml)
 
+## Ordem de recebimento das fontes (RF10, #32)
+
+`POST /api/v1/demands/{id}/raw-inputs` atribui `received_order`, uma sequencia
+positiva e unica por demanda. `GET /api/v1/demands/{id}` devolve `raw_inputs`
+nessa ordem e expoe a posicao de cada fonte. UUID e data nao determinam a ordem.
+No PostgreSQL, a criacao bloqueia a linha da demanda com `FOR UPDATE` ate o commit;
+captacoes da mesma demanda sao serializadas antes de calcular a proxima posicao.
+A ordem e a de persistencia do original, independente do termino da normalizacao.
+
+`original_content` conserva o texto recebido, inclusive espacos, quebras de linha
+e Unicode. A rota de normalizacao aceita somente `normalized_content`; repetir a
+normalizacao nao altera a posicao nem o original. O ingestion confirma o original
+em uma transacao antes de sanitizar e persistir a copia.
+
+Aplique `alembic upgrade head` antes de iniciar a nova versao. A migration
+`20261025_1200` numera fontes existentes por `created_at, id` dentro de cada demanda,
+sem alterar os conteudos. Em empates anteriores a essa migration, a chegada real
+nao pode ser recuperada; o UUID fornece apenas um desempate deterministico.
+O downgrade remove somente a sequencia.
+
 ## Estrutura
 
 ```
@@ -95,26 +115,6 @@ O campo legado `artifacts.raw_input_id` continua apontando para a primeira
 fonte por compatibilidade. A tabela `artifact_sources` representa todas as
 fontes e impede, por chave estrangeira composta, vinculos entre demandas
 diferentes.
-
-## Ordem de recebimento das fontes (RF10, #32)
-
-`POST /api/v1/demands/{id}/raw-inputs` atribui `received_order`, uma sequencia
-positiva e unica por demanda. `GET /api/v1/demands/{id}` devolve `raw_inputs`
-nessa ordem e expoe a posicao de cada fonte. UUID e data nao desempatem chegadas.
-No PostgreSQL, a criacao bloqueia a linha da demanda com `FOR UPDATE` ate o commit;
-captacoes da mesma demanda sao serializadas antes de calcular a proxima posicao.
-A ordem e a de persistencia do original, independente do termino da normalizacao.
-
-`original_content` conserva o texto recebido, inclusive espacos, quebras de linha
-e Unicode. A rota de normalizacao aceita somente `normalized_content`; repetir a
-normalizacao nao altera a posicao nem o original. O ingestion confirma o original
-em uma transacao antes de sanitizar e persistir a copia.
-
-Aplique `alembic upgrade head` antes de iniciar a nova versao. A migration
-`20261025_1200` numera fontes existentes por `created_at, id` dentro de cada demanda,
-sem alterar os conteudos. Em empates anteriores a essa migration, a chegada real
-nao pode ser recuperada; o UUID fornece apenas um desempate deterministico.
-O downgrade remove somente a sequencia.
 
 ## Testes
 
