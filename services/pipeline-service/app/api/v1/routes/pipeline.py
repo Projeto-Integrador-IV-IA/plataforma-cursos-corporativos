@@ -2,17 +2,12 @@
 
     GET  /api/v1/pipeline                   demandas agrupadas por etapa (RF05)
     POST /api/v1/demands/{id}/advance       avanca para a proxima etapa (RF06)
+    POST /api/v1/demands/{id}/rollback      retrocede para qualquer etapa anterior (RF06)
     GET  /api/v1/demands/{id}/transitions   linha do tempo de etapas (RF07)
-
-O retrocesso continua pendente e e outro card:
-
-    POST /api/v1/demands/{id}/transitions   retrocede de etapa (RF06)
 
 O avanco nao recebe destino: a proxima etapa sai da maquina de estados. O autor
 vem do cabecalho ``X-User-ID``, nunca do corpo da requisicao (RNF10) - o mesmo
 padrao de ``routes/ingestion.py`` no ingestion-service.
-
-TODO(RF06): implementar o retrocesso conforme o contrato.
 """
 
 from datetime import datetime
@@ -29,6 +24,7 @@ from app.domain.enums import DemandStatus
 from app.schemas.error import ErrorResponse
 from app.schemas.pipeline import (
     PipelineBoard,
+    RollbackRequest,
     StageChangeRead,
     StageChangeRequest,
     StageTransitionTimeline,
@@ -37,8 +33,9 @@ from app.services.pipeline_service import DEFAULT_CARDS_PER_STAGE, PipelineServi
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
-# O avanco e uma acao sobre a demanda, entao mora em /demands/{id}/..., e nao
-# sob /pipeline. Este roteador precisa ser incluido junto com ``router``.
+# Avanco e retrocesso sao acoes sobre a demanda, entao moram em
+# /demands/{id}/..., e nao sob /pipeline. Este roteador precisa ser incluido
+# junto com ``router``.
 demands_router = APIRouter(prefix="/demands", tags=["pipeline"])
 
 
@@ -186,3 +183,41 @@ def get_demand_timeline(
     """Leitura da trilha; nao altera nada e nao exige o cabecalho de autor."""
 
     return PipelineService(session).timeline(demand_id)
+
+
+@demands_router.post(
+    "/{demand_id}/rollback",
+    response_model=StageChangeRead,
+    summary="Retroceder demanda para uma etapa anterior",
+    description=(
+        "Move a demanda para qualquer etapa anterior do pipeline e registra a transicao "
+        "na trilha, na mesma transacao. O destino e a justificativa obrigatoria vem no corpo; "
+        "o autor vem do cabecalho X-User-ID. Fontes, artefatos e eventos anteriores "
+        "permanecem inalterados."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Demanda ou operador inexistente."},
+        409: {
+            "model": ErrorResponse,
+            "description": "Destino igual ou posterior a etapa atual, ou demanda encerrada.",
+        },
+        422: {
+            "model": ErrorResponse,
+            "description": "Identificador, etapa ou justificativa invalidos.",
+        },
+    },
+)
+def rollback_demand(
+    demand_id: UUID,
+    payload: RollbackRequest,
+    author_id: Annotated[UUID, Header(alias="X-User-ID")],
+    session: Annotated[Session, Depends(get_session)],
+) -> StageChangeRead:
+    """Delega o retrocesso atomico ao servico de pipeline."""
+
+    return PipelineService(session).rollback(
+        demand_id,
+        payload.to_stage,
+        author_id,
+        payload.reason,
+    )

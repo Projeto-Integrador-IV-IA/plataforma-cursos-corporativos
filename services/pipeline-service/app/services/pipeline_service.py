@@ -16,9 +16,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.domain.enums import DemandStatus, PipelineStage
-from app.domain.rules import advance_target
+from app.domain.rules import advance_target, can_transition
 from app.models.demand import Demand
 from app.models.user import User
 from app.repositories.demand_repository import DemandRepository
@@ -137,3 +137,75 @@ class PipelineService:
             for transition in self.transitions.list_for_demand(demand_id)
         ]
         return StageTransitionTimeline(items=items, total=len(items))
+
+    def rollback(
+        self,
+        demand_id: UUID,
+        to_stage: PipelineStage,
+        author_id: UUID,
+        reason: str,
+    ) -> StageChangeRead:
+        """Retrocede a qualquer etapa anterior sem alterar o agregado da demanda.
+
+        Somente ``current_stage`` e ``updated_at`` mudam na demanda. Fontes,
+        artefatos e eventos anteriores nao sao atualizados nem removidos; um novo
+        evento append-only registra o retrocesso na mesma transacao.
+
+        O chamador fornece a justificativa validada e normalizada por
+        ``RollbackRequest``, que concentra as restricoes de texto.
+        """
+
+        demand = self.repository.get_for_update(demand_id)
+        if demand is None:
+            raise NotFoundError(code="DEMAND_NOT_FOUND", message="Demanda nao encontrada.")
+        if self.session.get(User, author_id) is None:
+            raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
+
+        current = PipelineStage(demand.current_stage)
+        target = PipelineStage(to_stage)
+        if demand.status != DemandStatus.ABERTA.value:
+            raise ConflictError(
+                code="DEMAND_NOT_OPEN",
+                message="Demandas encerradas nao mudam de etapa.",
+                details={"status": demand.status},
+            )
+
+        stages = tuple(PipelineStage)
+        if stages.index(target) >= stages.index(current):
+            raise ConflictError(
+                code="ROLLBACK_TARGET_NOT_PREVIOUS",
+                message=(
+                    f"O retrocesso de {current.value} para {target.value} nao e permitido: "
+                    "o destino deve ser uma etapa anterior."
+                ),
+                details={"current_stage": current.value, "target_stage": target.value},
+            )
+
+        if not can_transition(current, target, demand.status):
+            raise ConflictError(
+                code="INVALID_STAGE_TRANSITION",
+                message=f"Transicao de {current.value} para {target.value} nao e permitida.",
+                details={"current_stage": current.value, "target_stage": target.value},
+            )
+
+        transition = self.transitions.record(
+            demand.id,
+            current,
+            target,
+            reason,
+            author_id,
+        )
+        self.repository.update(
+            demand,
+            {"current_stage": target.value, "updated_at": datetime.now(UTC)},
+        )
+
+        return StageChangeRead(
+            transition_id=transition.id,
+            demand_id=demand.id,
+            from_stage=current,
+            current_stage=target,
+            reason=transition.reason,
+            author_id=transition.author_id,
+            occurred_at=transition.occurred_at,
+        )

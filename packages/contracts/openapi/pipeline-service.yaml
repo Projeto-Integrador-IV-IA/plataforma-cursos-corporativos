@@ -911,6 +911,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/demands/{demand_id}/rollback:
+    post:
+      tags:
+      - pipeline
+      summary: Retroceder demanda para uma etapa anterior
+      description: Move a demanda para qualquer etapa anterior do pipeline e registra a transicao
+        na trilha, na mesma transacao. O destino e a justificativa obrigatoria vem no corpo; o autor
+        vem do cabecalho X-User-ID. Fontes, artefatos e eventos anteriores permanecem inalterados.
+      operationId: rollback_demand_api_v1_demands__demand_id__rollback_post
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageChangeRead'
+        '404':
+          description: Demanda ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Destino igual ou posterior a etapa atual, ou demanda encerrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador, etapa ou justificativa invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/demands/{demand_id}/raw-inputs:
     post:
       tags:
@@ -2422,6 +2477,23 @@ components:
       - OUTRO
       title: RawInputSource
       description: Origens aceitas para uma fonte bruta.
+    RollbackRequest:
+      properties:
+        to_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 1
+          title: Reason
+          description: Justificativa obrigatoria do retrocesso; texto em branco e invalido.
+      additionalProperties: false
+      type: object
+      required:
+      - to_stage
+      - reason
+      title: RollbackRequest
+      description: Destino anterior e justificativa obrigatoria do retrocesso.
     StageChangeRead:
       properties:
         transition_id:

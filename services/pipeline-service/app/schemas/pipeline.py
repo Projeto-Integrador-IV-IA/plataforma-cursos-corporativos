@@ -87,6 +87,27 @@ class StageChangeRequest(BaseModel):
         return value.strip() or None
 
 
+class RollbackRequest(BaseModel):
+    """Destino anterior e justificativa obrigatoria do retrocesso."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    to_stage: PipelineStage
+    reason: str = Field(
+        min_length=1,
+        max_length=1000,
+        description="Justificativa obrigatoria do retrocesso; texto em branco e invalido.",
+    )
+
+    @field_validator("reason")
+    @classmethod
+    def _reason_must_not_be_blank(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("A justificativa do retrocesso e obrigatoria.")
+        return normalized
+
+
 class StageChangeRead(BaseModel):
     """Resultado de uma mudanca de etapa: o evento gravado e a etapa resultante."""
 
