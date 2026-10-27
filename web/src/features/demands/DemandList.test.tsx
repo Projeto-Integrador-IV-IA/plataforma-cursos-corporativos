@@ -223,6 +223,37 @@ describe('listagem de demandas', () => {
     expect(ultimosFiltros().client_id).toBeUndefined();
   });
 
+  it('mantem no filtro de responsavel os identificadores vistos antes de filtrar', async () => {
+    const usuario = userEvent.setup();
+    const ownerA = 'aabbccdd-1111-4111-8111-111111111111';
+    const ownerB = 'aabbccdd-2222-4222-8222-222222222222';
+    vi.mocked(listDemands).mockImplementation(async (params: DemandListParams = {}) =>
+      params.owner_id === ownerA
+        ? { items: [criarDemanda(1, { owner_id: ownerA })], total: 1, page: 1, size: 20 }
+        : {
+            items: [
+              criarDemanda(1, { owner_id: ownerA }),
+              criarDemanda(2, { owner_id: ownerB }),
+            ],
+            total: 2,
+            page: 1,
+            size: 20,
+          },
+    );
+    renderRoute('/demandas');
+    await screen.findByRole('row', { name: /Demanda 01/ });
+
+    await usuario.selectOptions(screen.getByLabelText('Responsavel'), ownerA);
+    await waitFor(() => expect(ultimosFiltros().owner_id).toBe(ownerA));
+
+    // A resposta filtrada so traz o responsavel escolhido, mas o filtro
+    // precisa continuar oferecendo o outro responsavel ja visto, senao o
+    // operador so consegue trocar de responsavel limpando o filtro primeiro.
+    expect(
+      within(screen.getByLabelText('Responsavel')).getByRole('option', { name: ownerB }),
+    ).toBeDefined();
+  });
+
   it('trata lista vazia sem filtro convidando a abrir a primeira demanda', async () => {
     comPagina([], 0);
     renderRoute('/demandas');
