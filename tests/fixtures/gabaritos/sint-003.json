@@ -1,0 +1,22 @@
+{
+  "procedencia": "sintetico",
+  "observacoes": "Caso sintetico escrito para exercitar a deteccao de contradicao (GapKind.CONTRADITORIA): o texto cita doze pessoas e depois corrige para oito, resolvendo em favor de oito. O gabarito espera 8, e um modelo que tambem registre a contradicao em campos_ausentes esta certo, nao errado. O setor do cliente nunca e dito - 'area de dados' e o time interno, nao o nicho de mercado.",
+  "esperado": {
+    "tema": "Python para analise de dados",
+    "publico_alvo": "analistas vindos de outras areas, sem base de programacao",
+    "numero_participantes": 8,
+    "carga_horaria": 40,
+    "formato": "online",
+    "objetivos_aprendizagem": [
+      "Manipular dados tabulares com Python",
+      "Automatizar tratamento de planilha",
+      "Produzir analise descritiva a partir de dados reais"
+    ],
+    "ementa": [
+      {"titulo": "Python essencial para analise", "topicos": ["Tipos e estruturas", "Fluxo de controle"], "carga_horaria": 12},
+      {"titulo": "Dados tabulares", "topicos": ["Leitura de planilha", "Limpeza e transformacao"], "carga_horaria": 16},
+      {"titulo": "Analise descritiva", "topicos": ["Agregacao", "Visualizacao basica"], "carga_horaria": 12}
+    ]
+  },
+  "sem_base": ["nicho"]
+}
