@@ -127,6 +127,14 @@ fonte por compatibilidade. A tabela `artifact_sources` representa todas as
 fontes e impede, por chave estrangeira composta, vinculos entre demandas
 diferentes.
 
+## Consulta interna de credenciais (RF26 consolidado)
+
+O gateway consulta `GET /api/v1/internal/auth/users/by-email` para autenticar o
+usuario sem acessar diretamente o banco. A rota exige `X-Service-Key`, cujo
+valor vem de `AUTH_SERVICE_KEY` nos dois servicos, e deve permanecer acessivel
+somente na rede interna. Ela devolve o hash bcrypt armazenado; senha em texto
+puro nao faz parte do modelo nem da resposta.
+
 ## Testes
 
 ```bash

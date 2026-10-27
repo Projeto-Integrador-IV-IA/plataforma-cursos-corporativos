@@ -38,6 +38,7 @@ services:
       PIPELINE_PORT: ${PIPELINE_PORT:-8001}
       # Credencial exclusiva do dono do banco (ADR-0004).
       DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL no .env}
+      AUTH_SERVICE_KEY: ${AUTH_SERVICE_KEY:?defina AUTH_SERVICE_KEY no .env}
     expose:
       - "${PIPELINE_PORT:-8001}"
     depends_on:
@@ -138,6 +139,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY no .env}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      AUTH_SERVICE_KEY: ${AUTH_SERVICE_KEY:?defina AUTH_SERVICE_KEY no .env}
     ports:
       - "${GATEWAY_PORT:-8000}:${GATEWAY_PORT:-8000}"
     depends_on:

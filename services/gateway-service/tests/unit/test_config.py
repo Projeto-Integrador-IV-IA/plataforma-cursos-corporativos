@@ -15,6 +15,7 @@ _VARIABLES = {
     "JWT_SECRET_KEY": "uma-chave-de-teste-com-mais-de-32-caracteres",
     "JWT_ALGORITHM": "HS256",
     "ACCESS_TOKEN_EXPIRE_MINUTES": "60",
+    "AUTH_SERVICE_KEY": "chave-interna-de-teste-com-32-caracteres",
 }
 
 
