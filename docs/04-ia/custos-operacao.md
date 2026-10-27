@@ -34,6 +34,7 @@ O custo é proporcional aos tokens consumidos. A fórmula de cálculo por demand
 ```text
 custo_por_demanda = (tokens_entrada  × preço_entrada_por_token)
                   + (tokens_saída    × preço_saída_por_token)
+```
 
 ### Preços Unitários de Referência por Modelo (OpenRouter / APIs)
 
@@ -44,7 +45,7 @@ Aplicando o cenário base (55 demandas mensais $\times$ 2.000 tokens de entrada 
 
 - **Entrada:** 55 $\times$ 2.000 = 110.000 tokens $\rightarrow$ $\approx$ US$ 0,33
 - **Saída:** 55 $\times$ 1.000 = 55.000 tokens $\rightarrow$ $\approx$US$ 0,82
-- **Total estimado LLM:** $\approx$ US$ 1,15 a US$ 2,70 / mês (conforme variação de volume).
+- **Total estimado LLM (cenário base, 55 demandas/mês):** US$ 0,00 (Llama 3.3 70B, camada promocional) a $\approx$ US$ 1,15 (Claude 3.5 Sonnet, modelo pago de referência) / mês.
 
 ### Custo de STT (Speech-to-Text / OpenAI Whisper API)
 
@@ -58,9 +59,9 @@ Aplicando o cenário base (55 demandas mensais $\times$ 2.000 tokens de entrada 
 
 | Grandeza / Serviço | Valor | Fonte / Base de Dados |
 |---|---|---|
-| **Custo estimado da API de LLM** | US$ 0.00 a US$ 2.70 / mês | OpenRouter (Llama free / Sonnet pago) |
-| **Custo estimado de STT (10h)** | US$ 3.60 / mês | OpenAI Whisper API (US$ 0.006/min) |
-| **Custo mensal total projetado** | **Aprox. US$ 3.60 a US$ 6.30** | Soma consolidada para o cenário operacional |
+| **Custo estimado da API de LLM** | US$ 0,00 a US$ 1,15 / mês | OpenRouter (Llama 3.3 70B free / Claude 3.5 Sonnet pago) |
+| **Custo estimado de STT (10h)** | US$ 3,60 / mês | OpenAI Whisper API (US$ 0,006/min) |
+| **Custo mensal total projetado** | **Aprox. US$ 3,60 a US$ 4,75** | Soma consolidada para o cenário operacional (55 demandas/mês) |
 
 *Nota: O número real e medido substituirá esta estimativa na 3ª parcial, através da instrumentação do card **#22** (`artifact_versions.metadados_ia`).*
 
