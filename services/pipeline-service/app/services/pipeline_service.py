@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError
 from app.domain.enums import DemandStatus, PipelineStage
 from app.domain.rules import advance_target
+from app.models.demand import Demand
 from app.models.user import User
 from app.repositories.demand_repository import DemandRepository
 from app.repositories.transition_repository import TransitionRepository
@@ -27,6 +28,8 @@ from app.schemas.pipeline import (
     PipelineCardRead,
     PipelineStageGroup,
     StageChangeRead,
+    StageTransitionRead,
+    StageTransitionTimeline,
 )
 
 #: Cartoes trazidos por coluna quando o chamador nao pede outro recorte.
@@ -119,3 +122,18 @@ class PipelineService:
             author_id=transition.author_id,
             occurred_at=transition.occurred_at,
         )
+
+    def timeline(self, demand_id: UUID) -> StageTransitionTimeline:
+        """Linha do tempo de etapas da demanda (RF07); 404 se a demanda nao existe.
+
+        Demanda sem movimentacao devolve lista vazia, nao erro.
+        """
+
+        if self.session.get(Demand, demand_id) is None:
+            raise NotFoundError(code="DEMAND_NOT_FOUND", message="Demanda nao encontrada.")
+
+        items = [
+            StageTransitionRead.model_validate(transition)
+            for transition in self.transitions.list_for_demand(demand_id)
+        ]
+        return StageTransitionTimeline(items=items, total=len(items))
