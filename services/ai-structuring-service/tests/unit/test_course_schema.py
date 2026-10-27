@@ -146,6 +146,19 @@ def test_texto_que_nao_e_json_e_recusado() -> None:
         validar_curso_estruturado("Claro! Aqui esta o curso estruturado:")
 
 
+@pytest.mark.parametrize("bruto", ['[{"tema": "NR-12"}]', '"NR-12"'])
+def test_json_valido_que_nao_e_objeto_e_recusado(bruto: str) -> None:
+    """Curso embrulhado em lista, ou devolvido como texto JSON, nao e o objeto do contrato.
+
+    A reconciliacao de lacunas se afasta de entrada que nao e mapeamento; quem
+    recusa e a validacao normal, para que a violacao nao fique mascarada
+    (ADR-0006).
+    """
+
+    with pytest.raises(LLMInvalidResponseError):
+        validar_curso_estruturado(bruto)
+
+
 @pytest.mark.parametrize(
     ("campo", "valor"),
     [
@@ -155,6 +168,7 @@ def test_texto_que_nao_e_json_e_recusado() -> None:
         ("objetivos_aprendizagem", "Aplicar o procedimento"),
         ("ementa", {"titulo": "Fundamentos"}),
         ("tema", ["NR-12"]),
+        ("formato", ["online"]),
     ],
 )
 def test_valor_fora_do_tipo_declarado_e_recusado(campo: str, valor: Any) -> None:
