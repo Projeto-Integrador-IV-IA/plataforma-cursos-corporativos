@@ -8,3 +8,4 @@
 services/ai-structuring-service/tests/integration/test_structured_course_contract.py | teste do contrato: chave de orcamento fora do contrato e recusada
 services/ai-structuring-service/tests/unit/test_course_schema.py | teste do schema: orcamento e instrutor fora do contrato geram violacao
 services/ai-structuring-service/tests/unit/test_missing_fields.py | teste da reconciliacao: valor de campo fora do MVP (orcamento) e descartado
+web/src/features/demands/DemandStructuringView.test.tsx | teste da tela: campo orcamento fora da apresentacao e exibido como lacuna, mesmo padrao dos testes de reconciliacao do ai-structuring-service
