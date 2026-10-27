@@ -30,7 +30,11 @@ Validação de Integridade no Banco (pipeline-service DB):
 
 O campo original_content na tabela raw_inputs deve conter exatamente a string enviada (incluindo quebras de linha \n, cabeçalhos encaminhados e assinatura), sem nenhuma alteração.
 
-O campo normalized_content pode conter a versão limpa (ou nula se a normalização estrutural dependente do card #34 ainda estiver em andamento).
+O campo normalized_content, produzido por `text_normalizer.py` (card #33, já entregue), deve conter exatamente:
+  ```
+  Ola, precisamos de um curso de Python para nossa equipe.
+  ```
+  Ou seja, o cabeçalho encaminhado (`---------- Forwarded message ---------`), as linhas `From:`/`Date:`/`Subject:` e a assinatura (`Atenciosamente,` em diante) são removidos, e nenhuma informação de conteúdo é perdida — este é o ponto do caso (card #124, passo 5). Continua pendente apenas a padronização para o formato interno comum do `ai-structuring-service` (card #34), não a sanitização em si.
 
 ### Passo 1.2: Ingerir Transcrição de Reunião
 Ação: POST /api/v1/ingestion
@@ -60,7 +64,11 @@ Dados de Entrada:
 
 Resultado Esperado (API): Status 201 Created
 
-Validação: original_content preservado byte a byte.
+Validação: original_content preservado byte a byte. O campo normalized_content deve ter os prefixos de carimbo de data/hora e remetente removidos por `text_normalizer.py`, contendo exatamente:
+```
+Ola bom dia
+O curso tera certificado?
+```
 
 ## 3. Cenário 2: Caminhos de Erro (Validações de Limite)
 ### Passo 2.1: Fonte Abaixo do Conteúdo Mínimo / Vazia
@@ -78,7 +86,7 @@ Resultado Esperado: Status 413 Payload Too Large ou erro de validação de taman
 4. Nota sobre o Formato Interno Comum (Card #34)
 O passo de verificação da padronização completa para o formato interno unificado (ai-structuring-service) encontra-se Pendente, aguardando a finalização da entrega do card #34 (Padronização das entradas para o formato interno comum).
 
-Atualmente, garante-se a preservação do texto original bruto (original_content) e a sanitização básica opcional em normalized_content.
+Atualmente, garante-se a preservação do texto original bruto (original_content) e a sanitização básica já entregue (card #33) em normalized_content, verificada nos passos 1.1 e 1.3.
 
 5. Registro de Execução
 Data de Execução: 09/10/2026
