@@ -50,6 +50,7 @@ def raw_input(engine: Engine, demand: UUID, operator: UUID) -> UUID:
         source = RawInput(
             demand_id=demand,
             author_id=operator,
+            received_order=1,
             original_content="Primeiro trecho\nSegundo trecho",
             normalized_content="Primeiro trecho\nSegundo trecho",
             source="ANOTACAO",
@@ -196,8 +197,9 @@ def test_source_with_segments_cannot_be_deleted(
     database.execute(
         sa.text(
             """
-            INSERT INTO raw_inputs (id, demand_id, original_content, source, author_id)
-            VALUES (:id, :demand_id, 'Conteudo', 'EMAIL', :author_id)
+            INSERT INTO raw_inputs
+                (id, demand_id, original_content, received_order, source, author_id)
+            VALUES (:id, :demand_id, 'Conteudo', 1, 'EMAIL', :author_id)
             """
         ),
         {"id": RAW_INPUT_ID, "demand_id": DEMAND_ID, "author_id": USER_ID},
