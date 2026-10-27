@@ -18,6 +18,13 @@
   --cor-sucesso-fundo: #e7f4ed;
   --cor-erro: #9d2222;
   --cor-erro-fundo: #fbeaea;
+  /*
+   * Atencao e distinto de erro (card #94): a demanda que exige acao nao esta
+   * com defeito. Tom ambar escuro o suficiente para contrastar com a
+   * superficie branca, e nunca o unico portador do aviso - o texto diz o mesmo.
+   */
+  --cor-atencao: #8a5300;
+  --cor-atencao-fundo: #fdf3e3;
   --espaco: 1rem;
   --raio: 6px;
   --sombra: 0 2px 8px rgb(28 36 48 / 18%);
@@ -806,4 +813,559 @@ body {
   margin: 0.25rem 0 0;
   color: var(--cor-texto-suave);
   font-size: 0.875rem;
+}
+
+/*
+ * Quadro do pipeline (RF05, card #93).
+ *
+ * As colunas ficam em linha e a rolagem horizontal mora em
+ * `.pipeline-board__viewport`, nunca no corpo da pagina: cabecalho e navegacao
+ * nao saem de vista enquanto o operador varre as etapas, e a largura do quadro
+ * nao empurra o resto do layout para o lado.
+ *
+ * Coluna de largura fixa de proposito (`flex: 0 0`): coluna que encolhe com o
+ * numero de cartoes faria a etapa vazia parecer inexistente, e e justamente a
+ * etapa vazia que conta parte do andamento.
+ */
+
+/* Esta tela usa a largura toda: o quadro e largo por natureza. */
+.page--wide {
+  max-width: none;
+}
+
+.pipeline-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.pipeline-board__state {
+  padding: var(--espaco);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto-suave);
+}
+
+.pipeline-board__state p {
+  margin: 0 0 0.5rem;
+}
+
+.pipeline-board__state p:last-child {
+  margin-bottom: 0;
+}
+
+.pipeline-board__state--error {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.pipeline-board__viewport {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.pipeline-board__viewport:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
+}
+
+.pipeline-board__columns {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espaco);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pipeline-board__column {
+  flex: 0 0 15rem;
+}
+
+.pipeline-board__summary {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.pipeline-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
+.pipeline-column__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pipeline-column__count {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+/* Etapa sem demanda: area anunciada, e nao espaco em branco. */
+.pipeline-column__empty {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: var(--raio);
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+.pipeline-column__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Cartao da demanda (RF05, card #94).
+ *
+ * O cartao inteiro e o link: `display: grid` empilha cliente, titulo e meta
+ * dentro do proprio `a`, entao a area de clique e o cartao e nao so o texto do
+ * titulo.
+ *
+ * A demanda que exige atencao se distingue por tres caminhos que dizem o
+ * mesmo - cor da borda, espessura da borda esquerda e o texto do aviso -, para
+ * que nem o daltonico nem a impressao em preto e branco perca o sinal.
+ */
+
+.pipeline-card {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-left: 3px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  text-decoration: none;
+}
+
+.pipeline-card:hover {
+  border-color: var(--cor-destaque);
+}
+
+.pipeline-card:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 2px;
+}
+
+.pipeline-card__client {
+  color: var(--cor-texto-suave);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.pipeline-card__title {
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pipeline-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.pipeline-card__owner {
+  color: var(--cor-texto-suave);
+}
+
+.pipeline-card__status {
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  white-space: nowrap;
+}
+
+.pipeline-card__status--aberta {
+  border-color: var(--cor-destaque);
+  color: var(--cor-destaque);
+}
+
+.pipeline-card__status--ganha {
+  border-color: var(--cor-sucesso);
+  background: var(--cor-sucesso-fundo);
+  color: var(--cor-sucesso);
+}
+
+.pipeline-card__status--perdida {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+.pipeline-card__status--cancelada {
+  color: var(--cor-texto-suave);
+}
+
+.pipeline-card--attention {
+  border-color: var(--cor-atencao);
+  border-left-width: 5px;
+}
+
+.pipeline-card__attention {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cor-atencao);
+  font-weight: 600;
+}
+
+/* Marcador de forma, para o aviso nao se apoiar apenas na cor. */
+.pipeline-card__attention-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--cor-atencao);
+  border-radius: 50%;
+  background: var(--cor-atencao-fundo);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+/*
+ * Revisao da estruturacao por IA (RF19, card #100).
+ *
+ * Reaproveita a moldura de secao do detalhe da demanda (`demand-detail__*`):
+ * as duas telas sao a mesma leitura empilhada em cartoes, e duplicar as regras
+ * faria uma divergir da outra no primeiro ajuste. O que e proprio daqui sao os
+ * campos do curso, os modulos da ementa e as fontes de origem.
+ */
+
+.structuring {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  margin-top: var(--espaco);
+}
+
+.structuring__meta {
+  margin: 0 0 0.75rem;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.structuring-course {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+}
+
+.structuring-course__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.structuring-course__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.structuring-course__term {
+  color: var(--cor-texto-suave);
+  font-size: 0.8125rem;
+}
+
+.structuring-course__value {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.structuring-course__block-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.structuring-course__list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.structuring-course__modules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.structuring-course__module-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.structuring-course__module-load {
+  color: var(--cor-texto-suave);
+  font-weight: 400;
+}
+
+.structuring-course__module-empty {
+  margin: 0.15rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.structuring-course__topics {
+  margin: 0.15rem 0 0;
+  padding-left: 1.25rem;
+}
+
+/*
+ * Estado de processamento da estruturacao (RF24, card #82).
+ *
+ * Como nas lacunas, a distincao entre estados nao pode depender de cor: o nome
+ * do estado vai por escrito, a marca tem forma propria e a borda muda de
+ * espessura e de estilo conforme o estado - solida fina para o que aguarda,
+ * grossa para o que esta em curso, dupla para o que terminou.
+ */
+
+.structuring-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.structuring-status__state {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--cor-borda);
+  border-left-width: 4px;
+  border-radius: var(--raio);
+  background: var(--cor-fundo);
+}
+
+.structuring-status__state--pendente {
+  border-left-style: solid;
+  border-left-color: var(--cor-texto-suave);
+}
+
+.structuring-status__state--processando {
+  border-left-style: solid;
+  border-left-width: 8px;
+  border-left-color: var(--cor-destaque);
+}
+
+.structuring-status__state--concluida {
+  border-left-style: double;
+  border-left-width: 6px;
+  border-left-color: var(--cor-sucesso);
+  background: var(--cor-sucesso-fundo);
+}
+
+.structuring-status__state--erro {
+  border-left-style: dashed;
+  border-left-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+}
+
+.structuring-status__mark {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+  font-weight: 700;
+  line-height: 1.4rem;
+  text-align: center;
+}
+
+.structuring-status__name {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.structuring-status__meta {
+  margin: 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Campos sinalizados como incertos (RF15, card #103).
+ *
+ * O destaque nao pode depender de cor: quem le em tons de cinza, com
+ * daltonismo ou no papel precisa distinguir os tres tipos do mesmo jeito. Por
+ * isso cada tipo muda a *forma* da borda - tracejada para o que falta,
+ * pontilhada para o que admite duas leituras, dupla para o que se contradiz -
+ * e o nome do tipo vem escrito dentro do aviso. A cor e o quarto canal, nunca
+ * o unico.
+ */
+
+.structuring-gap-host {
+  border-left-width: 4px;
+  background: var(--cor-fundo);
+}
+
+.structuring-gap-host--ausente {
+  border-left-style: dashed;
+  border-left-color: var(--cor-texto-suave);
+}
+
+.structuring-gap-host--ambigua {
+  border-left-style: dotted;
+  border-left-color: var(--cor-destaque);
+}
+
+.structuring-gap-host--contraditoria {
+  border-left-style: double;
+  border-left-width: 6px;
+  border-left-color: var(--cor-erro);
+}
+
+.structuring-gap-host--desconhecida {
+  border-left-style: solid;
+  border-left-color: var(--cor-texto-suave);
+}
+
+/* O bloco de secao nao tem borda propria; aqui ela existe so para o destaque. */
+.structuring-course__block.structuring-gap-host {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--cor-borda);
+  border-left-width: 4px;
+  border-radius: var(--raio);
+}
+
+.structuring-gap {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.375rem 0 0;
+  font-size: 0.875rem;
+}
+
+.structuring-gap__mark {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+  font-weight: 700;
+  line-height: 1.15rem;
+  text-align: center;
+}
+
+.structuring-gap--ausente .structuring-gap__mark {
+  color: var(--cor-texto-suave);
+}
+
+.structuring-gap--ambigua .structuring-gap__mark {
+  color: var(--cor-destaque);
+}
+
+.structuring-gap--contraditoria .structuring-gap__mark {
+  color: var(--cor-erro);
+}
+
+.structuring-gap__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.structuring-gap__kind {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.8125rem;
+}
+
+.structuring-gap__reason {
+  color: var(--cor-texto-suave);
+}
+
+.structuring-gaps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.structuring-gaps__item {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.structuring-gaps__field {
+  margin: 0;
+  font-weight: 600;
+}
+
+.structuring-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0 0 var(--espaco);
+  padding: 0;
+}
+
+.structuring-sources__item {
+  padding: 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+}
+
+.structuring-sources__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+.structuring-sources__meta {
+  margin: 0.25rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.875rem;
+}
+
+.structuring-sources__text {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.structuring-sources__text summary {
+  cursor: pointer;
+}
+
+.structuring-sources__content {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  border-left: 3px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-fundo);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

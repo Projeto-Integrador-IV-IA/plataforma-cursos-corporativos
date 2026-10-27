@@ -102,6 +102,53 @@ def test_the_text_handed_to_the_pipeline_is_the_one_the_operator_pasted(
     assert recebido.source_type is SourceKind.MENSAGENS
 
 
+@pytest.mark.parametrize("source", [{}, {"source_type": None}])
+def test_missing_or_null_source_is_inferred_before_persisting(
+    api: TestClient, pipeline: PipelineDublado, source: dict[str, None]
+) -> None:
+    text = "De: marina@example.com\nAssunto: Curso\n\nPrecisamos de 20 vagas."
+    operator = uuid4()
+    response = api.post(
+        "/api/v1/ingestion",
+        json={"text": text, "demand_id": str(uuid4()), **source},
+        headers={"X-User-ID": str(operator)},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["source_type"] == "EMAIL"
+    raw, author = pipeline.chamadas[0]
+    assert raw.text == text
+    assert raw.source_type is SourceKind.EMAIL
+    assert author == operator
+    assert pipeline.ordem == ["original", "sanitizado"]
+    assert pipeline.sanitizacoes[0][1] == "Precisamos de 20 vagas."
+
+
+@pytest.mark.parametrize("source", list(SourceKind))
+def test_operator_choice_overrides_inference(
+    api: TestClient, pipeline: PipelineDublado, source: SourceKind
+) -> None:
+    text = "From: marina@example.com\nSubject: Curso\n\nPrecisamos de 20 vagas."
+    response = captar(api, text=text, source=source.value)
+
+    assert response.status_code == 201, response.text
+    assert response.json()["source_type"] == source.value
+    assert pipeline.chamadas[0][0].source_type is source
+    assert pipeline.chamadas[0][0].text == text
+
+
+def test_ambiguous_source_is_recorded_as_other(api: TestClient, pipeline: PipelineDublado) -> None:
+    response = api.post(
+        "/api/v1/ingestion",
+        json={"text": TEXTO, "demand_id": str(uuid4())},
+        headers={"X-User-ID": str(uuid4())},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["source_type"] == "OUTRO"
+    assert pipeline.chamadas[0][0].text == TEXTO
+
+
 @pytest.mark.parametrize(
     ("status", "code"),
     [(404, "DEMAND_NOT_FOUND"), (504, "PIPELINE_TIMEOUT"), (502, "PIPELINE_UNAVAILABLE")],
@@ -127,10 +174,11 @@ def test_blank_text_is_refused_without_touching_the_pipeline(
     assert pipeline.chamadas == []
 
 
+@pytest.mark.parametrize("source", ["POMBO_CORREIO", ""])
 def test_unknown_source_is_refused_without_touching_the_pipeline(
-    api: TestClient, pipeline: PipelineDublado
+    api: TestClient, pipeline: PipelineDublado, source: str
 ) -> None:
-    assert captar(api, source="POMBO_CORREIO").status_code == 422
+    assert captar(api, source=source).status_code == 422
     assert pipeline.chamadas == []
 
 

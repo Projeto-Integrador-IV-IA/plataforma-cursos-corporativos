@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     jwt_secret_key: SecretStr = Field(min_length=32)
     jwt_algorithm: Literal["HS256", "HS384", "HS512"]
     access_token_expire_minutes: int = Field(gt=0)
+    auth_service_key: SecretStr = Field(min_length=32)
 
 
 @lru_cache

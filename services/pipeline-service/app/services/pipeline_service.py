@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
 from app.domain.enums import DemandStatus, PipelineStage
-from app.domain.rules import can_transition, next_stage
+from app.domain.rules import advance_target, can_transition
+from app.models.demand import Demand
 from app.models.user import User
 from app.repositories.demand_repository import DemandRepository
 from app.repositories.transition_repository import TransitionRepository
@@ -27,6 +28,8 @@ from app.schemas.pipeline import (
     PipelineCardRead,
     PipelineStageGroup,
     StageChangeRead,
+    StageTransitionRead,
+    StageTransitionTimeline,
 )
 
 #: Cartoes trazidos por coluna quando o chamador nao pede outro recorte.
@@ -86,8 +89,9 @@ class PipelineService:
     ) -> StageChangeRead:
         """Avanca a demanda para a proxima etapa e registra a transicao (RF06, RF07).
 
-        A etapa de destino nunca vem do chamador: sai de ``next_stage`` e passa
-        por ``can_transition``, que tambem barra demandas encerradas.
+        A etapa de destino nunca vem do chamador: sai de ``advance_target``, que
+        aplica a maquina de estados e recusa, com o motivo, a ultima etapa e as
+        demandas encerradas.
 
         Atomicidade: este metodo so faz ``flush``. O commit (ou o rollback, se
         qualquer passo falhar) e da sessao da requisicao, entao a trilha e a
@@ -101,28 +105,7 @@ class PipelineService:
             raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
 
         current = PipelineStage(demand.current_stage)
-        target = next_stage(current)
-        if target is None:
-            raise ConflictError(
-                code="DEMAND_AT_FINAL_STAGE",
-                message=(
-                    f"A demanda ja esta na ultima etapa ({current.value}) e nao pode avancar."
-                ),
-                details={"current_stage": current.value},
-            )
-
-        if not can_transition(current, target, demand.status):
-            if demand.status != DemandStatus.ABERTA.value:
-                raise ConflictError(
-                    code="DEMAND_NOT_OPEN",
-                    message="Demandas encerradas nao mudam de etapa.",
-                    details={"status": demand.status},
-                )
-            raise ConflictError(
-                code="INVALID_STAGE_TRANSITION",
-                message=f"Transicao de {current.value} para {target.value} nao e permitida.",
-                details={"current_stage": current.value, "target_stage": target.value},
-            )
+        target = advance_target(current, demand.status)
 
         transition = self.transitions.record(demand.id, current, target, reason, author_id)
         self.repository.update(
@@ -139,6 +122,21 @@ class PipelineService:
             author_id=transition.author_id,
             occurred_at=transition.occurred_at,
         )
+
+    def timeline(self, demand_id: UUID) -> StageTransitionTimeline:
+        """Linha do tempo de etapas da demanda (RF07); 404 se a demanda nao existe.
+
+        Demanda sem movimentacao devolve lista vazia, nao erro.
+        """
+
+        if self.session.get(Demand, demand_id) is None:
+            raise NotFoundError(code="DEMAND_NOT_FOUND", message="Demanda nao encontrada.")
+
+        items = [
+            StageTransitionRead.model_validate(transition)
+            for transition in self.transitions.list_for_demand(demand_id)
+        ]
+        return StageTransitionTimeline(items=items, total=len(items))
 
     def rollback(
         self,

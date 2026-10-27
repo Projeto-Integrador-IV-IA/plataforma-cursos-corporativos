@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     log_level: str = Field(min_length=1)
     pipeline_port: int = Field(ge=1, le=65535)
     database_url: SecretStr = Field(min_length=1)
+    auth_service_key: SecretStr = Field(min_length=32)
 
 
 @lru_cache

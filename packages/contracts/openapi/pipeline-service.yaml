@@ -1,38 +1,40 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: EM CONSTRUCAO - clientes (RF01), o contexto de demandas (RF02) e a
-# persistencia das fontes brutas (RF09) estao implementados e verificados contra o
-# openapi.json do servico; os demais caminhos vem conforme os cards avancam.
+# Estado: EM CONSTRUCAO - clientes (RF01), o contexto de demandas (RF02), a
+# persistencia das fontes brutas (RF09), dos trechos (issue #151), avanco e
+# retrocesso de etapa (RF06), trilha (RF07) e versionamento de artefatos
+# (RF08) estao implementados e verificados contra o openapi.json do servico.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
-
 info:
   title: pipeline-service
   version: 1.0.0
-  description: |
-    CRM, pipeline e artefatos versionados.
+  description: 'CRM, pipeline e artefatos versionados.
+
     Requisitos atendidos: RF01-RF08, RF13, RF15.
+
+    '
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
-
 servers:
-  - url: http://localhost:8001
-    description: Desenvolvimento local
-  - url: http://pipeline-service:8001
-    description: Rede interna do Docker Compose
-
+- url: http://localhost:8001
+  description: Desenvolvimento local
+- url: http://pipeline-service:8001
+  description: Rede interna do Docker Compose
 tags:
-  - name: health
-    description: Liveness e readiness
-  - name: raw-inputs
-    description: |
-      Fontes brutas de uma demanda (RF09). Rota interna: quem capta e o
-      ingestion-service, que persiste aqui antes de normalizar ou chamar a IA.
+- name: health
+  description: Liveness e readiness
+- name: raw-inputs
+  description: 'Fontes brutas de uma demanda (RF09). Rota interna: quem capta e o
 
+    ingestion-service, que persiste aqui antes de normalizar ou chamar a IA.
+
+    '
+- name: source-segments
+  description: Trechos citaveis persistidos e recuperaveis por fonte e demanda.
 security:
-  - bearerAuth: []
-
+- bearerAuth: []
 paths:
   /health:
     get:
@@ -51,13 +53,113 @@ paths:
                   type: string
                 type: object
                 title: Response Health Health Get
+  /api/v1/artifacts/{artifact_id}/versions:
+    get:
+      tags:
+      - artifacts
+      summary: Listar as versoes de um artefato
+      description: 'Devolve todas as versoes do artefato, da primeira a vigente (a
+        de maior numero). Cada versao traz o numero, a versao anterior, a origem,
+        o autor e, quando foi criada por restauracao, qual versao restaurou. Nenhuma
+        versao e sobrescrita: cada alteracao cria um registro novo.'
+      operationId: list_artifact_versions_api_v1_artifacts__artifact_id__versions_get
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ArtifactVersionRead'
+                title: Response List Artifact Versions Api V1 Artifacts  Artifact
+                  Id  Versions Get
+        '404':
+          description: Artefato inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+  /api/v1/artifacts/{artifact_id}/versions/{number}/restore:
+    post:
+      tags:
+      - artifacts
+      summary: Restaurar uma versao anterior do artefato
+      description: 'Cria uma versao nova, vigente, com o conteudo da versao escolhida.
+        Nenhuma versao existente e alterada: o historico intermediario continua consultavel.
+        A versao nova registra qual versao foi restaurada e o autor, lido do cabecalho
+        X-User-ID.'
+      operationId: restore_artifact_version_api_v1_artifacts__artifact_id__versions__number__restore_post
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      - name: number
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          description: Numero da versao a restaurar.
+          title: Number
+        description: Numero da versao a restaurar.
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactVersionRead'
+        '404':
+          description: Artefato, versao ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '409':
+          description: A versao escolhida ja e a vigente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Identificador ou numero de versao invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
   /api/v1/demands/{demand_id}/artifacts:
     post:
       tags:
       - artifacts
       summary: Persistir resultado da IA
-      description: Grava atomicamente a resposta bruta, o resultado estruturado validado e os vinculos
-        com todas as fontes da demanda usadas pela IA.
+      description: Grava atomicamente a resposta bruta, o resultado estruturado validado
+        e os vinculos com todas as fontes da demanda usadas pela IA.
       operationId: create_artifact_result_api_v1_demands__demand_id__artifacts_post
       parameters:
       - name: demand_id
@@ -102,7 +204,8 @@ paths:
       tags:
       - artifacts
       summary: Consultar resultados da demanda
-      description: Recupera resultados brutos e estruturados com as fontes que originaram cada artefato.
+      description: Recupera resultados brutos e estruturados com as fontes que originaram
+        cada artefato.
       operationId: list_demand_artifacts_api_v1_demands__demand_id__artifacts_get
       parameters:
       - name: demand_id
@@ -121,7 +224,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ArtifactRead'
-                title: Response List Demand Artifacts Api V1 Demands  Demand Id  Artifacts Get
+                title: Response List Demand Artifacts Api V1 Demands  Demand Id  Artifacts
+                  Get
         '404':
           description: Demanda inexistente.
           content:
@@ -139,7 +243,8 @@ paths:
       tags:
       - clients
       summary: Cadastrar cliente
-      description: Cadastra a identificacao, os contatos e o segmento de uma empresa cliente.
+      description: Cadastra a identificacao, os contatos e o segmento de uma empresa
+        cliente.
       operationId: create_client_api_v1_clients_post
       requestBody:
         required: true
@@ -254,8 +359,9 @@ paths:
       tags:
       - clients
       summary: Editar dados de um cliente
-      description: Altera somente os campos enviados. Campos opcionais enviados como null sao limpos;
-        a inativacao pertence ao RF01.3 e nao e realizada por esta operacao.
+      description: Altera somente os campos enviados. Campos opcionais enviados como
+        null sao limpos; a inativacao pertence ao RF01.3 e nao e realizada por esta
+        operacao.
       operationId: update_client_api_v1_clients__client_id__patch
       parameters:
       - name: client_id
@@ -369,8 +475,8 @@ paths:
       tags:
       - demands
       summary: Listar e filtrar demandas
-      description: Lista demandas por cliente, etapa, responsavel, periodo de criacao e situacao. Os filtros
-        informados sao combinados com AND.
+      description: Lista demandas por cliente, etapa, responsavel, periodo de criacao
+        e situacao. Os filtros informados sao combinados com AND.
       operationId: list_demands_api_v1_demands_get
       parameters:
       - name: client_id
@@ -465,8 +571,9 @@ paths:
       tags:
       - demands
       summary: Criar demanda vinculada a cliente
-      description: Cria uma negociacao com cliente obrigatorio, na situacao ABERTA e etapa CAPTACAO. description
-        registra o contexto; owner_id indica um usuario responsavel existente.
+      description: Cria uma negociacao com cliente obrigatorio, na situacao ABERTA
+        e etapa CAPTACAO. description registra o contexto; owner_id indica um usuario
+        responsavel existente.
       operationId: create_demand_api_v1_demands_post
       requestBody:
         required: true
@@ -504,8 +611,8 @@ paths:
       tags:
       - demands
       summary: Consultar contexto da demanda
-      description: Retorna o contexto da demanda, o cliente, a etapa corrente e os artefatos vinculados
-        com suas versoes.
+      description: Retorna o contexto da demanda, o cliente, a etapa corrente e os
+        artefatos vinculados com suas versoes.
       operationId: get_demand_api_v1_demands__demand_id__get
       parameters:
       - name: demand_id
@@ -538,8 +645,8 @@ paths:
       tags:
       - demands
       summary: Editar contexto da demanda
-      description: Altera somente os campos enviados. description e owner_id enviados como null sao limpos;
-        etapa, situacao, cliente e artefatos permanecem inalterados.
+      description: Altera somente os campos enviados. description e owner_id enviados
+        como null sao limpos; etapa, situacao, cliente e artefatos permanecem inalterados.
       operationId: update_demand_api_v1_demands__demand_id__patch
       parameters:
       - name: demand_id
@@ -574,15 +681,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/internal/auth/users/by-email:
+    get:
+      tags:
+      - internal-auth
+      summary: Get User Credentials
+      operationId: get_user_credentials_api_v1_internal_auth_users_by_email_get
+      parameters:
+      - name: email
+        in: query
+        required: true
+        schema:
+          type: string
+          format: email
+          title: Email
+      - name: X-Service-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Service-Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalUserCredentials'
+        '404':
+          description: Usuario inexistente.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/pipeline:
     get:
       tags:
       - pipeline
       summary: Consultar demandas agrupadas por etapa
-      description: Devolve as cinco etapas do pipeline, cada uma com os cartoes da etapa e o total de
-        demandas que a atendem. As etapas vazias tambem vem, porque o quadro tem colunas fixas. Aceita
-        os mesmos filtros da listagem de demandas, combinados com AND; o filtro por etapa nao se aplica
-        aqui, ja que o agrupamento e por etapa.
+      description: Devolve as cinco etapas do pipeline, cada uma com os cartoes da
+        etapa e o total de demandas que a atendem. As etapas vazias tambem vem, porque
+        o quadro tem colunas fixas. Aceita os mesmos filtros da listagem de demandas,
+        combinados com AND; o filtro por etapa nao se aplica aqui, ja que o agrupamento
+        e por etapa.
       operationId: get_pipeline_board_api_v1_pipeline_get
       parameters:
       - name: client_id
@@ -653,10 +798,12 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa so, use GET /api/v1/demands?stage=.'
+          description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa
+            so, use GET /api/v1/demands?stage=.'
           deprecated: true
           title: Stage
-        description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa so, use GET /api/v1/demands?stage=.'
+        description: 'Nao aceito aqui: o agrupamento ja e por etapa. Para uma etapa
+          so, use GET /api/v1/demands?stage=.'
         deprecated: true
       responses:
         '200':
@@ -676,9 +823,9 @@ paths:
       tags:
       - pipeline
       summary: Avancar demanda para a proxima etapa
-      description: Move a demanda para a etapa seguinte do pipeline e registra a transicao na trilha,
-        na mesma transacao. O destino e definido pela maquina de estados, nao pelo chamador. O autor
-        vem do cabecalho X-User-ID. A justificativa e opcional.
+      description: Move a demanda para a etapa seguinte do pipeline e registra a transicao
+        na trilha, na mesma transacao. O destino e definido pela maquina de estados,
+        nao pelo chamador. O autor vem do cabecalho X-User-ID. A justificativa e opcional.
       operationId: advance_demand_api_v1_demands__demand_id__advance_post
       parameters:
       - name: demand_id
@@ -724,6 +871,42 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Identificador ou justificativa invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/demands/{demand_id}/transitions:
+    get:
+      tags:
+      - pipeline
+      summary: Consultar a linha do tempo de etapas da demanda
+      description: 'Devolve todas as mudancas de etapa da demanda, da mais antiga
+        a mais recente: etapa de origem, etapa de destino, autor, justificativa e
+        instante. Demanda sem movimentacao devolve lista vazia.'
+      operationId: get_demand_timeline_api_v1_demands__demand_id__transitions_get
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageTransitionTimeline'
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador invalido.
           content:
             application/json:
               schema:
@@ -788,8 +971,9 @@ paths:
       tags:
       - raw-inputs
       summary: Persistir texto bruto de uma demanda
-      description: Rota interna consumida pelo ingestion-service. Confirma a persistencia do conteudo
-        original antes que qualquer normalizacao ou chamada a IA possa ocorrer.
+      description: Rota interna consumida pelo ingestion-service. Confirma a persistencia
+        do conteudo original antes que qualquer normalizacao ou chamada a IA possa
+        ocorrer.
       operationId: create_raw_input_api_v1_demands__demand_id__raw_inputs_post
       parameters:
       - name: demand_id
@@ -837,13 +1021,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}:
+    get:
+      tags:
+      - raw-inputs
+      summary: Consultar fonte e proveniencia
+      description: Recupera o conteudo original e a copia normalizada com o canal de origem,
+        o operador que captou a fonte e a data de recebimento registrada pelo banco.
+      operationId: get_raw_input_api_v1_raw_inputs__raw_input_id__get
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputRead'
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
   /api/v1/raw-inputs/{raw_input_id}/normalization:
     patch:
       tags:
       - raw-inputs
       summary: Persistir texto sanitizado
-      description: Preenche normalized_content depois da persistencia do original. Esta operacao nunca
-        altera original_content.
+      description: Preenche normalized_content depois da persistencia do original.
+        Esta operacao nunca altera original_content.
       operationId: normalize_raw_input_api_v1_raw_inputs__raw_input_id__normalization_patch
       parameters:
       - name: raw_input_id
@@ -878,6 +1097,132 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}/segments:
+    post:
+      tags:
+      - source-segments
+      summary: Persistir trechos de uma fonte
+      description: Persiste atomicamente os trechos identificados pelo ingestion-service.
+        Repetir o mesmo lote e idempotente; IDs ou posicoes divergentes sao recusados.
+      operationId: persist_source_segments_api_v1_raw_inputs__raw_input_id__segments_post
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceSegmentBatchCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceSegmentRead'
+                title: Response Persist Source Segments Api V1 Raw Inputs  Raw Input
+                  Id  Segments Post
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '409':
+          description: ID ou posicao ja vinculada a outro trecho.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '422':
+          description: Lote ou identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+    get:
+      tags:
+      - source-segments
+      summary: Consultar trechos por fonte
+      operationId: list_source_segments_api_v1_raw_inputs__raw_input_id__segments_get
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceSegmentRead'
+                title: Response List Source Segments Api V1 Raw Inputs  Raw Input
+                  Id  Segments Get
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+  /api/v1/demands/{demand_id}/segments:
+    get:
+      tags:
+      - source-segments
+      summary: Consultar trechos por demanda
+      description: Recupera, em ordem deterministica, os trechos de todas as fontes
+        da demanda.
+      operationId: list_demand_segments_api_v1_demands__demand_id__segments_get
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceSegmentRead'
+                title: Response List Demand Segments Api V1 Demands  Demand Id  Segments
+                  Get
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -1047,8 +1392,15 @@ components:
         number:
           type: integer
           title: Number
+        previous_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Previous Number
         raw_output:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Raw Output
         structured_content:
           additionalProperties: true
@@ -1062,6 +1414,17 @@ components:
             type: object
           - type: 'null'
           title: Ai Metadata
+        author_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Author Id
+        restored_from_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Restored From Number
         created_at:
           type: string
           format: date-time
@@ -1070,13 +1433,28 @@ components:
       required:
       - id
       - number
+      - previous_number
       - raw_output
       - structured_content
       - origin
       - ai_metadata
+      - author_id
+      - restored_from_number
       - created_at
       title: ArtifactVersionRead
-      description: Primeira versao atomica do resultado da IA.
+      description: 'Versao de um artefato; a vigente e a de maior numero.
+
+
+        ``previous_number`` liga a versao a sua antecessora e e nulo so na primeira.
+
+        ``raw_output`` e ``ai_metadata`` sao nulos nas versoes humanas (edicao ou
+
+        restauracao): nao ha saida bruta de modelo. ``restored_from_number`` so vem
+
+        preenchido na versao criada por restauracao, e ela e o registro do evento
+        -
+
+        qual versao voltou (este campo), quem restaurou (``author_id``) e quando.'
     ClientCreate:
       properties:
         name:
@@ -1410,7 +1788,8 @@ components:
       - notes
       - active
       title: DemandClientRead
-      description: Cliente incorporado ao detalhe para evitar uma segunda consulta da tela.
+      description: Cliente incorporado ao detalhe para evitar uma segunda consulta
+        da tela.
     DemandCreate:
       properties:
         client_id:
@@ -1442,7 +1821,8 @@ components:
       - client_id
       - title
       title: DemandCreate
-      description: Dados da negociacao; situacao e etapa inicial sao definidas pelo servico.
+      description: Dados da negociacao; situacao e etapa inicial sao definidas pelo
+        servico.
     DemandDetail:
       properties:
         id:
@@ -1517,6 +1897,10 @@ components:
           type: string
           format: uuid
           title: Id
+        received_order:
+          type: integer
+          minimum: 1.0
+          title: Received Order
         source:
           $ref: '#/components/schemas/RawInputSource'
         original_content:
@@ -1536,13 +1920,15 @@ components:
       type: object
       required:
       - id
+      - received_order
       - source
       - original_content
       - truncated
       - author_id
       - created_at
       title: DemandRawInputRead
-      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se perdeu.
+      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada
+        se perdeu.
 
 
         O conteudo original entra por inteiro: preserva-lo e o proprio requisito
@@ -1639,7 +2025,8 @@ components:
       additionalProperties: false
       type: object
       title: DemandUpdate
-      description: Campos de contexto editaveis sem substituir os demais dados da demanda.
+      description: Campos de contexto editaveis sem substituir os demais dados da
+        demanda.
     ErrorBody:
       properties:
         code:
@@ -1672,6 +2059,73 @@ components:
       required:
       - error
       title: ErrorResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InternalUserCredentials:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          format: email
+          title: Email
+        password_hash:
+          type: string
+          title: Password Hash
+        role:
+          type: string
+          title: Role
+        active:
+          type: boolean
+          title: Active
+      type: object
+      required:
+      - id
+      - name
+      - email
+      - password_hash
+      - role
+      - active
+      title: InternalUserCredentials
+      description: Inclui o hash somente na rota interna autenticada por chave de servico.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
     PaginatedResponse_DemandRead_:
       properties:
         items:
@@ -1811,6 +2265,102 @@ components:
         apenas as que vieram em ``items``: a coluna precisa mostrar quantas existem
 
         mesmo quando o recorte nao trouxe todas.'
+    SourceSegmentBatchCreate:
+      properties:
+        segments:
+          items:
+            $ref: '#/components/schemas/SourceSegmentCreate'
+          type: array
+          minItems: 1
+          title: Segments
+      additionalProperties: false
+      type: object
+      required:
+      - segments
+      title: SourceSegmentBatchCreate
+      description: Lote atomico dos trechos gerados para uma unica fonte.
+    SourceSegmentCreate:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        position:
+          type: integer
+          minimum: 1.0
+          title: Position
+        content:
+          type: string
+          minLength: 1
+          title: Content
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - position
+      - content
+      title: SourceSegmentCreate
+      description: Trecho identificado de forma estavel pelo ingestion-service.
+    SourceSegmentErrorDetails:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties:
+            type: string
+          type: object
+          title: Details
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      title: SourceSegmentErrorDetails
+    SourceSegmentErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/SourceSegmentErrorDetails'
+      type: object
+      required:
+      - error
+      title: SourceSegmentErrorResponse
+    SourceSegmentRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        raw_input_id:
+          type: string
+          format: uuid
+          title: Raw Input Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        position:
+          type: integer
+          title: Position
+        content:
+          type: string
+          title: Content
+      type: object
+      required:
+      - id
+      - raw_input_id
+      - demand_id
+      - position
+      - content
+      title: SourceSegmentRead
+      description: Trecho recuperavel com os vinculos de fonte e demanda.
     RawInputCreate:
       properties:
         original_content:
@@ -1867,7 +2417,8 @@ components:
       required:
       - normalized_content
       title: RawInputNormalization
-      description: Copia sanitizada; o contrato nao aceita o conteudo original nesta operacao.
+      description: Copia sanitizada; o contrato nao aceita o conteudo original nesta
+        operacao.
     RawInputRead:
       properties:
         id:
@@ -1878,6 +2429,10 @@ components:
           type: string
           format: uuid
           title: Demand Id
+        received_order:
+          type: integer
+          minimum: 1.0
+          title: Received Order
         original_content:
           type: string
           title: Original Content
@@ -1903,6 +2458,7 @@ components:
       required:
       - id
       - demand_id
+      - received_order
       - original_content
       - normalized_content
       - source
@@ -1975,7 +2531,8 @@ components:
       - author_id
       - occurred_at
       title: StageChangeRead
-      description: 'Resultado de uma mudanca de etapa: o evento gravado e a etapa resultante.'
+      description: 'Resultado de uma mudanca de etapa: o evento gravado e a etapa
+        resultante.'
     StageChangeRequest:
       properties:
         reason:
@@ -1984,11 +2541,70 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Reason
-          description: Justificativa opcional do avanco; texto em branco equivale a ausente.
+          description: Justificativa opcional do avanco; texto em branco equivale
+            a ausente.
       additionalProperties: false
       type: object
       title: StageChangeRequest
-      description: |-
-        Corpo opcional do avanco: so a justificativa; o destino vem da maquina de estados.
+      description: 'Corpo opcional do avanco: so a justificativa; o destino vem da
+        maquina de estados.
 
-        O autor nao entra aqui de proposito: vem do cabecalho ``X-User-ID`` (RNF10).
+
+        O autor nao entra aqui de proposito: vem do cabecalho ``X-User-ID`` (RNF10).'
+    StageTransitionRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        from_stage:
+          anyOf:
+          - $ref: '#/components/schemas/PipelineStage'
+          - type: 'null'
+        to_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        author:
+          $ref: '#/components/schemas/PipelineCardPersonRead'
+        occurred_at:
+          type: string
+          format: date-time
+          title: Occurred At
+      type: object
+      required:
+      - id
+      - demand_id
+      - from_stage
+      - to_stage
+      - reason
+      - author
+      - occurred_at
+      title: StageTransitionRead
+      description: 'Um evento da trilha: de onde, para onde, quem moveu e quando.
+
+
+        ``from_stage`` e nulo so no evento inicial de uma demanda, se existir.'
+    StageTransitionTimeline:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/StageTransitionRead'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: StageTransitionTimeline
+      description: Linha do tempo de uma demanda, do mais antigo ao mais recente.

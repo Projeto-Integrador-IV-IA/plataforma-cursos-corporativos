@@ -12,7 +12,8 @@ servico gravar a transicao e atualizar a demanda de forma atomica.
 
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+import sqlalchemy as sa
+from sqlalchemy.orm import Session, selectinload
 
 from app.domain.enums import PipelineStage
 from app.models.stage_transition import StageTransition
@@ -49,3 +50,19 @@ class TransitionRepository:
         self.session.flush()
         self.session.refresh(transition)
         return transition
+
+    def list_for_demand(self, demand_id: UUID) -> list[StageTransition]:
+        """Linha do tempo da demanda, do evento mais antigo ao mais recente (RF07).
+
+        Traz o autor junto: a linha do tempo mostra quem moveu, e sem isso
+        haveria uma consulta por evento. O desempate por ``id`` so torna a ordem
+        estavel; quando dois eventos tem o mesmo instante, ele nao e cronologico.
+        """
+
+        statement = (
+            sa.select(StageTransition)
+            .where(StageTransition.demand_id == demand_id)
+            .options(selectinload(StageTransition.author))
+            .order_by(StageTransition.occurred_at.asc(), StageTransition.id.asc())
+        )
+        return list(self.session.scalars(statement).all())

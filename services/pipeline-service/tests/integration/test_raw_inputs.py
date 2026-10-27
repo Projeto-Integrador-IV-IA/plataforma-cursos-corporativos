@@ -7,6 +7,8 @@ recuperavel byte a byte depois - persistir sem caminho de leitura nao provaria
 nada.
 """
 
+from datetime import datetime
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -99,16 +101,7 @@ def test_raw_input_comes_back_in_the_demand_detail(
 
 
 def test_every_captured_source_comes_back(api: TestClient, demand: UUID, operator: UUID) -> None:
-    """Varias fontes na mesma demanda: nenhuma se sobrepoe a outra.
-
-    Este teste afirma **completude**, nao ordem. A tabela nao tem coluna de
-    ordem de recebimento, e ``created_at`` nao serve como uma: o
-    ``CURRENT_TIMESTAMP`` do SQLite tem resolucao de segundo, entao fontes
-    captadas no mesmo segundo empatam e o desempate cai no ``id``, que e
-    aleatorio. Garantir a ordem de chegada e o RF10 (card #32), que precisa
-    acrescentar a coluna - ate la, prometer ordem aqui seria mentira verificada
-    por um teste verde no Postgres e vermelho no banco da CI.
-    """
+    """Todas as fontes voltam na ordem de recebimento (RF10, #32)."""
 
     for indice, origem in enumerate(("EMAIL", "MENSAGENS", "TRANSCRICAO")):
         captar(api, demand, operator, content=f"fonte {indice}", source=origem)
@@ -118,6 +111,77 @@ def test_every_captured_source_comes_back(api: TestClient, demand: UUID, operato
     assert len(fontes) == 3
     assert {f["original_content"] for f in fontes} == {"fonte 0", "fonte 1", "fonte 2"}
     assert {f["source"] for f in fontes} == {"EMAIL", "MENSAGENS", "TRANSCRICAO"}
+    assert [f["original_content"] for f in fontes] == ["fonte 0", "fonte 1", "fonte 2"]
+    assert [f["received_order"] for f in fontes] == [1, 2, 3]
+
+
+def test_receipt_order_survives_timestamp_ties_and_normalization(
+    api: TestClient, engine: Engine, demand: UUID, operator: UUID
+) -> None:
+    """UUIDs em ordem inversa e datas empatadas nao invertem uma negociacao."""
+
+    originals = ["  Primeiro: 20 pessoas.\r\n", "\tCorreção: 30 pessoas! 😀\n"]
+    ids = [UUID(int=200), UUID(int=100)]
+    for original, source_id in zip(originals, ids, strict=True):
+        with patch("app.services.raw_input_service.RawInput", wraps=RawInput) as model:
+            model.side_effect = lambda source_id=source_id, **kwargs: RawInput(
+                id=source_id, **kwargs
+            )
+            response = captar(api, demand, operator, content=original)
+        assert response.status_code == 201, response.text
+    with Session(engine) as session:
+        for source_id in ids:
+            session.get(RawInput, source_id).created_at = datetime(2026, 10, 25, 12)
+        session.commit()
+
+    for source_id in reversed(ids):
+        response = api.patch(
+            f"/api/v1/raw-inputs/{source_id}/normalization",
+            json={"normalized_content": "Copia sanitizada"},
+        )
+        assert response.status_code == 200, response.text
+    sources = api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"]
+    assert [s["id"] for s in sources] == [str(value) for value in ids]
+    assert [s["received_order"] for s in sources] == [1, 2]
+    assert [s["original_content"].encode("utf-8") for s in sources] == [
+        value.encode("utf-8") for value in originals
+    ]
+    with Session(engine) as session:
+        assert all(
+            session.get(RawInput, value).normalized_content == "Copia sanitizada" for value in ids
+        )
+
+
+def test_sequence_is_per_demand_and_rejected_capture_does_not_advance_it(
+    api: TestClient, engine: Engine, demand: UUID, company: UUID, operator: UUID
+) -> None:
+    with Session(engine) as session:
+        other = Demand(client_id=company, title="Outra negociacao")
+        session.add(other)
+        session.commit()
+        other_id = other.id
+    assert captar(api, demand, operator).json()["received_order"] == 1
+    assert captar(api, demand, uuid4()).status_code == 404
+    assert captar(api, other_id, operator).json()["received_order"] == 1
+    assert captar(api, demand, operator).json()["received_order"] == 2
+
+
+@pytest.mark.parametrize("field", ["original_content", "received_order"])
+def test_normalization_cannot_overwrite_original_or_receipt_order(
+    api: TestClient, demand: UUID, operator: UUID, field: str
+) -> None:
+    source = captar(api, demand, operator).json()
+    response = api.patch(
+        f"/api/v1/raw-inputs/{source['id']}/normalization",
+        json={
+            "normalized_content": "Sanitizado",
+            field: 99 if field == "received_order" else "Outro",
+        },
+    )
+    assert response.status_code == 422
+    saved = api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"][0]
+    assert saved["original_content"] == TEXTO_DE_WHATSAPP
+    assert saved["received_order"] == 1
 
 
 def test_capture_for_unknown_demand_is_rejected(api: TestClient, operator: UUID) -> None:
@@ -184,4 +248,73 @@ def test_capture_without_operator_header_is_rejected(api: TestClient, demand: UU
 def test_demand_without_sources_reports_an_empty_list(api: TestClient, demand: UUID) -> None:
     """A tela distingue "sem fontes" de "campo ausente"; o contrato sempre traz a chave."""
 
+    assert api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"] == []
+
+
+@pytest.mark.parametrize("source", ["EMAIL", "TRANSCRICAO", "MENSAGENS", "ANOTACAO", "OUTRO"])
+def test_source_query_recovers_persisted_provenance(
+    api: TestClient, engine: Engine, demand: UUID, operator: UUID, source: str
+) -> None:
+    created = captar(api, demand, operator, source=source)
+    assert created.status_code == 201, created.text
+    body = created.json()
+
+    response = api.get(f"/api/v1/raw-inputs/{body['id']}")
+
+    assert response.status_code == 200, response.text
+    assert response.json() == body
+    with Session(engine) as session:
+        stored = session.get(RawInput, UUID(body["id"]))
+        assert stored.source == body["source"] == source
+        assert str(stored.author_id) == body["author_id"] == str(operator)
+        assert stored.created_at.isoformat() == body["created_at"]
+        assert str(stored.demand_id) == body["demand_id"] == str(demand)
+
+    in_detail = api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"][0]
+    for field in ("id", "source", "author_id", "created_at", "original_content"):
+        assert in_detail[field] == body[field]
+
+
+def test_normalization_preserves_source_provenance(
+    api: TestClient, demand: UUID, operator: UUID
+) -> None:
+    original = captar(api, demand, operator).json()
+    normalized = api.patch(
+        f"/api/v1/raw-inputs/{original['id']}/normalization",
+        json={"normalized_content": "Texto sanitizado"},
+    )
+    assert normalized.status_code == 200, normalized.text
+
+    queried = api.get(f"/api/v1/raw-inputs/{original['id']}").json()
+    assert queried["normalized_content"] == "Texto sanitizado"
+    for field in ("source", "author_id", "created_at", "original_content", "demand_id"):
+        assert queried[field] == original[field]
+
+
+def test_query_unknown_source_returns_404(api: TestClient) -> None:
+    response = api.get(f"/api/v1/raw-inputs/{uuid4()}")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "RAW_INPUT_NOT_FOUND"
+
+
+def test_query_invalid_source_id_returns_422(api: TestClient) -> None:
+    assert api.get("/api/v1/raw-inputs/identificador-invalido").status_code == 422
+
+
+def test_capture_body_cannot_override_operator_header_or_reception_date(
+    api: TestClient, demand: UUID, operator: UUID
+) -> None:
+    response = api.post(
+        f"/api/v1/demands/{demand}/raw-inputs",
+        headers={"X-User-ID": str(operator)},
+        json={
+            "original_content": TEXTO_DE_WHATSAPP,
+            "source": "EMAIL",
+            "author_id": str(uuid4()),
+            "created_at": "2000-01-01T00:00:00Z",
+        },
+    )
+
+    assert response.status_code == 422
     assert api.get(f"/api/v1/demands/{demand}").json()["raw_inputs"] == []

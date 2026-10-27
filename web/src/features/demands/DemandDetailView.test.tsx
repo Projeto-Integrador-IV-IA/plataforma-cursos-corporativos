@@ -77,6 +77,9 @@ const DEMANDA: DemandDetail = {
     notes: null,
     active: true,
   },
+  // A secao de fontes do detalhe continua anunciada e vazia (RF09): o que
+  // consome `raw_inputs` hoje e a revisao da estruturacao (RF19).
+  raw_inputs: [],
   artifacts: [EMENTA],
 };
 

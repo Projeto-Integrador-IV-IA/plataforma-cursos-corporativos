@@ -118,3 +118,27 @@ class StageChangeRead(BaseModel):
     reason: str | None
     author_id: UUID
     occurred_at: datetime
+
+
+class StageTransitionRead(BaseModel):
+    """Um evento da trilha: de onde, para onde, quem moveu e quando.
+
+    ``from_stage`` e nulo so no evento inicial de uma demanda, se existir.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    demand_id: UUID
+    from_stage: PipelineStage | None
+    to_stage: PipelineStage
+    reason: str | None
+    author: PipelineCardPersonRead
+    occurred_at: datetime
+
+
+class StageTransitionTimeline(BaseModel):
+    """Linha do tempo de uma demanda, do mais antigo ao mais recente."""
+
+    items: list[StageTransitionRead]
+    total: int

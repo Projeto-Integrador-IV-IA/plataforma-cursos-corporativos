@@ -3,16 +3,11 @@
     GET  /api/v1/pipeline                   demandas agrupadas por etapa (RF05)
     POST /api/v1/demands/{id}/advance       avanca para a proxima etapa (RF06)
     POST /api/v1/demands/{id}/rollback      retrocede para qualquer etapa anterior (RF06)
-
-Consulta do historico continua pendente e e outro card:
-
-    GET  /api/v1/demands/{id}/transitions   historico completo (RF07)
+    GET  /api/v1/demands/{id}/transitions   linha do tempo de etapas (RF07)
 
 O avanco nao recebe destino: a proxima etapa sai da maquina de estados. O autor
 vem do cabecalho ``X-User-ID``, nunca do corpo da requisicao (RNF10) - o mesmo
 padrao de ``routes/ingestion.py`` no ingestion-service.
-
-TODO(RF07): implementar a consulta do historico conforme o contrato.
 """
 
 from datetime import datetime
@@ -32,6 +27,7 @@ from app.schemas.pipeline import (
     RollbackRequest,
     StageChangeRead,
     StageChangeRequest,
+    StageTransitionTimeline,
 )
 from app.services.pipeline_service import DEFAULT_CARDS_PER_STAGE, PipelineService
 
@@ -164,6 +160,29 @@ def advance_demand(
         author_id,
         reason=payload.reason if payload is not None else None,
     )
+
+
+@demands_router.get(
+    "/{demand_id}/transitions",
+    response_model=StageTransitionTimeline,
+    summary="Consultar a linha do tempo de etapas da demanda",
+    description=(
+        "Devolve todas as mudancas de etapa da demanda, da mais antiga a mais recente: "
+        "etapa de origem, etapa de destino, autor, justificativa e instante. Demanda sem "
+        "movimentacao devolve lista vazia."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Demanda inexistente."},
+        422: {"model": ErrorResponse, "description": "Identificador invalido."},
+    },
+)
+def get_demand_timeline(
+    demand_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+) -> StageTransitionTimeline:
+    """Leitura da trilha; nao altera nada e nao exige o cabecalho de autor."""
+
+    return PipelineService(session).timeline(demand_id)
 
 
 @demands_router.post(
