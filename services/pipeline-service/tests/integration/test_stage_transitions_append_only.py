@@ -13,7 +13,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models.stage_transition import AppendOnlyViolationError, StageTransition
+from app.models._append_only import AppendOnlyViolationError
+from app.models.stage_transition import StageTransition
 
 from ._schema import (
     DEMAND_ID,

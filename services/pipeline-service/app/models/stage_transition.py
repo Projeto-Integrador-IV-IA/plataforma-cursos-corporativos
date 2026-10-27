@@ -1,25 +1,20 @@
 """Registro historico de uma mudanca de etapa da demanda."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
-from sqlalchemy import event
-from sqlalchemy.engine import Connection
-from sqlalchemy.orm import Mapped, Mapper, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.domain.enums import PipelineStage, sql_enum_values
+from app.models._append_only import forbid_changes
 from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
     from app.models.demand import Demand
     from app.models.user import User
-
-
-class AppendOnlyViolationError(RuntimeError):
-    """Tentativa de alterar ou apagar um evento da trilha de auditoria (RNF09)."""
 
 
 class StageTransition(Base):
@@ -90,9 +85,4 @@ class StageTransition(Base):
     author: Mapped["User"] = relationship(back_populates="stage_transitions")
 
 
-@event.listens_for(StageTransition, "before_update")
-@event.listens_for(StageTransition, "before_delete")
-def _refuse_change(mapper: Mapper[Any], connection: Connection, target: StageTransition) -> None:
-    raise AppendOnlyViolationError(
-        "stage_transitions e append-only: eventos nao podem ser alterados nem apagados."
-    )
+forbid_changes(StageTransition, "stage_transitions")
