@@ -81,6 +81,7 @@ EXPECTED_COLUMNS = {
         "origin",
         "ai_metadata",
         "author_id",
+        "restored_from_number",
         "created_at",
     },
     "artifact_sources": {"artifact_id", "raw_input_id", "demand_id"},
