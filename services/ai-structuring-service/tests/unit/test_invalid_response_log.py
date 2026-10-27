@@ -61,7 +61,10 @@ def montar_servico(make_settings: MakeSettings) -> MontarServico:
     """Monta o caso de uso sobre o provedor mock, sem dormir entre tentativas."""
 
     def _montar(response_text: str, **overrides: object) -> StructuringService:
-        base: dict[str, object] = {"llm_max_retries": 0}
+        # Teto de schema zerado por padrao: este arquivo testa o conteudo do
+        # log e do erro, nao a retentativa (RNF05) - essa fica em
+        # test_structuring_service.py.
+        base: dict[str, object] = {"llm_max_retries": 0, "llm_schema_max_retries": 0}
         base.update(overrides)
         return StructuringService(
             MockLLMProvider(response_text=response_text),
@@ -229,7 +232,7 @@ async def test_erro_devolvido_identifica_o_campo_que_violou_o_contrato(
     assert payload is not None
     detalhes = payload["error"]["details"]
     assert detalhes["demand_id"] == "dem-2026-0042"
-    assert detalhes["retryable"] is False
+    assert detalhes["retryable"] is True
     campos = {violacao["campo"] for violacao in detalhes["violacoes"]}
     assert "sobrando" in campos
     assert {"publico_alvo", "carga_horaria"} <= campos
