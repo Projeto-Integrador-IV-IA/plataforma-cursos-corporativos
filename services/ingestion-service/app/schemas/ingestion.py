@@ -7,15 +7,22 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
+from app.normalizers.source_detector import detect_source_type
 
 
 class IngestionCreate(BaseModel):
-    """Texto, origem declarada e demanda de destino."""
+    """Texto, origem opcional e demanda de destino; a declaracao prevalece sobre a inferencia."""
 
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(min_length=1, description="Texto bruto preservado sem alteracoes.")
-    source_type: SourceKind = Field(description="Canal de origem declarado pelo operador.")
+    source_type: SourceKind | None = Field(
+        default=None,
+        description=(
+            "Canal declarado pelo operador; ausente ou nulo permite inferencia "
+            "pelo formato do texto."
+        ),
+    )
     demand_id: UUID = Field(description="Demanda existente no pipeline-service.")
 
     @field_validator("text")
@@ -29,7 +36,9 @@ class IngestionCreate(BaseModel):
         return RawDemand(
             demand_id=self.demand_id,
             text=self.text,
-            source_type=self.source_type,
+            source_type=self.source_type
+            if self.source_type is not None
+            else detect_source_type(self.text),
         )
 
 

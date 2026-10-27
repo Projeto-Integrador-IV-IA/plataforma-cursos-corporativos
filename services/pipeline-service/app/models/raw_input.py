@@ -18,7 +18,13 @@ if TYPE_CHECKING:
 
 
 class RawInput(Base):
-    """Conteudo original confirmado em transacao propria antes da normalizacao ou do LLM."""
+    """Conteudo original e proveniencia da captacao (RF09, RF10).
+
+    ``source`` registra o canal/tipo de origem, declarado pelo operador ou
+    inferido pelo ingestion-service. ``author_id`` identifica quem captou a
+    fonte (nao um remetente deduzido do texto); ``created_at`` e a data de
+    recebimento atribuida pelo banco. A normalizacao conserva esses metadados.
+    """
 
     __tablename__ = "raw_inputs"
     __table_args__ = (
