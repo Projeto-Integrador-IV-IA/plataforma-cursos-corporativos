@@ -23,6 +23,8 @@ vi.mock('@/services/clients', () => ({
   getClient: vi.fn(),
   createClient: vi.fn(),
   updateClient: vi.fn(),
+  deactivateClient: vi.fn(),
+  reactivateClient: vi.fn(),
 }));
 
 vi.mock('@/services/demands', () => ({
@@ -32,7 +34,8 @@ vi.mock('@/services/demands', () => ({
   updateDemand: vi.fn(),
 }));
 
-const { getClient, updateClient } = await import('@/services/clients');
+const { getClient, updateClient, deactivateClient, reactivateClient } =
+  await import('@/services/clients');
 const { listDemands } = await import('@/services/demands');
 const { renderRoute } = await import('@/test/renderRoute');
 
@@ -79,6 +82,15 @@ beforeEach(() => {
 
     return Promise.resolve(persistido);
   });
+  vi.mocked(deactivateClient).mockImplementation(() => {
+  persistido = { ...persistido, active: false };
+  return Promise.resolve(persistido);
+});
+
+vi.mocked(reactivateClient).mockImplementation(() => {
+  persistido = { ...persistido, active: true };
+  return Promise.resolve(persistido);
+});
   vi.mocked(listDemands).mockResolvedValue(pagina([DEMANDA]));
 });
 
@@ -113,12 +125,62 @@ describe('detalhe do cliente', () => {
     expect(texto).toContain('Nao informado');
   });
 
-  it('nao oferece ativacao nem inativacao, que pertencem a outro requisito', async () => {
-    await abrirDetalhe();
+  it('mostra o botao de inativar quando o cliente esta ativo', async () => {
+  await abrirDetalhe();
 
-    expect(screen.queryByRole('checkbox')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Inativar/ })).toBeNull();
-    expect(textoDaTela()).toContain('Inativar o cliente ainda nao e possivel por esta tela');
+  expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeDefined();
+  expect(screen.queryByRole('button', { name: 'Reativar cliente' })).toBeNull();
+});
+
+it('inativa o cliente e atualiza a situacao na tela', async () => {
+  const usuario = await abrirDetalhe();
+
+  await usuario.click(screen.getByRole('button', { name: 'Inativar cliente' }));
+
+  await waitFor(() => {
+    expect(deactivateClient).toHaveBeenCalledWith(CLIENTE.id);
+  });
+
+  expect(await screen.findByRole('button', { name: 'Reativar cliente' })).toBeDefined();
+  expect(textoDaTela()).toContain('Inativo');
+});
+
+it('reativa um cliente inativo e atualiza a situacao na tela', async () => {
+  persistido = { ...CLIENTE, active: false };
+
+  const usuario = await abrirDetalhe();
+
+  expect(screen.getByRole('button', { name: 'Reativar cliente' })).toBeDefined();
+
+  await usuario.click(screen.getByRole('button', { name: 'Reativar cliente' }));
+
+  await waitFor(() => {
+    expect(reactivateClient).toHaveBeenCalledWith(CLIENTE.id);
+  });
+
+  expect(await screen.findByRole('button', { name: 'Inativar cliente' })).toBeDefined();
+  expect(textoDaTela()).toContain('Ativo');
+});
+
+it('mostra o erro da API quando a inativacao falha', async () => {
+  vi.mocked(deactivateClient).mockRejectedValue(
+    new ApiError({
+      kind: 'http',
+      code: 'CLIENT_NOT_FOUND',
+      message: 'Nao foi possivel inativar o cliente.',
+      status: 404,
+    }),
+  );
+
+  const usuario = await abrirDetalhe();
+
+  await usuario.click(screen.getByRole('button', { name: 'Inativar cliente' }));
+
+  expect(
+  await screen.findByText('Nao foi possivel inativar o cliente.')
+).toBeDefined();
+  
+  expect(screen.getByRole('button', { name: 'Inativar cliente' })).toBeDefined();
   });
 });
 

@@ -1,0 +1,78 @@
+# =============================================================================
+# Catalogo de modelos candidatos a avaliacao (RNF04, card #216).
+#
+# Lido por app/evaluation/catalog.py. Versionado de proposito: comparacao de
+# modelo so e defensavel se outra pessoa conseguir repetir a medicao com a
+# mesma lista.
+#
+# PRECO AINDA NAO CONSULTADO
+# --------------------------
+# Os campos usd_por_mtok_* estao em 0.0, que e sentinela de "nao consultado",
+# nao de "gratuito". Enquanto estiverem assim, `ModeloCandidato.custo_usd`
+# devolve None e o notebook de avaliacao marca a coluna de custo como pendente,
+# em vez de imprimir um numero que ninguem conferiu.
+#
+# Para fechar: consultar https://openrouter.ai/models, preencher os dois precos
+# de cada modelo e atualizar `preco_consultado_em` com a data da consulta. Foi
+# exatamente a falha apontada na revisao do levantamento de custos (card #121):
+# valor sem data e sem fonte envelhece em silencio.
+#
+# A data abaixo e a de criacao desta entrada, e precisa ser substituida pela
+# data da consulta junto com o preco.
+#
+# Os slugs seguem a convencao vendor/modelo do OpenRouter e devem ser
+# confirmados na pagina de modelos antes da primeira rodada - catalogo e a
+# unica fonte desses nomes no projeto, e slug errado falha so na chamada.
+# =============================================================================
+
+[[modelo]]
+slug = "anthropic/claude-sonnet-4.5"
+apelido = "Sonnet 4.5"
+justificativa = """
+Referencia de qualidade da disputa. Entra como teto: se um modelo mais barato \
+chegar perto dele nas metricas, a escolha por custo fica justificada; se nao \
+chegar, o projeto sabe o que esta abrindo mao.\
+"""
+janela_de_contexto = 200000
+usd_por_mtok_entrada = 0.0
+usd_por_mtok_saida = 0.0
+preco_consultado_em = 2026-10-16
+
+[[modelo]]
+slug = "openai/gpt-4o-mini"
+apelido = "GPT-4o mini"
+justificativa = """
+Candidato de custo baixo com suporte maduro a saida estruturada, que e o que \
+este projeto mais exige (ADR-0006). Mede se a barreira de schema se sustenta \
+num modelo pequeno.\
+"""
+janela_de_contexto = 128000
+usd_por_mtok_entrada = 0.0
+usd_por_mtok_saida = 0.0
+preco_consultado_em = 2026-10-16
+
+[[modelo]]
+slug = "google/gemini-2.0-flash-001"
+apelido = "Gemini 2.0 Flash"
+justificativa = """
+Terceiro fornecedor na disputa, para a comparacao nao ficar presa a duas \
+familias. Janela larga interessa as transcricoes de reuniao, que sao a entrada \
+mais longa do conjunto.\
+"""
+janela_de_contexto = 1000000
+usd_por_mtok_entrada = 0.0
+usd_por_mtok_saida = 0.0
+preco_consultado_em = 2026-10-16
+
+[[modelo]]
+slug = "meta-llama/llama-3.3-70b-instruct"
+apelido = "Llama 3.3 70B"
+justificativa = """
+Modelo aberto, incluido porque o documento de custos cita Llama como hipotese \
+de operacao barata. Serve para checar se essa hipotese resiste as metricas de \
+conformidade de schema e de alucinacao.\
+"""
+janela_de_contexto = 131072
+usd_por_mtok_entrada = 0.0
+usd_por_mtok_saida = 0.0
+preco_consultado_em = 2026-10-16
