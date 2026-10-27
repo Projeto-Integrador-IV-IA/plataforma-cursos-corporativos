@@ -324,6 +324,19 @@ class StructuringService:
                 elapsed_ms=_decorrido_ms(inicio),
             )
 
+        assert resultado is not None
+        # Provedor e modelo (slug completo) ficam no log para que a comparacao
+        # entre modelos (RNF29) possa ser reconstruida; sem texto do cliente (RNF10).
+        _logger.info(
+            "Resposta do provedor recebida (demand_id=%s, provider=%s, model=%s, "
+            "tentativas=%d, tokens=%d, latencia_ms=%.0f).",
+            demand.demand_id,
+            resultado.provider,
+            resultado.model,
+            tentativas,
+            resultado.usage.total_tokens,
+            resultado.latency_ms,
+        )
         return StructuringOutcome(
             demand=demand,
             attempts=tentativas,

@@ -18,7 +18,7 @@ from app.core.exceptions import (
     LLMTimeoutError,
     LLMUnavailableError,
 )
-from app.providers import CompletionParams, HttpLLMProvider
+from app.providers import CompletionParams, HttpLLMProvider, OpenRouterProvider
 from tests.conftest import MakeSettings
 
 RESPOSTA_OK = {
@@ -99,6 +99,54 @@ async def test_requisicao_usa_endpoint_modelo_e_chave_do_ambiente(
         {"role": "system", "content": "voce e um analista"},
         {"role": "user", "content": "prompt de extracao"},
     ]
+
+
+async def test_cabecalhos_de_atribuicao_so_saem_quando_configurados(
+    settings_http: Callable[..., object],
+) -> None:
+    capturadas: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        capturadas.append(request)
+        return httpx.Response(200, json=RESPOSTA_OK)
+
+    sem = _provider(settings_http(), handler)
+    com = _provider(
+        settings_http(llm_http_referer="https://plataforma.exemplo.invalid", llm_app_title="PI"),
+        handler,
+    )
+    await sem.complete("prompt")
+    await com.complete("prompt")
+
+    sem_atribuicao, com_atribuicao = capturadas
+    assert "http-referer" not in sem_atribuicao.headers
+    assert "x-title" not in sem_atribuicao.headers
+    assert com_atribuicao.headers["http-referer"] == "https://plataforma.exemplo.invalid"
+    assert com_atribuicao.headers["x-title"] == "PI"
+
+
+async def test_openrouter_usa_endpoint_padrao_e_devolve_o_slug_completo(
+    settings_http: Callable[..., object],
+) -> None:
+    capturadas: list[httpx.Request] = []
+    slug = "vendor/modelo-grande"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        capturadas.append(request)
+        return httpx.Response(200, json={**RESPOSTA_OK, "model": slug})
+
+    settings = settings_http(llm_provider="openrouter", llm_model=slug, llm_base_url=None)
+    provider = OpenRouterProvider(
+        settings,  # type: ignore[arg-type]
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    result = await provider.complete("prompt")
+
+    assert str(capturadas[0].url) == "https://openrouter.ai/api/v1/chat/completions"
+    assert json.loads(capturadas[0].content)["model"] == slug
+    assert result.provider == "openrouter"
+    assert result.model == slug
 
 
 async def test_caminho_do_endpoint_vem_da_configuracao(

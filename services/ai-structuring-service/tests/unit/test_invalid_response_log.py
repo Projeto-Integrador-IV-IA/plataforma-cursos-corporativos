@@ -130,7 +130,25 @@ async def test_resposta_valida_nao_gera_alerta(
         outcome = await servico.structure_course(DEMANDA)
 
     assert outcome.succeeded
-    assert caplog.records == []
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+
+
+async def test_resposta_valida_registra_provedor_e_modelo_sem_texto_do_cliente(
+    montar_servico: MontarServico,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Criterio de aceite do OpenRouter: o slug completo do modelo aparece no log."""
+
+    servico = montar_servico(MockLLMProvider().response_text, llm_model="vendor/modelo:free")
+
+    with caplog.at_level(logging.INFO, logger=LOGGER_DO_CASO_DE_USO):
+        await servico.structure_course(DEMANDA)
+
+    (registro,) = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+    assert "provider=mock" in registro
+    assert "model=vendor/modelo:free" in registro
+    assert "dem-2026-0042" in registro
+    assert not any(termo in registro for termo in TERMOS_DO_CLIENTE)
 
 
 # ----------------------------------------------------------------------
