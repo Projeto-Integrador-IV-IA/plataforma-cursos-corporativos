@@ -12,6 +12,7 @@ from app.api.v1.routes.clients import router as clients_router
 from app.api.v1.routes.demands import router as demands_router
 from app.api.v1.routes.pipeline import router as pipeline_router
 from app.api.v1.routes.raw_inputs import router as raw_inputs_router
+from app.api.v1.routes.segments import router as segments_router
 
 # Os routers de negocio entram aqui com
 # ``api_router.include_router(...)`` a medida que seu contrato for implementado.
@@ -22,3 +23,4 @@ api_router.include_router(clients_router)
 api_router.include_router(demands_router)
 api_router.include_router(pipeline_router)
 api_router.include_router(raw_inputs_router)
+api_router.include_router(segments_router)

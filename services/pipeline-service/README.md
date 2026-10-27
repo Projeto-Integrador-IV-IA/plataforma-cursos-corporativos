@@ -83,6 +83,17 @@ somente os campos enviados sao alterados. Enviar `null` limpa `description` ou
 `owner_id`, enquanto etapa, situacao, cliente, artefatos e datas anteriores sao
 preservados. Identificadores inexistentes retornam `DEMAND_NOT_FOUND` com HTTP 404.
 
+## Persistir e consultar trechos das fontes (issue #151)
+
+`POST /api/v1/raw-inputs/{id}/segments` recebe os UUIDs estaveis, a posicao e o
+conteudo gerados pelo `ingestion-service`. Reenviar o mesmo lote nao duplica
+linhas; reutilizar um UUID ou uma posicao com outro conteudo retorna conflito.
+
+`GET /api/v1/raw-inputs/{id}/segments` recupera os trechos de uma fonte pela
+ordem original. `GET /api/v1/demands/{id}/segments` reune os trechos de todas as
+fontes da demanda. A FK `source_segments.raw_input_id` usa `ON DELETE RESTRICT`,
+portanto um trecho orfao nao pode ser criado nem deixado para tras.
+
 ## Persistir resultados da IA (RF16.1 consolidado)
 
 `POST /api/v1/demands/{id}/artifacts` grava, na mesma transacao, a resposta

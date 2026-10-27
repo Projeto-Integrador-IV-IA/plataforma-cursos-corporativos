@@ -21,6 +21,7 @@ erDiagram
 
     CLIENTS ||--o{ DEMANDS : "possui"
     DEMANDS ||--o{ RAW_INPUTS : "recebe"
+    RAW_INPUTS ||--o{ SOURCE_SEGMENTS : "divide em"
     DEMANDS ||--o{ STAGE_TRANSITIONS : "registra"
     DEMANDS ||--o{ ARTIFACTS : "consolida"
     ARTIFACTS ||--o{ ARTIFACT_VERSIONS : "versiona"
@@ -54,6 +55,13 @@ erDiagram
         text source
         vector embedding "pgvector para busca semântica"
         timestamptz created_at
+    }
+
+    SOURCE_SEGMENTS {
+        uuid id PK
+        uuid raw_input_id FK
+        int position
+        text content
     }
 
     STAGE_TRANSITIONS {
@@ -101,6 +109,7 @@ erDiagram
 | `clients` | Empresa cliente. | RF01 |
 | `demands` | Negociação vinculada a um cliente; percorre o pipeline. | RF02, RF05 |
 | `raw_inputs` | Texto heterogêneo ou áudio transcrito como chegou, sua versão normalizada e vetor `pgvector`. | RF09, RF10, RF27 |
+| `source_segments` | Trechos citáveis, ordenados e vinculados obrigatoriamente a uma fonte bruta. | issue #151 |
 | `stage_transitions` | Histórico imutável de mudanças de etapa. | RF07 |
 | `artifacts` | Documento lógico atrelado à negociação. | RF15 |
 | `artifact_sources` | Fontes que originaram cada resultado da IA. | RF16.1 |
