@@ -5,7 +5,7 @@ nao contra si mesma: avanco so para a etapa seguinte, retrocesso para qualquer
 etapa anterior, nada para demanda encerrada.
 """
 
-from itertools import product
+from itertools import pairwise, product
 
 import pytest
 
@@ -176,7 +176,7 @@ def test_unknown_values_are_refused_with_a_typed_error_not_a_value_error() -> No
 # --- advance_target ----------------------------------------------------------
 
 
-@pytest.mark.parametrize(("current", "expected"), list(zip(STAGES, STAGES[1:], strict=False)))
+@pytest.mark.parametrize(("current", "expected"), list(pairwise(STAGES)))
 def test_advance_target_is_the_next_stage(current: PipelineStage, expected: PipelineStage) -> None:
     assert advance_target(current) is expected
 
