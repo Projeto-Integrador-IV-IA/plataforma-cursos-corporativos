@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import pytest
 import sqlalchemy as sa
+from app.models._append_only import AppendOnlyViolationError
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
@@ -15,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.domain.enums import ArtifactOrigin, ArtifactType
 from app.models import Artifact, ArtifactVersion
-from app.models._append_only import AppendOnlyViolationError
 from app.repositories.artifact_version_repository import ArtifactVersionRepository
 
 from ._schema import (
