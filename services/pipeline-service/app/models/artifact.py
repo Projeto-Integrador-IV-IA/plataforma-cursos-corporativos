@@ -80,7 +80,13 @@ class Artifact(Base):
 
 
 class ArtifactVersion(Base):
-    """Versao append-only do conteudo de um artefato."""
+    """Versao append-only do conteudo de um artefato; a vigente e a de maior numero.
+
+    Restaurar uma versao antiga cria uma versao nova com o conteudo dela, sem
+    alterar nenhuma existente. Essa versao nova e o proprio evento de restauracao:
+    ``restored_from_number`` diz qual voltou, ``author_id`` quem restaurou e
+    ``created_at`` quando.
+    """
 
     __tablename__ = "artifact_versions"
     __table_args__ = (
@@ -97,12 +103,23 @@ class ArtifactVersion(Base):
             f"origin IN ({sql_enum_values(ArtifactOrigin)})",
             name="origin",
         ),
+        sa.CheckConstraint(
+            "restored_from_number IS NULL OR restored_from_number < number",
+            name="restored_before_self",
+        ),
         sa.UniqueConstraint(
             "artifact_id",
             "number",
             name="uq_artifact_versions_number",
         ),
+        sa.ForeignKeyConstraint(
+            ["artifact_id", "restored_from_number"],
+            ["artifact_versions.artifact_id", "artifact_versions.number"],
+            name="fk_artifact_versions_restored_from",
+            ondelete="RESTRICT",
+        ),
         sa.Index("ix_artifact_versions_author_id", "author_id"),
+        sa.Index("ix_artifact_versions_restored_from", "artifact_id", "restored_from_number"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -137,6 +154,9 @@ class ArtifactVersion(Base):
         ),
         nullable=True,
     )
+    # Preenchido so na versao criada por restauracao: numero da versao restaurada,
+    # do mesmo artefato e sempre anterior (FK composta e CHECK na migration).
+    restored_from_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
         nullable=False,

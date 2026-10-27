@@ -24,7 +24,7 @@
  */
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
@@ -50,6 +50,7 @@ const PARAM = {
   page: 'pagina',
   status: 'situacao',
   client: 'cliente',
+  owner: 'responsavel',
 } as const;
 
 const GENERIC_FAILURE = 'Nao foi possivel carregar as demandas. Tente novamente.';
@@ -88,11 +89,15 @@ export function DemandList() {
 
   const statusFieldId = useId();
   const clientFieldId = useId();
+  const ownerFieldId = useId();
+  const ownersSeen = useRef(new Set<string>());
 
   const page = readPage(searchParams);
   const status = readStatus(searchParams);
   const clientId = readClient(searchParams);
-  const filtered = status !== undefined || clientId !== undefined;
+  const ownerId = searchParams.get(PARAM.owner) || undefined;
+
+  const filtered = status !== undefined || clientId !== undefined || ownerId !== undefined;
 
   const params = useMemo(
     () => ({
@@ -100,8 +105,9 @@ export function DemandList() {
       offset: (page - 1) * PAGE_SIZE,
       status,
       client_id: clientId,
+      owner_id: ownerId,
     }),
-    [page, status, clientId],
+    [page, status, clientId, ownerId],
   );
 
   const demands = useQuery({
@@ -149,12 +155,31 @@ export function DemandList() {
   }
 
   function clearFilters() {
-    changeSearch({ [PARAM.status]: '', [PARAM.client]: '', [PARAM.page]: '' });
+    changeSearch({
+      [PARAM.status]: '',
+      [PARAM.client]: '',
+      [PARAM.owner]: '',
+      [PARAM.page]: '',
+    });
   }
 
   const total = demands.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const items = demands.data?.items ?? [];
+
+  // Responsaveis ja vistos em qualquer pagina ou filtro anterior continuam na
+  // lista: recalcular so a partir de `items` faria a lista encolher para uma
+  // unica opcao assim que o operador filtrasse por um responsavel, porque a
+  // resposta filtrada so traz aquele id.
+  for (const item of items) {
+    if (item.owner_id) {
+      ownersSeen.current.add(item.owner_id);
+    }
+  }
+  if (ownerId) {
+    ownersSeen.current.add(ownerId);
+  }
+  const owners = Array.from(ownersSeen.current).sort();
 
   return (
     <section className="demand-list">
@@ -201,6 +226,30 @@ export function DemandList() {
             ))}
           </select>
         </div>
+        <div className="form__field">
+          <label className="form__label" htmlFor={ownerFieldId}>
+            Responsavel
+          </label>
+          <select
+            id={ownerFieldId}
+            className="form__control"
+            value={ownerId ?? ''}
+            onChange={(event) => handleFilterChange(PARAM.owner, event.target.value)}
+          >
+            <option value="">Todos</option>
+            {owners.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {filtered && (
+          <button type="button" className="button" onClick={clearFilters}>
+            Limpar filtros
+          </button>
+        )}
       </form>
 
       {clients.isError ? (
@@ -230,9 +279,6 @@ export function DemandList() {
           {filtered ? (
             <>
               <p>Nenhuma demanda atende a este filtro.</p>
-              <button type="button" className="button" onClick={clearFilters}>
-                Limpar filtros
-              </button>
             </>
           ) : (
             <p>

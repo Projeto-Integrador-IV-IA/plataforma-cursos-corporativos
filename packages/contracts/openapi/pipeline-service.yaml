@@ -1,8 +1,8 @@
 # =============================================================================
 # Contrato do pipeline-service (RNF02).
-# Estado: EM CONSTRUCAO - clientes (RF01), o contexto de demandas (RF02) e a
-# persistencia das fontes brutas (RF09) estao implementados e verificados contra o
-# openapi.json do servico; os demais caminhos vem conforme os cards avancam.
+# Estado: EM CONSTRUCAO - clientes (RF01), o contexto de demandas (RF02), a
+# persistencia das fontes brutas (RF09) e dos trechos (issue #151) estao
+# implementados e verificados contra o openapi.json do servico.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -29,6 +29,8 @@ tags:
     description: |
       Fontes brutas de uma demanda (RF09). Rota interna: quem capta e o
       ingestion-service, que persiste aqui antes de normalizar ou chamar a IA.
+  - name: source-segments
+    description: Trechos citaveis persistidos e recuperaveis por fonte e demanda.
 
 security:
   - bearerAuth: []
@@ -51,6 +53,64 @@ paths:
                   type: string
                 type: object
                 title: Response Health Health Get
+  /api/v1/artifacts/{artifact_id}/versions/{number}/restore:
+    post:
+      tags:
+      - artifacts
+      summary: Restaurar uma versao anterior do artefato
+      description: Cria uma versao nova, vigente, com o conteudo da versao escolhida. Nenhuma versao
+        existente e alterada, entao o historico intermediario continua consultavel. A versao nova
+        registra qual versao foi restaurada e o autor, lido do cabecalho X-User-ID.
+      operationId: restore_artifact_version_api_v1_artifacts__artifact_id__versions__number__restore_post
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      - name: number
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          description: Numero da versao a restaurar.
+          title: Number
+        description: Numero da versao a restaurar.
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactVersionRead'
+        '404':
+          description: Artefato, versao ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '409':
+          description: A versao escolhida ja e a vigente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Identificador ou numero de versao invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
   /api/v1/demands/{demand_id}/artifacts:
     post:
       tags:
@@ -194,6 +254,15 @@ paths:
           default: 20
           title: Size
         description: Itens por pagina.
+      - name: include_inactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Inclui clientes inativos quando verdadeiro.
+          default: false
+          title: Include Inactive
+        description: Inclui clientes inativos quando verdadeiro.
       responses:
         '200':
           description: Successful Response
@@ -283,6 +352,74 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Dados de entrada invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/clients/{client_id}/deactivate:
+    post:
+      tags:
+      - clients
+      summary: Inativar cliente
+      description: Inativa o cliente sem excluir seus dados nem o historico relacionado.
+      operationId: deactivate_client_api_v1_clients__client_id__deactivate_post
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Client Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRead'
+        '404':
+          description: Cliente inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/clients/{client_id}/reactivate:
+    post:
+      tags:
+      - clients
+      summary: Reativar cliente
+      description: Reativa o cliente preservando seus dados e o historico relacionado.
+      operationId: reactivate_client_api_v1_clients__client_id__reactivate_post
+      parameters:
+      - name: client_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Client Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRead'
+        '404':
+          description: Cliente inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador invalido.
           content:
             application/json:
               schema:
@@ -783,6 +920,128 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}/segments:
+    post:
+      tags:
+      - source-segments
+      summary: Persistir trechos de uma fonte
+      description: Persiste atomicamente os trechos identificados pelo ingestion-service. Repetir o mesmo
+        lote e idempotente; IDs ou posicoes divergentes sao recusados.
+      operationId: persist_source_segments_api_v1_raw_inputs__raw_input_id__segments_post
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceSegmentBatchCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceSegmentRead'
+                title: Response Persist Source Segments Api V1 Raw Inputs  Raw Input Id  Segments Post
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '409':
+          description: ID ou posicao ja vinculada a outro trecho.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '422':
+          description: Lote ou identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+    get:
+      tags:
+      - source-segments
+      summary: Consultar trechos por fonte
+      operationId: list_source_segments_api_v1_raw_inputs__raw_input_id__segments_get
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceSegmentRead'
+                title: Response List Source Segments Api V1 Raw Inputs  Raw Input Id  Segments Get
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+  /api/v1/demands/{demand_id}/segments:
+    get:
+      tags:
+      - source-segments
+      summary: Consultar trechos por demanda
+      description: Recupera, em ordem deterministica, os trechos de todas as fontes da demanda.
+      operationId: list_demand_segments_api_v1_demands__demand_id__segments_get
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceSegmentRead'
+                title: Response List Demand Segments Api V1 Demands  Demand Id  Segments Get
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceSegmentErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -953,7 +1212,9 @@ components:
           type: integer
           title: Number
         raw_output:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Raw Output
         structured_content:
           additionalProperties: true
@@ -967,6 +1228,17 @@ components:
             type: object
           - type: 'null'
           title: Ai Metadata
+        author_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Author Id
+        restored_from_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Restored From Number
         created_at:
           type: string
           format: date-time
@@ -979,9 +1251,13 @@ components:
       - structured_content
       - origin
       - ai_metadata
+      - author_id
+      - restored_from_number
       - created_at
       title: ArtifactVersionRead
-      description: Primeira versao atomica do resultado da IA.
+      description: Versao de um artefato; a vigente e a de maior numero. Nas versoes humanas
+        raw_output e ai_metadata sao nulos, e restored_from_number so vem preenchido na versao criada
+        por restauracao, que e o registro do evento.
     ClientCreate:
       properties:
         name:
@@ -1422,6 +1698,10 @@ components:
           type: string
           format: uuid
           title: Id
+        received_order:
+          type: integer
+          minimum: 1.0
+          title: Received Order
         source:
           $ref: '#/components/schemas/RawInputSource'
         original_content:
@@ -1441,13 +1721,15 @@ components:
       type: object
       required:
       - id
+      - received_order
       - source
       - original_content
       - truncated
       - author_id
       - created_at
       title: DemandRawInputRead
-      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se perdeu.
+      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se
+        perdeu.
 
 
         O conteudo original entra por inteiro: preserva-lo e o proprio requisito
@@ -1716,6 +1998,102 @@ components:
         apenas as que vieram em ``items``: a coluna precisa mostrar quantas existem
 
         mesmo quando o recorte nao trouxe todas.'
+    SourceSegmentBatchCreate:
+      properties:
+        segments:
+          items:
+            $ref: '#/components/schemas/SourceSegmentCreate'
+          type: array
+          minItems: 1
+          title: Segments
+      additionalProperties: false
+      type: object
+      required:
+      - segments
+      title: SourceSegmentBatchCreate
+      description: Lote atomico dos trechos gerados para uma unica fonte.
+    SourceSegmentCreate:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        position:
+          type: integer
+          minimum: 1.0
+          title: Position
+        content:
+          type: string
+          minLength: 1
+          title: Content
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - position
+      - content
+      title: SourceSegmentCreate
+      description: Trecho identificado de forma estavel pelo ingestion-service.
+    SourceSegmentErrorDetails:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties:
+            type: string
+          type: object
+          title: Details
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      title: SourceSegmentErrorDetails
+    SourceSegmentErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/SourceSegmentErrorDetails'
+      type: object
+      required:
+      - error
+      title: SourceSegmentErrorResponse
+    SourceSegmentRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        raw_input_id:
+          type: string
+          format: uuid
+          title: Raw Input Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        position:
+          type: integer
+          title: Position
+        content:
+          type: string
+          title: Content
+      type: object
+      required:
+      - id
+      - raw_input_id
+      - demand_id
+      - position
+      - content
+      title: SourceSegmentRead
+      description: Trecho recuperavel com os vinculos de fonte e demanda.
     RawInputCreate:
       properties:
         original_content:
@@ -1783,6 +2161,10 @@ components:
           type: string
           format: uuid
           title: Demand Id
+        received_order:
+          type: integer
+          minimum: 1.0
+          title: Received Order
         original_content:
           type: string
           title: Original Content
@@ -1808,6 +2190,7 @@ components:
       required:
       - id
       - demand_id
+      - received_order
       - original_content
       - normalized_content
       - source

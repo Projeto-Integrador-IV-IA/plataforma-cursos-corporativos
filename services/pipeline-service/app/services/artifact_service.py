@@ -1,6 +1,7 @@
 """Caso de uso atomico de vinculacao do resultado da IA (RF16.1 consolidado)."""
 
 import sqlite3
+from copy import deepcopy
 from uuid import UUID, uuid4
 
 from sqlalchemy.exc import IntegrityError
@@ -9,7 +10,9 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictError, NotFoundError
 from app.domain.enums import ArtifactOrigin
 from app.models import Artifact, ArtifactSource, ArtifactVersion, Demand
+from app.models.user import User
 from app.repositories.artifact_repository import ArtifactRepository
+from app.repositories.artifact_version_repository import ArtifactVersionRepository
 from app.schemas.artifact import (
     ArtifactRead,
     ArtifactResultCreate,
@@ -22,6 +25,7 @@ class ArtifactService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.repository = ArtifactRepository(session)
+        self.versions = ArtifactVersionRepository(session)
 
     def create_result(self, demand_id: UUID, data: ArtifactResultCreate) -> ArtifactRead:
         if self.session.get(Demand, demand_id) is None:
@@ -100,6 +104,62 @@ class ArtifactService:
                 details={"demand_id": str(demand_id)},
             )
         return [self._to_read(artifact) for artifact in self.repository.list_by_demand(demand_id)]
+
+    def restore_version(
+        self,
+        artifact_id: UUID,
+        number: int,
+        author_id: UUID,
+    ) -> ArtifactVersionRead:
+        """Restaura a versao ``number`` criando uma versao nova com o conteudo dela (RF08).
+
+        Nao desfaz nada: nenhuma versao existente e alterada, e o caminho
+        percorrido no meio continua consultavel. A versao nova e a vigente, tem
+        origem humana, e guarda em ``restored_from_number`` qual voltou - ela e o
+        evento de restauracao, com autor e instante. So faz ``flush``: o commit e
+        da sessao da requisicao.
+        """
+
+        artifact = self.versions.get_artifact_for_update(artifact_id)
+        if artifact is None:
+            raise NotFoundError(
+                code="ARTIFACT_NOT_FOUND",
+                message="Artefato nao encontrado.",
+                details={"artifact_id": str(artifact_id)},
+            )
+        if self.session.get(User, author_id) is None:
+            raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
+
+        chosen = self.versions.get(artifact_id, number)
+        if chosen is None:
+            raise NotFoundError(
+                code="ARTIFACT_VERSION_NOT_FOUND",
+                message=f"O artefato nao tem a versao {number}.",
+                details={"artifact_id": str(artifact_id), "number": str(number)},
+            )
+
+        current = self.versions.latest_number(artifact_id)
+        if number == current:
+            raise ConflictError(
+                code="ARTIFACT_VERSION_ALREADY_CURRENT",
+                message=f"A versao {number} ja e a vigente; nao ha o que restaurar.",
+                details={"artifact_id": str(artifact_id), "number": str(number)},
+            )
+
+        restored = self.versions.add(
+            ArtifactVersion(
+                artifact_id=artifact_id,
+                number=current + 1,
+                # Copia, nao referencia: a versao nova nao pode compartilhar o
+                # dict com a restaurada. Sem bruto nem metadados de IA - quem
+                # restaurou e uma pessoa; a origem na versao restaurada segue la.
+                content=deepcopy(chosen.content),
+                origin=ArtifactOrigin.HUMANO.value,
+                author_id=author_id,
+                restored_from_number=number,
+            )
+        )
+        return ArtifactVersionRead.model_validate(restored)
 
     @staticmethod
     def _to_read(artifact: Artifact) -> ArtifactRead:

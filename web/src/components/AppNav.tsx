@@ -17,6 +17,7 @@ interface NavItem {
 
 const NAV_ITEMS: readonly NavItem[] = [
   { to: PATHS.clients, label: 'Clientes' },
+  { to: PATHS.pipeline, label: 'Pipeline' },
   { to: PATHS.demands, label: 'Demandas' },
 ];
 

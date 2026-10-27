@@ -65,16 +65,31 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 
 ## `raw_inputs` — demanda bruta (RF09, RF10)
 
+## `raw_inputs` — demanda bruta (RF09, RF10)
+
 | Campo | Tipo | Nulo | Descrição |
 |---|---|---|---|
 | `id` | uuid PK | não | |
 | `demand_id` | uuid FK → `demands.id` | não | |
 | `original_content` | text | **não** | Texto exatamente como chegou. **Nunca alterado** — é a garantia de RNF05. |
+| `received_order` | integer | não | Ordem de recebimento positiva e única por demanda (RF10, #32); atribuída no commit do original. |
 | `normalized_content` | text | sim | Resultado de RF10. Nulo enquanto não normalizado. |
 | `source` | text | não | `EMAIL`, `TRANSCRICAO`, `MENSAGENS`, `ANOTACAO`, `OUTRO`. |
+| `embedding` | vector | sim | Vetor semântico (`pgvector`) para busca por similaridade (ADR-0007). |
 | `truncated` | boolean | não | Indica corte por limite de tamanho na normalização. |
 | `author_id` | uuid FK → `users.id` | não | Quem registrou. |
 | `created_at` | timestamptz | não | |
+
+---
+
+## `source_segments` — trechos citáveis das fontes (issue #151)
+
+| Campo | Tipo | Nulo | Descrição |
+|---|---|---|---|
+| `id` | uuid PK | não | Identificador estável produzido na segmentação da fonte. |
+| `raw_input_id` | uuid FK → `raw_inputs.id` | **não** | Fonte obrigatória; `ON DELETE RESTRICT` impede trecho órfão. |
+| `position` | integer | **não** | Ordem iniciada em 1, única dentro da fonte. |
+| `content` | text | **não** | Conteúdo citável; vazio ou apenas espaços é recusado pelo banco. |
 
 ---
 
