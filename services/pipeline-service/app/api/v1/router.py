@@ -10,15 +10,23 @@ from fastapi import APIRouter
 from app.api.v1.routes.artifacts import router as artifacts_router
 from app.api.v1.routes.clients import router as clients_router
 from app.api.v1.routes.demands import router as demands_router
+from app.api.v1.routes.pipeline import demands_router as pipeline_demands_router
 from app.api.v1.routes.pipeline import router as pipeline_router
 from app.api.v1.routes.raw_inputs import router as raw_inputs_router
 
 # Os routers de negocio entram aqui com
 # ``api_router.include_router(...)`` a medida que seu contrato for implementado.
 # O health fica fora do prefixo versionado porque e infraestrutura, nao contrato.
+#
+# ``pipeline_demands_router`` e ``demands_router`` tem o mesmo prefixo
+# (``/demands``) de proposito: o primeiro reune as rotas de movimentacao
+# (avancar, consultar a trilha) que vivem em ``routes/pipeline.py`` junto da
+# maquina de estados que as valida; o FastAPI combina os dois sem conflito,
+# desde que os caminhos nao se repitam.
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(artifacts_router)
 api_router.include_router(clients_router)
 api_router.include_router(demands_router)
+api_router.include_router(pipeline_demands_router)
 api_router.include_router(pipeline_router)
 api_router.include_router(raw_inputs_router)
