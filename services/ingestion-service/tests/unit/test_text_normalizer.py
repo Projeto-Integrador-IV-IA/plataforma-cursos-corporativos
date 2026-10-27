@@ -104,3 +104,27 @@ def test_equal_text_from_different_sources_does_not_share_segment_ids() -> None:
     second = segment_text(text, SourceKind.OUTRO, source_id=uuid4())
 
     assert [segment.id for segment in first] != [segment.id for segment in second]
+
+
+def test_inserting_a_line_shifts_the_id_of_untouched_segments_below_it() -> None:
+    """Documenta uma limitacao conhecida: a posicao entra no hash do trecho.
+
+    Reprocessar a mesma fonte sem alteracoes preserva os IDs (ver teste acima),
+    mas inserir uma linha no topo da fonte realinha a posicao de todos os
+    trechos seguintes e, como a posicao compoe o UUIDv5, o identificador deles
+    muda mesmo que o texto do trecho nao tenha sido alterado. Se os IDs forem
+    usados como referencia persistente para citacoes, uma pequena edicao no
+    inicio da fonte pode invalidar silenciosamente citacoes de trechos que nao
+    mudaram.
+    """
+    source_id = uuid4()
+    original = "Tema: LGPD\nPublico: gestores\nCarga horaria: 4 horas"
+    edited = "Observacao adicionada\n" + original
+
+    before = segment_text(original, SourceKind.OUTRO, source_id=source_id)
+    after = segment_text(edited, SourceKind.OUTRO, source_id=source_id)
+
+    unchanged_segment_after = next(s for s in after if s.text == "Tema: LGPD")
+    unchanged_segment_before = next(s for s in before if s.text == "Tema: LGPD")
+
+    assert unchanged_segment_after.id != unchanged_segment_before.id
