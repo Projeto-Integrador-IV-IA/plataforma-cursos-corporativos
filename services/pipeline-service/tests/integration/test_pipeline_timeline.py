@@ -1,5 +1,6 @@
 """Linha do tempo de etapas da demanda (RF07): toda movimentacao aparece nela."""
 
+import itertools
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -56,7 +57,7 @@ def test_every_advance_shows_up_in_the_timeline_with_origin_destination_author_a
     assert body["total"] == 3
     # Os tres avancos podem cair no mesmo segundo no SQLite: compara como conjunto.
     assert {(item["from_stage"], item["to_stage"]) for item in body["items"]} == set(
-        zip(ORDER, ORDER[1:4], strict=True)
+        itertools.pairwise(ORDER[:4])
     )
     for item in body["items"]:
         assert item["demand_id"] == str(demand_id)

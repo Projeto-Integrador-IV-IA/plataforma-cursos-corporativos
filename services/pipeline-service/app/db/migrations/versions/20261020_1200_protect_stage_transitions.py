@@ -1,7 +1,7 @@
 """Torna a trilha de etapas append-only tambem no banco (RNF09, RF07).
 
 Revision ID: 20261020_1200
-Revises: 20260920_1200
+Revises: 20261019_1200
 
 O repositorio so insere e o modelo recusa alteracao, mas nada disso impede um
 UPDATE ou DELETE feito por fora do ORM. Aqui o proprio banco recusa: gatilhos
@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "20261020_1200"
-down_revision: str | None = "20260920_1200"
+down_revision: str | None = "20261019_1200"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
