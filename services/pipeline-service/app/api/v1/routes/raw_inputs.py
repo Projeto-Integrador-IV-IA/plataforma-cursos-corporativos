@@ -52,6 +52,32 @@ def create_raw_input(
     return RawInputRead.model_validate(raw_input)
 
 
+@router.get(
+    "/raw-inputs/{raw_input_id}",
+    response_model=RawInputRead,
+    summary="Consultar fonte e proveniencia",
+    description=(
+        "Recupera o conteudo original e a copia normalizada com o canal de origem, "
+        "o operador que captou a fonte e a data de recebimento registrada pelo banco."
+    ),
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": RawInputErrorResponse,
+            "description": "Fonte bruta inexistente.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": RawInputErrorResponse,
+            "description": "Identificador invalido.",
+        },
+    },
+)
+def get_raw_input(
+    raw_input_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+) -> RawInputRead:
+    return RawInputRead.model_validate(RawInputService(session).get(raw_input_id))
+
+
 @router.patch(
     "/raw-inputs/{raw_input_id}/normalization",
     response_model=RawInputRead,

@@ -1,0 +1,6 @@
+[00:03] Entao, a gente ta montando a area de dados aqui e os analistas vieram tudo de outras areas.
+[00:21] Sao oito pessoas, nenhuma com base de programacao.
+[00:40] O que a gente precisa e Python voltado pra analise, bem pratico, mexendo em planilha de verdade.
+[01:05] Falei com a diretoria e eles toparam 40 horas, podendo quebrar em modulos.
+[01:30] Ah, e tem que ser remoto, porque metade do time ta em outra cidade.
+[01:52] Uma coisa: em outro momento voces falaram que o time tinha doze pessoas. Hoje sao oito.

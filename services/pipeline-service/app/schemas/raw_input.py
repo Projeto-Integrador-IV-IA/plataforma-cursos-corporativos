@@ -31,6 +31,7 @@ class RawInputRead(BaseModel):
 
     id: UUID
     demand_id: UUID
+    received_order: int = Field(ge=1)
     original_content: str
     normalized_content: str | None
     source: RawInputSource

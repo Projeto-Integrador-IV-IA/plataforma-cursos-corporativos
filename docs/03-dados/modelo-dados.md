@@ -21,6 +21,7 @@ erDiagram
 
     CLIENTS ||--o{ DEMANDS : "possui"
     DEMANDS ||--o{ RAW_INPUTS : "recebe"
+    RAW_INPUTS ||--o{ SOURCE_SEGMENTS : "divide em"
     DEMANDS ||--o{ STAGE_TRANSITIONS : "registra"
     DEMANDS ||--o{ ARTIFACTS : "consolida"
     ARTIFACTS ||--o{ ARTIFACT_VERSIONS : "versiona"
@@ -49,11 +50,19 @@ erDiagram
     RAW_INPUTS {
         uuid id PK
         uuid demand_id FK
+        int received_order "positivo e unico por demanda"
         text original_content
         text normalized_content
         text source
         vector embedding "pgvector para busca semântica"
         timestamptz created_at
+    }
+
+    SOURCE_SEGMENTS {
+        uuid id PK
+        uuid raw_input_id FK
+        int position
+        text content
     }
 
     STAGE_TRANSITIONS {
@@ -101,6 +110,7 @@ erDiagram
 | `clients` | Empresa cliente. | RF01 |
 | `demands` | Negociação vinculada a um cliente; percorre o pipeline. | RF02, RF05 |
 | `raw_inputs` | Texto heterogêneo ou áudio transcrito como chegou, sua versão normalizada e vetor `pgvector`. | RF09, RF10, RF27 |
+| `source_segments` | Trechos citáveis, ordenados e vinculados obrigatoriamente a uma fonte bruta. | issue #151 |
 | `stage_transitions` | Histórico imutável de mudanças de etapa. | RF07 |
 | `artifacts` | Documento lógico atrelado à negociação. | RF15 |
 | `artifact_sources` | Fontes que originaram cada resultado da IA. | RF16.1 |
@@ -175,6 +185,7 @@ Demanda com status diferente de `ABERTA` não muda de etapa.
 | `stage_transitions` | `(demand_id, occurred_at)` | Histórico cronológico de RF04 e RF07 |
 | `artifact_versions` | `(artifact_id, number)` único | Garante numeração sequencial sem lacuna (RF08) |
 | `raw_inputs` | `(demand_id, created_at)` | Recuperação do bruto |
+| `raw_inputs` | `(demand_id, received_order)` único | Ordem de recebimento sem desempate por UUID (RF10, #32) |
 | `raw_inputs` | `embedding vector_cosine_ops` (HNSW/IVFFlat) | Busca vetorial semântica via `pgvector` (ADR-0007) |
 | `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) — **pendente** |
 

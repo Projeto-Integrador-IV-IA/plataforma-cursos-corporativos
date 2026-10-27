@@ -3,6 +3,7 @@
 import sqlite3
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,8 +18,25 @@ class RawInputService:
         self.session = session
         self.repository = RawInputRepository(session)
 
+    def get(self, raw_input_id: UUID) -> RawInput:
+        """Recupera a fonte com a proveniencia persistida, sem refazer inferencias."""
+
+        raw_input = self.session.get(RawInput, raw_input_id)
+        if raw_input is None:
+            raise NotFoundError(
+                code="RAW_INPUT_NOT_FOUND",
+                message="Fonte bruta nao encontrada.",
+                details={"raw_input_id": str(raw_input_id)},
+            )
+        return raw_input
+
     def create(self, demand_id: UUID, author_id: UUID, data: RawInputCreate) -> RawInput:
-        if self.session.get(Demand, demand_id) is None:
+        # Serializa captacoes da mesma demanda ate o commit do original.
+        # O bloqueio no pai tambem protege a primeira fonte, quando MAX e nulo.
+        demand = self.session.scalar(
+            sa.select(Demand).where(Demand.id == demand_id).with_for_update()
+        )
+        if demand is None:
             raise NotFoundError(
                 code="DEMAND_NOT_FOUND",
                 message="Demanda nao encontrada.",
@@ -36,6 +54,7 @@ class RawInputService:
             author_id=author_id,
             original_content=data.original_content,
             source=data.source.value,
+            received_order=self.repository.next_received_order(demand_id),
         )
         try:
             return self.repository.create(raw_input)
@@ -57,11 +76,5 @@ class RawInputService:
     def normalize(self, raw_input_id: UUID, data: RawInputNormalization) -> RawInput:
         """Preenche somente o campo normalizado e conserva o original imutavel."""
 
-        raw_input = self.session.get(RawInput, raw_input_id)
-        if raw_input is None:
-            raise NotFoundError(
-                code="RAW_INPUT_NOT_FOUND",
-                message="Fonte bruta nao encontrada.",
-                details={"raw_input_id": str(raw_input_id)},
-            )
+        raw_input = self.get(raw_input_id)
         return self.repository.update_normalization(raw_input, data.normalized_content)

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.domain.enums import PipelineStage, sql_enum_values
+from app.models._append_only import forbid_changes
 from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
@@ -17,7 +18,13 @@ if TYPE_CHECKING:
 
 
 class StageTransition(Base):
-    """Evento append-only que preserva origem, destino, autor e instante."""
+    """Evento append-only que preserva origem, destino, autor e instante.
+
+    A garantia tem duas camadas. Aqui, os eventos ``before_update`` e
+    ``before_delete`` (no fim do modulo) recusam a operacao pelo ORM, com erro
+    claro. No banco, os gatilhos da migration ``20261020_1200`` recusam qualquer
+    UPDATE ou DELETE, inclusive os em massa que o ORM nao intercepta.
+    """
 
     __tablename__ = "stage_transitions"
     __table_args__ = (
@@ -76,3 +83,6 @@ class StageTransition(Base):
 
     demand: Mapped["Demand"] = relationship(back_populates="stage_transitions")
     author: Mapped["User"] = relationship(back_populates="stage_transitions")
+
+
+forbid_changes(StageTransition, "stage_transitions")

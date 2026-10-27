@@ -48,16 +48,26 @@ class ArtifactSourceRead(BaseModel):
 
 
 class ArtifactVersionRead(BaseModel):
-    """Primeira versao atomica do resultado da IA."""
+    """Versao de um artefato; a vigente e a de maior numero.
+
+    ``previous_number`` liga a versao a sua antecessora e e nulo so na primeira.
+    ``raw_output`` e ``ai_metadata`` sao nulos nas versoes humanas (edicao ou
+    restauracao): nao ha saida bruta de modelo. ``restored_from_number`` so vem
+    preenchido na versao criada por restauracao, e ela e o registro do evento -
+    qual versao voltou (este campo), quem restaurou (``author_id``) e quando.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     number: int
-    raw_output: str = Field(validation_alias="raw_content")
+    previous_number: int | None
+    raw_output: str | None = Field(validation_alias="raw_content")
     structured_content: dict[str, Any] = Field(validation_alias="content")
     origin: ArtifactOrigin
     ai_metadata: dict[str, Any] | None
+    author_id: UUID | None
+    restored_from_number: int | None
     created_at: datetime
 
 
