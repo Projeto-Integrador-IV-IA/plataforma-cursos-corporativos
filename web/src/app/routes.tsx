@@ -6,6 +6,7 @@
  *   /clientes                     lista de clientes (RF01, RF03)
  *   /clientes/novo                cadastro de empresa cliente (RF01)
  *   /clientes/:clientId           detalhe do cliente
+ *   /pipeline                     quadro das demandas por etapa (RF05)
  *   /demandas                     lista com filtro por status, cliente, periodo (RF02, RF03)
  *   /demandas/nova                abertura de negociacao vinculada a cliente (RF02)
  *   /demandas/:demandId           detalhe: pipeline, historico e artefatos (RF04, RF05, RF06)
@@ -37,6 +38,7 @@ import { DemandNewPage } from '@/pages/demand-new/DemandNewPage';
 import { DemandsPage } from '@/pages/demands/DemandsPage';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
+import { PipelinePage } from '@/pages/pipeline/PipelinePage';
 
 export const routes: RouteObject[] = [
   {
@@ -51,6 +53,7 @@ export const routes: RouteObject[] = [
       { path: PATHS.clients, element: <ClientsPage /> },
       { path: PATHS.clientNew, element: <ClientNewPage /> },
       { path: PATHS.clientDetail, element: <ClientDetailPage /> },
+      { path: PATHS.pipeline, element: <PipelinePage /> },
       { path: PATHS.demands, element: <DemandsPage /> },
       { path: PATHS.demandNew, element: <DemandNewPage /> },
       { path: PATHS.demandDetail, element: <DemandDetailPage /> },

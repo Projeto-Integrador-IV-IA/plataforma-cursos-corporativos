@@ -1,4 +1,4 @@
-"""Casos de uso de cadastro, consulta e edicao de clientes (RF01)."""
+"""Casos de uso de cadastro, consulta, edicao e situacao de clientes (RF01)."""
 
 from uuid import UUID
 
@@ -33,8 +33,12 @@ class ClientService:
             )
         return client
 
-    def list(self, *, page: int, size: int) -> ClientPage:
-        clients, total = self.repository.list(page=page, size=size)
+    def list(self, *, page: int, size: int, include_inactive: bool = False) -> ClientPage:
+        clients, total = self.repository.list(
+            page=page,
+            size=size,
+            include_inactive=include_inactive,
+        )
         return ClientPage(
             items=[ClientRead.model_validate(client) for client in clients],
             total=total,
@@ -58,6 +62,12 @@ class ClientService:
         except IntegrityError as exc:
             self.repository.rollback()
             raise self._cnpj_conflict() from exc
+
+    def deactivate(self, client_id: UUID) -> Client:
+        return self.repository.set_active(self.get(client_id), False)
+
+    def reactivate(self, client_id: UUID) -> Client:
+        return self.repository.set_active(self.get(client_id), True)
 
     @staticmethod
     def _cnpj_conflict() -> ConflictError:

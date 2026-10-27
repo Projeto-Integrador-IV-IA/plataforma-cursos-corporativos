@@ -17,6 +17,22 @@ class SourceKind(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class SourceSegment:
+    """Trecho citavel, ordenado e ligado de forma inequivoca a uma fonte."""
+
+    id: UUID
+    source_id: UUID
+    position: int
+    text: str
+
+    def __post_init__(self) -> None:
+        if self.position < 1:
+            raise ValueError("position must start at 1")
+        if not self.text.strip():
+            raise ValueError("text must not be blank")
+
+
+@dataclass(frozen=True, slots=True)
 class RawDemand:
     """Conteudo imutavel exatamente como recebido do operador."""
 

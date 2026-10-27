@@ -72,3 +72,31 @@ export function updateClient(
 ): Promise<Client> {
   return api.patch<Client, ClientUpdate>(`${RESOURCE}/${clientId}`, payload, context);
 }
+
+/**
+ * Inativa um cliente sem excluir seus dados ou historico (RF01.3).
+ */
+export function deactivateClient(
+  clientId: Uuid,
+  context: RequestContext = {},
+): Promise<Client> {
+  return api.post<Client, undefined>(
+    `${RESOURCE}/${clientId}/deactivate`,
+    undefined,
+    context,
+  );
+}
+
+/**
+ * Reativa um cliente preservando seus dados e historico (RF01.3).
+ */
+export function reactivateClient(
+  clientId: Uuid,
+  context: RequestContext = {},
+): Promise<Client> {
+  return api.post<Client, undefined>(
+    `${RESOURCE}/${clientId}/reactivate`,
+    undefined,
+    context,
+  );
+}

@@ -79,9 +79,11 @@ class HttpLLMProvider(LLMProvider):
     """
 
     name: ClassVar[str] = "http"
+    #: Endpoint usado quando ``LLM_BASE_URL`` esta vazia; ``None`` torna a variavel obrigatoria.
+    default_base_url: ClassVar[str | None] = None
 
     def __init__(self, settings: Settings, client: httpx.AsyncClient | None = None) -> None:
-        if settings.llm_base_url is None:
+        if settings.llm_base_url is None and self.default_base_url is None:
             raise ValueError("LLM_BASE_URL e obrigatoria para o provedor HTTP")
         self._settings = settings
         self._client = client
@@ -146,12 +148,20 @@ class HttpLLMProvider(LLMProvider):
         headers = {"content-type": "application/json"}
         if self._settings.llm_api_key is not None:
             headers["authorization"] = f"Bearer {self._settings.llm_api_key.get_secret_value()}"
+        # Atribuicao opcional pedida pelo OpenRouter; inofensiva nos demais fornecedores.
+        if self._settings.llm_http_referer is not None:
+            headers["http-referer"] = self._settings.llm_http_referer
+        if self._settings.llm_app_title is not None:
+            headers["x-title"] = self._settings.llm_app_title
         return headers
+
+    def _base_url(self) -> str:
+        return self._settings.llm_base_url or self.default_base_url or ""
 
     def _obter_client(self, timeout: float) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(
-                base_url=self._settings.llm_base_url or "",
+                base_url=self._base_url(),
                 timeout=timeout,
             )
             self._client_proprio = True
@@ -186,7 +196,7 @@ class HttpLLMProvider(LLMProvider):
         raise self._erro_de_status(resposta, payload["model"])
 
     def _url_completions(self) -> str:
-        base = (self._settings.llm_base_url or "").rstrip("/")
+        base = self._base_url().rstrip("/")
         caminho = self._settings.llm_completions_path
         return f"{base}/{caminho.lstrip('/')}"
 
@@ -270,6 +280,20 @@ class HttpLLMProvider(LLMProvider):
             latency_ms=latency_ms,
             finish_reason=escolha.get("finish_reason"),
         )
+
+
+class OpenRouterProvider(HttpLLMProvider):
+    """``HttpLLMProvider`` com o nome e o endpoint do OpenRouter.
+
+    Nao ha cliente novo: o OpenRouter fala o mesmo chat completions. A classe
+    existe so para que ``LLM_PROVIDER=openrouter`` apareca como ``provider`` no
+    log e no resultado, e para dispensar ``LLM_BASE_URL``. O slug completo do
+    modelo (``vendor/modelo``) em ``LLM_MODEL`` segue direto para o payload e
+    para ``CompletionResult.model``.
+    """
+
+    name: ClassVar[str] = "openrouter"
+    default_base_url: ClassVar[str | None] = "https://openrouter.ai/api/v1"
 
 
 def _retry_after(resposta: httpx.Response) -> float | None:
