@@ -3,6 +3,7 @@
 import sqlite3
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,12 @@ class RawInputService:
         self.repository = RawInputRepository(session)
 
     def create(self, demand_id: UUID, author_id: UUID, data: RawInputCreate) -> RawInput:
-        if self.session.get(Demand, demand_id) is None:
+        # Serializa captacoes da mesma demanda ate o commit do original.
+        # O bloqueio no pai tambem protege a primeira fonte, quando MAX e nulo.
+        demand = self.session.scalar(
+            sa.select(Demand).where(Demand.id == demand_id).with_for_update()
+        )
+        if demand is None:
             raise NotFoundError(
                 code="DEMAND_NOT_FOUND",
                 message="Demanda nao encontrada.",
@@ -36,6 +42,7 @@ class RawInputService:
             author_id=author_id,
             original_content=data.original_content,
             source=data.source.value,
+            received_order=self.repository.next_received_order(demand_id),
         )
         try:
             return self.repository.create(raw_input)

@@ -1698,6 +1698,10 @@ components:
           type: string
           format: uuid
           title: Id
+        received_order:
+          type: integer
+          minimum: 1.0
+          title: Received Order
         source:
           $ref: '#/components/schemas/RawInputSource'
         original_content:
@@ -1717,13 +1721,15 @@ components:
       type: object
       required:
       - id
+      - received_order
       - source
       - original_content
       - truncated
       - author_id
       - created_at
       title: DemandRawInputRead
-      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se perdeu.
+      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se
+        perdeu.
 
 
         O conteudo original entra por inteiro: preserva-lo e o proprio requisito
@@ -2155,6 +2161,10 @@ components:
           type: string
           format: uuid
           title: Demand Id
+        received_order:
+          type: integer
+          minimum: 1.0
+          title: Received Order
         original_content:
           type: string
           title: Original Content
@@ -2180,6 +2190,7 @@ components:
       required:
       - id
       - demand_id
+      - received_order
       - original_content
       - normalized_content
       - source

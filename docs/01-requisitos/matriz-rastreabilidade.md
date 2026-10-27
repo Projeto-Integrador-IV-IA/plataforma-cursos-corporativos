@@ -70,6 +70,26 @@ E atualize o número do Card para incluir #123 e o Status para ✅ (concluído).
 | `web` | RF03, RF04, RF05, RF06, RF09, RF14, RF17 |
 | Processo / repositório | RNF11, RNF13, RNF14, RNF15, RNF16 |
 
+## RF10 consolidado — ordem e preservação (card #32)
+
+O RF10 do Documento Consolidado v1.0 exige proveniência e ordem de recebimento;
+a linha RF10 da tabela histórica acima descreve a normalização, que corresponde
+ao RF11 consolidado. A pendência de ordenação descrita naquela linha é atendida
+pelo card #32: `raw_inputs.received_order` registra uma sequência positiva e única
+por demanda. A consulta `GET /api/v1/demands/{id}` devolve as fontes nessa ordem,
+inclusive quando há empate de datas ou UUIDs em ordem inversa.
+
+O original continua em `original_content`; a normalização grava exclusivamente
+`normalized_content`. A implementação está em
+[`raw_input_service.py`](../../services/pipeline-service/app/services/raw_input_service.py)
+e [`raw_input.py`](../../services/pipeline-service/app/models/raw_input.py), com
+contrato em [`pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml).
+Aceite em [`test_raw_inputs.py`](../../services/pipeline-service/tests/integration/test_raw_inputs.py)
+e [`test_receipt_order_migration.py`](../../services/pipeline-service/tests/integration/test_receipt_order_migration.py).
+A migration `20261025_1200` preserva os conteúdos e numera o legado por data e
+UUID; empates históricos não permitem recuperar a chegada real.
+A proveniência e sua consulta individual pertencem à dependência #31 (PR #244).
+
 ## Bloco B — Evoluções futuras
 
 Fora do escopo desta disciplina. Não recebem card nem entram em sprint:

@@ -72,6 +72,7 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 | `id` | uuid PK | não | |
 | `demand_id` | uuid FK → `demands.id` | não | |
 | `original_content` | text | **não** | Texto exatamente como chegou. **Nunca alterado** — é a garantia de RNF05. |
+| `received_order` | integer | não | Ordem de recebimento positiva e única por demanda (RF10, #32); atribuída no commit do original. |
 | `normalized_content` | text | sim | Resultado de RF10. Nulo enquanto não normalizado. |
 | `source` | text | não | `EMAIL`, `TRANSCRICAO`, `MENSAGENS`, `ANOTACAO`, `OUTRO`. |
 | `embedding` | vector | sim | Vetor semântico (`pgvector`) para busca por similaridade (ADR-0007). |

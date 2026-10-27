@@ -27,12 +27,14 @@ def demand_with_sources(engine: Engine) -> tuple[UUID, list[UUID]]:
         session.flush()
         sources = [
             RawInput(
+                received_order=1,
                 demand_id=demand.id,
                 original_content="E-mail original",
                 source="EMAIL",
                 author_id=author.id,
             ),
             RawInput(
+                received_order=2,
                 demand_id=demand.id,
                 original_content="Mensagem original",
                 source="MENSAGENS",
@@ -99,6 +101,7 @@ def test_rejects_source_from_another_demand_without_partial_write(
         session.add(other)
         session.flush()
         foreign_source = RawInput(
+            received_order=1,
             demand_id=other.id,
             original_content="Fonte de outra demanda",
             source="EMAIL",
