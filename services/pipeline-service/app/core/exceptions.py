@@ -41,6 +41,20 @@ class ConflictError(PlatformError):
     status_code = status.HTTP_409_CONFLICT
 
 
+class InvalidTransitionError(ConflictError):
+    """Mudanca de etapa recusada pela maquina de estados (``app.domain.rules``).
+
+    O motivo vai em ``code`` e a explicacao em ``message``. ``details`` traz a
+    etapa atual e, quando ha, o destino pedido e os destinos permitidos, para a
+    interface mostrar o porque sem interpretar texto. Codigos emitidos:
+
+        ``DEMAND_NOT_OPEN``          demanda encerrada nao muda de etapa;
+        ``DEMAND_AT_FINAL_STAGE``    nao ha proxima etapa para avancar;
+        ``STAGE_UNCHANGED``          o destino e a propria etapa atual;
+        ``INVALID_STAGE_TRANSITION`` o destino nao e permitido a partir da etapa.
+    """
+
+
 def issue_de_validacao(*, localizacao: list[str], mensagem: str, tipo: str) -> dict[str, Any]:
     """Monta uma entrada de ``details.issues`` no formato do handler global."""
 
