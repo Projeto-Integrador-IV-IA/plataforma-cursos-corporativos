@@ -118,6 +118,7 @@ class DemandRawInputRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    received_order: int = Field(ge=1)
     source: RawInputSource
     original_content: str
     truncated: bool
