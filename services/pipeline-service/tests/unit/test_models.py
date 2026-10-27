@@ -80,6 +80,7 @@ EXPECTED_COLUMNS = {
         "id",
         "artifact_id",
         "number",
+        "previous_number",
         "raw_content",
         "content",
         "origin",

@@ -146,20 +146,31 @@ class ArtifactService:
                 details={"artifact_id": str(artifact_id), "number": str(number)},
             )
 
-        restored = self.versions.add(
-            ArtifactVersion(
-                artifact_id=artifact_id,
-                number=current + 1,
-                # Copia, nao referencia: a versao nova nao pode compartilhar o
-                # dict com a restaurada. Sem bruto nem metadados de IA - quem
-                # restaurou e uma pessoa; a origem na versao restaurada segue la.
-                content=deepcopy(chosen.content),
-                origin=ArtifactOrigin.HUMANO.value,
-                author_id=author_id,
-                restored_from_number=number,
-            )
+        restored = self.versions.append(
+            artifact_id,
+            # Copia, nao referencia: a versao nova nao pode compartilhar o dict
+            # com a restaurada. Sem bruto nem metadados de IA - quem restaurou e
+            # uma pessoa; a origem na versao restaurada segue la.
+            content=deepcopy(chosen.content),
+            origin=ArtifactOrigin.HUMANO.value,
+            author_id=author_id,
+            restored_from_number=number,
         )
         return ArtifactVersionRead.model_validate(restored)
+
+    def list_versions(self, artifact_id: UUID) -> list[ArtifactVersionRead]:
+        """Todas as versoes do artefato, da primeira a vigente (RF08)."""
+
+        if self.session.get(Artifact, artifact_id) is None:
+            raise NotFoundError(
+                code="ARTIFACT_NOT_FOUND",
+                message="Artefato nao encontrado.",
+                details={"artifact_id": str(artifact_id)},
+            )
+        return [
+            ArtifactVersionRead.model_validate(version)
+            for version in self.versions.list_for_artifact(artifact_id)
+        ]
 
     @staticmethod
     def _to_read(artifact: Artifact) -> ArtifactRead:

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.domain.enums import ArtifactOrigin, ArtifactType, sql_enum_values
+from app.models._append_only import forbid_changes
 from app.models._types import JSON_TYPE, UUID_TYPE
 
 if TYPE_CHECKING:
@@ -82,8 +83,11 @@ class Artifact(Base):
 class ArtifactVersion(Base):
     """Versao append-only do conteudo de um artefato; a vigente e a de maior numero.
 
-    Restaurar uma versao antiga cria uma versao nova com o conteudo dela, sem
-    alterar nenhuma existente. Essa versao nova e o proprio evento de restauracao:
+    Cada alteracao cria um registro novo e nenhum e sobrescrito: ``previous_number``
+    liga a versao a sua antecessora (a de numero imediatamente menor; nula na
+    primeira), e o ORM e o banco recusam UPDATE e DELETE. Restaurar uma versao
+    antiga cria uma versao nova com o conteudo dela, sem alterar nenhuma
+    existente, e essa versao nova e o proprio evento de restauracao:
     ``restored_from_number`` diz qual voltou, ``author_id`` quem restaurou e
     ``created_at`` quando.
     """
@@ -107,6 +111,12 @@ class ArtifactVersion(Base):
             "restored_from_number IS NULL OR restored_from_number < number",
             name="restored_before_self",
         ),
+        # A primeira versao nao tem anterior; as demais apontam para a de numero
+        # imediatamente menor. COALESCE porque NULL num CHECK passaria como "ok".
+        sa.CheckConstraint(
+            "COALESCE(previous_number, 0) = number - 1",
+            name="previous_is_predecessor",
+        ),
         sa.UniqueConstraint(
             "artifact_id",
             "number",
@@ -118,8 +128,15 @@ class ArtifactVersion(Base):
             name="fk_artifact_versions_restored_from",
             ondelete="RESTRICT",
         ),
+        sa.ForeignKeyConstraint(
+            ["artifact_id", "previous_number"],
+            ["artifact_versions.artifact_id", "artifact_versions.number"],
+            name="fk_artifact_versions_previous",
+            ondelete="RESTRICT",
+        ),
         sa.Index("ix_artifact_versions_author_id", "author_id"),
         sa.Index("ix_artifact_versions_restored_from", "artifact_id", "restored_from_number"),
+        sa.Index("ix_artifact_versions_previous", "artifact_id", "previous_number"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -154,6 +171,8 @@ class ArtifactVersion(Base):
         ),
         nullable=True,
     )
+    # Versao imediatamente anterior do mesmo artefato; nula so na versao 1.
+    previous_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     # Preenchido so na versao criada por restauracao: numero da versao restaurada,
     # do mesmo artefato e sempre anterior (FK composta e CHECK na migration).
     restored_from_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
@@ -196,3 +215,6 @@ class ArtifactSource(Base):
         back_populates="artifact_source_links",
         viewonly=True,
     )
+
+
+forbid_changes(ArtifactVersion, "artifact_versions")

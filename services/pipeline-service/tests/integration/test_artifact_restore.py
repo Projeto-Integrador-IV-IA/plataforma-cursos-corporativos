@@ -57,6 +57,7 @@ def _create_artifact(engine: Engine, client_id: UUID, editor_id: UUID) -> tuple[
                 ArtifactVersion(
                     artifact_id=artifact.id,
                     number=2,
+                    previous_number=1,
                     content=V2,
                     origin=ArtifactOrigin.HUMANO.value,
                     author_id=editor_id,
@@ -215,11 +216,11 @@ def test_author_header_and_version_number_are_validated(
     assert len(_rows(engine, artifact_id)) == 2
 
 
-@pytest.mark.parametrize(("number", "restored_from"), [(3, 3), (3, 5), (12, 9)])
+@pytest.mark.parametrize(("number", "restored_from"), [(3, 3), (3, 5), (3, 0)])
 def test_database_refuses_a_restoration_pointer_that_is_not_an_earlier_version(
     engine: Engine, company: UUID, number: int, restored_from: int
 ) -> None:
-    """Ponteiro para a propria versao, para uma posterior ou para uma que nao existe."""
+    """Ponteiro para a propria versao, para uma posterior ou para uma que nao existe (0)."""
 
     editor_id = _create_user(engine)
     _, artifact_id = _create_artifact(engine, company, editor_id)
@@ -229,8 +230,10 @@ def test_database_refuses_a_restoration_pointer_that_is_not_an_earlier_version(
             connection,
             """
             INSERT INTO artifact_versions
-                (id, artifact_id, number, content, origin, author_id, restored_from_number)
-            VALUES (:id, :artifact_id, :number, '{}', 'HUMANO', :author_id, :restored_from)
+                (id, artifact_id, number, previous_number, content, origin, author_id,
+                 restored_from_number)
+            VALUES (:id, :artifact_id, :number, :number - 1, '{}', 'HUMANO', :author_id,
+                    :restored_from)
             """,
             {
                 "id": uuid4().hex,

@@ -75,6 +75,34 @@ def list_demand_artifacts(
     return ArtifactService(session).list_by_demand(demand_id)
 
 
+@router.get(
+    "/artifacts/{artifact_id}/versions",
+    response_model=list[ArtifactVersionRead],
+    summary="Listar as versoes de um artefato",
+    description=(
+        "Devolve todas as versoes do artefato, da primeira a vigente (a de maior numero). "
+        "Cada versao traz o numero, a versao anterior, a origem, o autor e, quando foi criada "
+        "por restauracao, qual versao restaurou. Nenhuma versao e sobrescrita: cada alteracao "
+        "cria um registro novo."
+    ),
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ArtifactErrorResponse,
+            "description": "Artefato inexistente.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ArtifactErrorResponse,
+            "description": "Identificador invalido.",
+        },
+    },
+)
+def list_artifact_versions(
+    artifact_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+) -> list[ArtifactVersionRead]:
+    return ArtifactService(session).list_versions(artifact_id)
+
+
 @router.post(
     "/artifacts/{artifact_id}/versions/{number}/restore",
     response_model=ArtifactVersionRead,

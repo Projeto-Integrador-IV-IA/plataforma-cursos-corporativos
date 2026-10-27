@@ -50,6 +50,7 @@ class ArtifactSourceRead(BaseModel):
 class ArtifactVersionRead(BaseModel):
     """Versao de um artefato; a vigente e a de maior numero.
 
+    ``previous_number`` liga a versao a sua antecessora e e nulo so na primeira.
     ``raw_output`` e ``ai_metadata`` sao nulos nas versoes humanas (edicao ou
     restauracao): nao ha saida bruta de modelo. ``restored_from_number`` so vem
     preenchido na versao criada por restauracao, e ela e o registro do evento -
@@ -60,6 +61,7 @@ class ArtifactVersionRead(BaseModel):
 
     id: UUID
     number: int
+    previous_number: int | None
     raw_output: str | None = Field(validation_alias="raw_content")
     structured_content: dict[str, Any] = Field(validation_alias="content")
     origin: ArtifactOrigin
