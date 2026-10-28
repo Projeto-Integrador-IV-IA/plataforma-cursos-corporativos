@@ -15,6 +15,7 @@ import pytest
 from app.core.exceptions import LLMInvalidResponseError
 from app.domain.course import (
     CAMPOS_INFERIVEIS,
+    FieldOrigin,
     GapKind,
     StructuredCourse,
     _justificativa_do_descarte,
@@ -35,6 +36,13 @@ RESPOSTA_COMPLETA: dict[str, Any] = {
         }
     ],
     "campos_ausentes": [],
+    "procedencia": {
+        "tema": "extraido",
+        "publico_alvo": "extraido",
+        "carga_horaria": "inferido",
+        "objetivos_aprendizagem": "extraido",
+        "ementa": "inferido",
+    },
     "observacoes": [],
 }
 
@@ -579,3 +587,127 @@ def test_observacao_de_descarte_nao_vira_motivo_da_lacuna() -> None:
     curso = validar_curso_estruturado(resposta(tema="Tema provavel", campos_ausentes=["tema"]))
 
     assert curso.motivos_dos_campos_ausentes() == {"tema": None}
+
+
+# ----------------------------------------------------------------------
+# Card #11 (RNF06): procedencia do campo - extraido, inferido ou ausente
+# ----------------------------------------------------------------------
+
+
+def test_campo_extraido_e_distinguivel_de_campo_inferido_sem_consultar_a_fonte() -> None:
+    """Criterio de aceite: a distincao e visivel so pelo resultado."""
+
+    curso = validar_curso_estruturado(
+        resposta(procedencia={**RESPOSTA_COMPLETA["procedencia"], "tema": "extraido"})
+    )
+    assert curso.procedencia["tema"] is FieldOrigin.EXTRAIDO
+
+    curso = validar_curso_estruturado(
+        resposta(procedencia={**RESPOSTA_COMPLETA["procedencia"], "tema": "inferido"})
+    )
+    assert curso.procedencia["tema"] is FieldOrigin.INFERIDO
+
+
+def test_campo_preenchido_sem_procedencia_declarada_e_recusado() -> None:
+    """Criterio de aceite: campo preenchido sem procedencia e falha de schema."""
+
+    sem_tema = {k: v for k, v in RESPOSTA_COMPLETA["procedencia"].items() if k != "tema"}
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(resposta(procedencia=sem_tema))
+
+    assert "tema" in str(excinfo.value.__cause__)
+
+
+def test_resposta_sem_procedencia_alguma_e_recusada() -> None:
+    """A chave toda pode faltar, nao so uma entrada dela."""
+
+    with pytest.raises(LLMInvalidResponseError):
+        validar_curso_estruturado(resposta(procedencia={}))
+
+
+def test_campo_ausente_ganha_procedencia_ausente_mesmo_sem_o_modelo_declarar() -> None:
+    """Toda lacuna reconciliada tem procedencia ``ausente`` - a validacao completa, nao o modelo."""
+
+    curso = validar_curso_estruturado(
+        resposta(carga_horaria=None, observacoes=["carga_horaria: adiado pelo cliente."])
+    )
+
+    assert curso.procedencia["carga_horaria"] is FieldOrigin.AUSENTE
+
+
+def test_procedencia_e_sobrescrita_quando_o_valor_e_descartado_por_lacuna_declarada() -> None:
+    """Procedencia de campo descartado nao pode sobreviver - mesma regra do valor."""
+
+    curso = validar_curso_estruturado(
+        resposta(
+            campos_ausentes=[{"campo": "tema", "tipo": "ambigua", "motivo": "duas leituras"}],
+            procedencia={**RESPOSTA_COMPLETA["procedencia"], "tema": "extraido"},
+        )
+    )
+
+    assert curso.tema is None
+    assert curso.procedencia["tema"] is FieldOrigin.AUSENTE
+
+
+def test_procedencia_vazia_quando_nenhum_campo_e_preenchido() -> None:
+    curso = validar_curso_estruturado(
+        resposta(
+            tema=None,
+            publico_alvo=None,
+            carga_horaria=None,
+            objetivos_aprendizagem=[],
+            ementa=[],
+            campos_ausentes=["tema", "publico_alvo", "carga_horaria"],
+            procedencia={},
+        )
+    )
+
+    campos_da_resposta = (
+        "tema",
+        "publico_alvo",
+        "carga_horaria",
+        "objetivos_aprendizagem",
+        "ementa",
+    )
+    assert curso.procedencia == dict.fromkeys(campos_da_resposta, FieldOrigin.AUSENTE)
+
+
+@pytest.mark.parametrize(
+    ("grafia", "esperado"),
+    [
+        ("extraido", FieldOrigin.EXTRAIDO),
+        ("extraído", FieldOrigin.EXTRAIDO),
+        ("EXTRAIDO", FieldOrigin.EXTRAIDO),
+        (" Inferido ", FieldOrigin.INFERIDO),
+    ],
+)
+def test_procedencia_e_normalizada_para_o_valor_canonico(
+    grafia: str,
+    esperado: FieldOrigin,
+) -> None:
+    curso = validar_curso_estruturado(
+        resposta(procedencia={**RESPOSTA_COMPLETA["procedencia"], "tema": grafia})
+    )
+
+    assert curso.procedencia["tema"] is esperado
+
+
+def test_procedencia_com_valor_fora_do_vocabulario_e_recusada() -> None:
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            resposta(procedencia={**RESPOSTA_COMPLETA["procedencia"], "tema": "copiado"})
+        )
+
+    assert any(v["campo"] == "procedencia.tema" for v in excinfo.value.details["violacoes"])
+
+
+def test_procedencia_com_valor_que_nem_e_texto_e_recusada() -> None:
+    """Valor fora de texto nao vira grafia desconhecida por conveniencia: a resposta e recusada."""
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            resposta(procedencia={**RESPOSTA_COMPLETA["procedencia"], "tema": 3})
+        )
+
+    assert any(v["campo"] == "procedencia.tema" for v in excinfo.value.details["violacoes"])

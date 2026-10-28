@@ -43,6 +43,16 @@ def curso(**sobrescreve: Any) -> StructuredCourse:
         "objetivos_aprendizagem": ["dar feedback"],
         "ementa": [{"titulo": "Feedback", "topicos": ["escuta"], "carga_horaria": 16}],
         "campos_ausentes": [],
+        "procedencia": {
+            "tema": "extraido",
+            "nicho": "extraido",
+            "publico_alvo": "extraido",
+            "numero_participantes": "extraido",
+            "carga_horaria": "extraido",
+            "formato": "extraido",
+            "objetivos_aprendizagem": "extraido",
+            "ementa": "inferido",
+        },
         "observacoes": [],
     }
     base.update(sobrescreve)

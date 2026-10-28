@@ -23,8 +23,14 @@ from app.core.exceptions import LLMProviderError, LLMTimeoutError, LLMUnavailabl
 from app.domain.course import CHAVES_CANONICAS
 from app.main import create_app
 from app.providers import CompletionParams, CompletionResult, MockLLMProvider
-from app.services.structuring_service import StructuringService
+from app.services.structuring_service import (
+    DEFAULT_PROMPT_VERSION,
+    EXTRACTION_PROMPT_NAME,
+    StructuringService,
+)
 from tests.conftest import MakeSettings
+
+PROMPT_ATIVO = f"{EXTRACTION_PROMPT_NAME}.{DEFAULT_PROMPT_VERSION}"
 
 ROTA = "/api/v1/structuring"
 
@@ -128,7 +134,7 @@ def test_resposta_carrega_a_proveniencia_da_execucao(montar_cliente: MontarClien
 
     assert execucao["provider"] == "mock"
     assert execucao["model"] == "mock"
-    assert execucao["prompt"] == "extract-requirements.v3"
+    assert execucao["prompt"] == PROMPT_ATIVO
     assert execucao["attempts"] == 1
     assert execucao["total_tokens"] == execucao["prompt_tokens"] + execucao["completion_tokens"]
     assert execucao["total_tokens"] > 0
@@ -226,7 +232,7 @@ def test_resposta_fora_do_schema_e_recusada_e_nao_devolve_curso_pela_metade(
     erro = resposta.json()["error"]
     assert resposta.status_code == 502
     assert erro["code"] == "LLM_INVALID_RESPONSE"
-    assert erro["details"]["prompt"] == "extract-requirements.v3"
+    assert erro["details"]["prompt"] == PROMPT_ATIVO
     assert erro["details"]["retryable"] is False
     assert erro["details"]["violacoes"]
     assert "course" not in resposta.json()
@@ -283,7 +289,6 @@ def test_exemplo_do_swagger_obedece_ao_dominio() -> None:
     from app.domain.course import StructuredCourse
     from app.prompts import carregar_prompt
     from app.schemas.structuring import EXEMPLO_DE_REQUISICAO, EXEMPLO_DE_RESPOSTA
-    from app.services.structuring_service import DEFAULT_PROMPT_VERSION, EXTRACTION_PROMPT_NAME
 
     curso = StructuredCourse.model_validate(EXEMPLO_DE_RESPOSTA["course"])
     assert list(curso.to_canonical_dict()) == list(EXEMPLO_DE_RESPOSTA["course"])

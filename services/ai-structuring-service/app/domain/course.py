@@ -21,11 +21,22 @@ Campos gerados (RF12):
 Metadados de confianca:
     campos_ausentes         lacunas apontadas campo a campo, cada uma com tipo
                             (ausente, ambigua ou contraditoria) e motivo
+    procedencia             por campo inferivel, se o valor foi extraido
+                            literal da fonte, inferido ou ficou ausente
     observacoes             ambiguidades que o operador precisa resolver
 
 O modelo NUNCA inventa valor ausente: campo sem base no texto e reportado como
 ausente, para que a revisao humana decida (RF14). Isso e o que torna RNF04
 mensuravel.
+
+Categoria de campo (extraido x gerado) e fixa em tempo de projeto - é o que os
+dois blocos acima declaram. Procedencia e outra coisa: e por execucao, e diz
+se o valor que preencheu *aquele* campo *desta vez* veio literal do texto ou
+foi o modelo quem inferiu a partir dele (RNF06). Sem essa distincao o revisor
+nao sabe, so olhando o resultado, no que confiar sem reabrir a fonte - por
+isso todo campo preenchido carrega sua procedencia, e a ausencia dela e
+violacao de schema como qualquer outra (ver ``FieldOrigin`` e
+``marcar_campos_nao_inferiveis``).
 
 Forma fixa entre execucoes
 --------------------------
@@ -154,6 +165,39 @@ _TIPOS_DE_LACUNA_ACEITOS: Final[Mapping[str, str]] = {
     "contraditória": GapKind.CONTRADITORIA.value,
 }
 
+
+class FieldOrigin(StrEnum):
+    """Procedencia do valor de um campo inferivel, por execucao (RNF06).
+
+    Categoria de campo (extraido x gerado, ``CAMPOS_EXTRAIDOS``/``CAMPOS_GERADOS``)
+    e fixa em tempo de projeto; procedencia e por execucao - diz se *este*
+    valor, desta chamada, veio literal da fonte ou foi o modelo quem uniu as
+    pontas. Sem isso o revisor nao tem como saber no que confiar sem reabrir o
+    texto da demanda (RF14).
+
+    Attributes:
+        EXTRAIDO: o valor esta literal na fonte, sem reformulacao de sentido.
+        INFERIDO: o valor foi derivado do texto - consequencia direta do que
+            foi dito, mas nao uma copia literal.
+        AUSENTE: o campo nao tem valor utilizavel nesta execucao. Mesmo
+            sentido de um item de ``campos_ausentes``, reconciliado junto: um
+            campo nunca e preenchido e declarado ausente ao mesmo tempo.
+    """
+
+    EXTRAIDO = "extraido"
+    INFERIDO = "inferido"
+    AUSENTE = "ausente"
+
+
+#: Grafias aceitas para procedencia, com e sem acento, em qualquer caixa -
+#: mesma tolerancia dada a ``formato`` e a ``tipo`` de lacuna.
+_PROCEDENCIAS_ACEITAS: Final[Mapping[str, str]] = {
+    "extraido": FieldOrigin.EXTRAIDO.value,
+    "extraído": FieldOrigin.EXTRAIDO.value,
+    "inferido": FieldOrigin.INFERIDO.value,
+    "ausente": FieldOrigin.AUSENTE.value,
+}
+
 #: Por que o valor entregue para um campo com lacuna declarada e descartado.
 #: A frase muda com o tipo: ausencia e falta de base, ambiguidade e contradicao
 #: sao escolhas que cabem ao revisor (RF14).
@@ -248,6 +292,14 @@ class StructuredCourse(CanonicalModel):
     tipo da lacuna e o motivo - a validacao reconcilia os dois, entao as duas
     leituras nunca se contradizem. Zero nao e ausencia: carga horaria e numero
     de participantes sao positivos ou nulos.
+
+    ``procedencia`` e complementar a ``campos_ausentes``, nao redundante: um
+    aponta por que um campo ficou vazio, o outro diz se o que preencheu o
+    campo veio literal da fonte ou foi o modelo quem inferiu (RNF06). Todo
+    campo de ``CAMPOS_INFERIVEIS`` que o prompt ativo pede tem entrada aqui -
+    ``AUSENTE`` para o que esta em ``campos_ausentes``, ``EXTRAIDO`` ou
+    ``INFERIDO`` para o que esta preenchido. Campo preenchido sem procedencia
+    declarada e violacao de schema, tratada como qualquer outra (ADR-0006).
     """
 
     tema: str | None
@@ -259,17 +311,21 @@ class StructuredCourse(CanonicalModel):
     objetivos_aprendizagem: list[str]
     ementa: list[SyllabusModule]
     campos_ausentes: list[FieldGap]
+    procedencia: dict[str, FieldOrigin]
     observacoes: list[str]
 
     @model_validator(mode="before")
     @classmethod
     def marcar_campos_nao_inferiveis(cls, dados: Any) -> Any:
-        """Reconcilia valor e lacuna antes de montar o curso (RNF03).
+        """Reconcilia valor, lacuna e procedencia antes de montar o curso (RNF03, RNF06).
 
         Campo vazio vira o vazio canonico do seu tipo e entra em
-        ``campos_ausentes``, classificado; valor devolvido para campo com
-        lacuna declarada e descartado, com registro em ``observacoes``. O que
-        esta preenchido e nao foi declarado fica fora da lista.
+        ``campos_ausentes``, classificado, com ``procedencia`` forcada para
+        ``AUSENTE`` - sem exceca: valor descartado nao tem procedencia que
+        valha. Campo preenchido e nao declarado em ``campos_ausentes`` precisa
+        trazer sua propria entrada em ``procedencia`` (``EXTRAIDO`` ou
+        ``INFERIDO``); sem ela, a resposta e recusada - procedencia nao e
+        inferida aqui, e informacao que so o modelo tem.
 
         A lacuna declarada e aceita tanto no item rico (``campo``, ``tipo``,
         ``motivo``) quanto no nome solto da ``extract-requirements.v2`` - nesse
@@ -278,7 +334,13 @@ class StructuredCourse(CanonicalModel):
 
         Resposta que nao e mapeamento, ou que traz ``campos_ausentes`` fora do
         tipo declarado, passa intacta: recusar isso e trabalho da validacao
-        normal, e mascarar a violacao aqui esconderia o defeito.
+        normal, e mascarar a violacao aqui esconderia o defeito. O mesmo vale
+        para ``procedencia`` com valor fora do vocabulario - a enumeracao
+        ``FieldOrigin`` recusa na validacao normal do campo.
+
+        Raises:
+            ValueError: campo preenchido e sem lacuna declarada nao tem
+                entrada correspondente em ``procedencia``.
         """
 
         if not isinstance(dados, Mapping):
@@ -292,6 +354,11 @@ class StructuredCourse(CanonicalModel):
         originais = list(registradas) if _e_lista_de_texto(registradas) else None
         observacoes = list(originais) if originais is not None else None
 
+        procedencia_bruta = valores.get("procedencia")
+        procedencias: dict[str, Any] = (
+            dict(procedencia_bruta) if isinstance(procedencia_bruta, Mapping) else {}
+        )
+
         lacunas: list[dict[str, Any]] = []
         for campo in CAMPOS_INFERIVEIS:
             if campo not in valores:
@@ -299,6 +366,8 @@ class StructuredCourse(CanonicalModel):
             declarada = declaradas.get(campo)
             vazio = _sem_base_no_texto(valores[campo])
             if not vazio and declarada is None:
+                if campo not in procedencias:
+                    raise ValueError(f"procedencia ausente para campo preenchido: {campo!r}")
                 continue
             tipo = declarada["tipo"] if declarada is not None else GapKind.AUSENTE.value
             if not vazio and observacoes is not None:
@@ -312,11 +381,25 @@ class StructuredCourse(CanonicalModel):
                     "motivo": motivo or _motivo_registrado(campo, originais or []),
                 }
             )
+            # Valor descartado (vazio, ou preenchido mas com lacuna declarada)
+            # nunca tem procedencia que valha - a entrada e sempre AUSENTE,
+            # por cima de qualquer coisa que o modelo tenha dito.
+            procedencias[campo] = FieldOrigin.AUSENTE.value
 
         valores["campos_ausentes"] = lacunas
+        valores["procedencia"] = procedencias
         if observacoes is not None:
             valores["observacoes"] = observacoes
         return valores
+
+    @field_validator("procedencia", mode="before")
+    @classmethod
+    def normalizar_procedencia(cls, valor: object) -> object:
+        """Aceita variacao de caixa e de acento, campo a campo."""
+
+        if isinstance(valor, Mapping):
+            return {campo: _procedencia_normalizada(origem) for campo, origem in valor.items()}
+        return valor
 
     @field_validator("formato", mode="before")
     @classmethod
@@ -403,7 +486,7 @@ CAMPOS_INFERIVEIS: Final[tuple[str, ...]] = CAMPOS_EXTRAIDOS + CAMPOS_GERADOS
 _CAMPOS_DE_LISTA: Final[frozenset[str]] = frozenset(CAMPOS_GERADOS)
 
 #: Metadados de confianca que sustentam a revisao humana (RF14) e as metricas (RNF04).
-CAMPOS_DE_CONFIANCA: Final[tuple[str, ...]] = ("campos_ausentes", "observacoes")
+CAMPOS_DE_CONFIANCA: Final[tuple[str, ...]] = ("campos_ausentes", "procedencia", "observacoes")
 
 #: Chaves da saida canonica, na ordem em que sao serializadas.
 CHAVES_CANONICAS: Final[tuple[str, ...]] = tuple(StructuredCourse.model_fields)
@@ -469,6 +552,14 @@ def _tipo_normalizado(valor: object) -> object:
 
     if isinstance(valor, str):
         return _TIPOS_DE_LACUNA_ACEITOS.get(valor.strip().casefold(), valor)
+    return valor
+
+
+def _procedencia_normalizada(valor: object) -> object:
+    """Reduz a grafia da procedencia ao valor canonico, se for reconhecida."""
+
+    if isinstance(valor, str):
+        return _PROCEDENCIAS_ACEITAS.get(valor.strip().casefold(), valor)
     return valor
 
 
