@@ -93,16 +93,17 @@ que e respeitado como veio.
 """
 
 import asyncio
-import logging
 import time
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, Final
+from uuid import UUID, uuid4
 
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception
 
 from app.core.config import Settings
 from app.core.exceptions import LLMInvalidResponseError, LLMProviderError
+from app.core.logging import get_logger
 from app.domain.course import (
     StructuredCourse,
     schema_do_curso_estruturado,
@@ -113,7 +114,7 @@ from app.providers.base import CompletionParams, CompletionResult, LLMProvider
 
 #: Log deste modulo. A configuracao (formato, nivel, correlacao) e do processo,
 #: nunca fixada aqui - ver ``app.core.logging``.
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 #: Teto de caracteres da resposta recusada registrada em nivel ``DEBUG``. O
 #: texto e produto da demanda do cliente: o bastante para diagnosticar a
@@ -177,6 +178,11 @@ class StructuringOutcome:
         prompt_id: prompt versionado usado na execucao, ex.:
             ``extract-requirements.v1``. Acompanha a proveniencia do artefato
             (RNF04, RNF09).
+        execution_id: identificador da execucao, usado para recuperar o
+            registro de log desta chamada (RNF08.1). Gerado automaticamente
+            quando o chamador nao informa um - mesmo o caminho sincrono sem
+            conceito de execucao (``POST /structuring/structure-course``)
+            acaba com um desfecho recuperavel por identificador.
     """
 
     demand: RawDemand
@@ -186,6 +192,7 @@ class StructuringOutcome:
     elapsed_ms: float = 0.0
     course: StructuredCourse | None = None
     prompt_id: str | None = None
+    execution_id: UUID = field(default_factory=uuid4)
 
     @property
     def succeeded(self) -> bool:
@@ -286,6 +293,8 @@ class StructuringService:
         *,
         prompt: str | None = None,
         params: CompletionParams | None = None,
+        execution_id: UUID | None = None,
+        prompt_version: str | None = None,
     ) -> StructuringOutcome:
         """Envia a demanda ao provedor e devolve o desfecho, com ou sem falha.
 
@@ -300,11 +309,17 @@ class StructuringService:
                 prompt entra com o card de RF11.
             params: parametros da chamada; o timeout do ambiente e aplicado
                 quando o chamador nao informa um.
+            execution_id: identificador da execucao, para recuperar o registro
+                de log desta chamada (RNF08.1). Gerado quando ausente.
+            prompt_version: identificador do prompt versionado usado, so para
+                o registro de log - este metodo nao monta prompt (RF11), quem
+                sabe a versao e ``structure_course``.
 
         Returns:
             ``StructuringOutcome`` com o resultado ou com a falha tipada.
         """
 
+        execution_id = execution_id or uuid4()
         enviado = demand.text if prompt is None else prompt
         parametros = self._com_padroes(params)
         inicio = time.perf_counter()
@@ -322,31 +337,71 @@ class StructuringService:
                 attempts=tentativas,
                 retryable=erro.retryable,
             )
+            duracao = _decorrido_ms(inicio)
+            # Falha tambem produz registro recuperavel (RNF08.1): sem resultado
+            # do provedor, so entram provedor/modelo que a propria falha souber -
+            # nunca inventados - e nenhum token, que so o sucesso informa.
+            _logger.warning(
+                "Chamada ao provedor de LLM falhou (execution_id=%s, demand_id=%s, "
+                "tentativas=%d, codigo=%s).",
+                execution_id,
+                demand.demand_id,
+                tentativas,
+                erro.code,
+                extra=_contexto_da_chamada(
+                    execution_id=execution_id,
+                    demand_id=demand.demand_id,
+                    prompt_version=prompt_version,
+                    parametros=parametros,
+                    tentativas=tentativas,
+                    duration_ms=duracao,
+                    provider=erro.provider,
+                    model=erro.model,
+                    erro_codigo=erro.code,
+                    erro_classe=type(erro).__name__,
+                ),
+            )
             return StructuringOutcome(
                 demand=demand,
                 attempts=tentativas,
                 error=erro,
-                elapsed_ms=_decorrido_ms(inicio),
+                elapsed_ms=duracao,
+                execution_id=execution_id,
             )
 
         assert resultado is not None
+        duracao = _decorrido_ms(inicio)
         # Provedor e modelo (slug completo) ficam no log para que a comparacao
         # entre modelos (RNF29) possa ser reconstruida; sem texto do cliente (RNF10).
         _logger.info(
-            "Resposta do provedor recebida (demand_id=%s, provider=%s, model=%s, "
-            "tentativas=%d, tokens=%d, latencia_ms=%.0f).",
+            "Resposta do provedor recebida (execution_id=%s, demand_id=%s, provider=%s, "
+            "model=%s, tentativas=%d, tokens=%d, latencia_ms=%.0f).",
+            execution_id,
             demand.demand_id,
             resultado.provider,
             resultado.model,
             tentativas,
             resultado.usage.total_tokens,
             resultado.latency_ms,
+            extra=_contexto_da_chamada(
+                execution_id=execution_id,
+                demand_id=demand.demand_id,
+                prompt_version=prompt_version,
+                parametros=parametros,
+                tentativas=tentativas,
+                duration_ms=duracao,
+                provider=resultado.provider,
+                model=resultado.model,
+                tokens_entrada=resultado.usage.prompt_tokens,
+                tokens_saida=resultado.usage.completion_tokens,
+            ),
         )
         return StructuringOutcome(
             demand=demand,
             attempts=tentativas,
             completion=resultado,
-            elapsed_ms=_decorrido_ms(inicio),
+            elapsed_ms=duracao,
+            execution_id=execution_id,
         )
 
     async def structure_course(
@@ -354,6 +409,7 @@ class StructuringService:
         demand: RawDemand,
         *,
         prompt_version: str = DEFAULT_PROMPT_VERSION,
+        execution_id: UUID | None = None,
     ) -> StructuringOutcome:
         """Estrutura a demanda de ponta a ponta e devolve o curso validado (RF11).
 
@@ -379,6 +435,10 @@ class StructuringService:
             demand: demanda bruta ja persistida pelo ingestion-service.
             prompt_version: versao do prompt de extracao a usar; por padrao, a
                 ativa no catalogo.
+            execution_id: identificador da execucao (RNF08.1). Gerado quando
+                ausente; ``job_service.py`` passa o mesmo ``job.id`` que o
+                chamador ja usa para consultar o estado da execucao (RF17), de
+                modo que um unico identificador sirva para as duas consultas.
 
         Returns:
             ``StructuringOutcome`` com ``course`` preenchido quando deu certo,
@@ -391,6 +451,7 @@ class StructuringService:
                 por isso sobe em vez de virar desfecho.
         """
 
+        execution_id = execution_id or uuid4()
         prompt = carregar_prompt(EXTRACTION_PROMPT_NAME, prompt_version)
         params = self._parametros_da_extracao()
         outcome: StructuringOutcome | None = None
@@ -405,8 +466,11 @@ class StructuringService:
                             demand,
                             prompt=prompt.render(texto_normalizado=demand.text),
                             params=params,
+                            execution_id=execution_id,
+                            prompt_version=prompt.identificador,
                         ),
                         prompt_id=prompt.identificador,
+                        execution_id=execution_id,
                     )
                     tentativas_totais += outcome.attempts
                     # ``completion is None`` e falha de rede/provedor, que ja
@@ -434,7 +498,7 @@ class StructuringService:
                 prompt=prompt.identificador,
                 retryable=erro.retryable,
             )
-            return replace(outcome, error=erro)
+            return replace(outcome, error=erro, execution_id=execution_id)
 
         assert outcome is not None
         outcome = replace(outcome, attempts=tentativas_totais)
@@ -501,6 +565,53 @@ class StructuringService:
         if parametros.timeout_seconds is not None:
             return parametros
         return replace(parametros, timeout_seconds=self._settings.llm_timeout_seconds)
+
+
+def _contexto_da_chamada(
+    *,
+    execution_id: UUID,
+    demand_id: str,
+    prompt_version: str | None,
+    parametros: CompletionParams,
+    tentativas: int,
+    duration_ms: float,
+    provider: str | None = None,
+    model: str | None = None,
+    tokens_entrada: int | None = None,
+    tokens_saida: int | None = None,
+    erro_codigo: str | None = None,
+    erro_classe: str | None = None,
+) -> dict[str, Any]:
+    """Monta o ``extra=`` do registro de log de uma chamada ao provedor (RNF08.1).
+
+    Nunca repassa ``parametros`` inteiro - so ``model`` e ``temperature``, os
+    unicos dois que o card pede e que nunca carregam credencial (RNF11).
+    Campo ausente (``None``) fica fora do registro em vez de entrar como nulo:
+    na falha sem resultado, por exemplo, nao ha token a reportar - e melhor
+    omitir do que inventar.
+    """
+
+    extra: dict[str, Any] = {
+        "execution_id": str(execution_id),
+        "demand_id": demand_id,
+        "tentativas": tentativas,
+        "duration_ms": duration_ms,
+        "parametros_modelo": parametros.model,
+        "parametros_temperatura": parametros.temperature,
+    }
+    opcionais = {
+        "prompt_version": prompt_version,
+        "provider": provider,
+        "model": model,
+        "tokens_entrada": tokens_entrada,
+        "tokens_saida": tokens_saida,
+        "erro_codigo": erro_codigo,
+        "erro_classe": erro_classe,
+    }
+    for chave, valor in opcionais.items():
+        if valor is not None:
+            extra[chave] = valor
+    return extra
 
 
 def _registrar_resposta_recusada(
