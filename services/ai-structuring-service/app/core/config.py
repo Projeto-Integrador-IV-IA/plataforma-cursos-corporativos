@@ -1,10 +1,13 @@
 """Configuracao do ai-structuring-service obtida exclusivamente do ambiente."""
 
 from functools import lru_cache
-from typing import Literal, Self
+from typing import Final, Literal, Self
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: Provedores cujo ``LLM_BASE_URL`` pode ficar vazio (a classe do provedor traz o padrao).
+PROVEDORES_COM_ENDPOINT_PADRAO: Final[frozenset[str]] = frozenset({"openrouter"})
 
 
 class Settings(BaseSettings):
@@ -21,8 +24,11 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr | None
     llm_base_url: str | None = None
     llm_completions_path: str = Field(default="/chat/completions", min_length=1)
+    llm_http_referer: str | None = None
+    llm_app_title: str | None = None
     llm_timeout_seconds: float = Field(gt=0)
     llm_max_retries: int = Field(ge=0)
+    llm_schema_max_retries: int = Field(ge=0)
     llm_temperature: float = Field(ge=0, le=2)
 
     @field_validator("llm_api_key", mode="before")
@@ -32,10 +38,10 @@ class Settings(BaseSettings):
 
         return None if value == "" else value
 
-    @field_validator("llm_base_url", mode="before")
+    @field_validator("llm_base_url", "llm_http_referer", "llm_app_title", mode="before")
     @classmethod
     def empty_base_url_is_absent(cls, value: object) -> object:
-        """Trata endpoint vazio como ausente, como e o caso do mock."""
+        """Trata endpoint e cabecalhos de atribuicao vazios como ausentes."""
 
         return None if value == "" else value
 
@@ -52,10 +58,13 @@ class Settings(BaseSettings):
         """Falha rapidamente se um provedor remoto estiver sem endpoint.
 
         O endpoint vem do ambiente para que trocar de fornecedor seja
-        configuracao, nao alteracao de codigo (RNF03).
+        configuracao, nao alteracao de codigo (RNF03). Provedores com endpoint
+        publico conhecido (``openrouter``) dispensam a variavel.
         """
 
-        if self.llm_provider.casefold() != "mock" and self.llm_base_url is None:
+        nome = self.llm_provider.casefold()
+        dispensa_endpoint = nome == "mock" or nome in PROVEDORES_COM_ENDPOINT_PADRAO
+        if not dispensa_endpoint and self.llm_base_url is None:
             raise ValueError("LLM_BASE_URL e obrigatoria para provedores remotos")
         return self
 

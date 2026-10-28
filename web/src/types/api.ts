@@ -24,6 +24,39 @@ export type Uuid = string;
 /** Data e hora ISO 8601 com fuso. Ex.: `2026-09-15T14:30:00-03:00`. */
 export type IsoDateTime = string;
 
+// ---------------------------------------------------------------------------
+// Autenticacao - DERIVADO de packages/contracts/openapi/gateway-service.yaml
+// (`LoginRequest`, `OperatorInfo`, `TokenResponse` e `SessionResponse`)
+// ---------------------------------------------------------------------------
+
+/** Credenciais aceitas por `POST /api/v1/auth/login`. */
+export interface LoginCredentials {
+  readonly email: string;
+  readonly password: string;
+}
+
+/** Operador autenticado, presente nas respostas de login e verificacao. */
+export interface OperatorInfo {
+  readonly id: Uuid;
+  readonly name: string;
+  readonly email: string;
+  readonly role: string;
+}
+
+/** Token emitido pelo gateway apos credenciais validas. */
+export interface TokenResponse {
+  readonly access_token: string;
+  readonly token_type?: string;
+  readonly expires_in: number;
+  readonly operator: OperatorInfo;
+}
+
+/** Resultado de `GET /api/v1/auth/verify`. */
+export interface SessionResponse {
+  readonly active?: boolean;
+  readonly operator: OperatorInfo;
+}
+
 /** Valor JSON arbitrario. Existe para nunca precisarmos de `any`. */
 export type JsonValue = string | number | boolean | null | readonly JsonValue[] | JsonObject;
 
@@ -182,6 +215,23 @@ export interface DemandClientRead {
 }
 
 /**
+ * Fonte captada como o detalhe a entrega (RF09, RNF05).
+ *
+ * O texto original vem por inteiro, e nao resumido: preserva-lo e o proprio
+ * requisito, e e por ele que a revisao da estruturacao (RF19) mostra de onde
+ * cada campo gerado saiu. `normalized_content` nao entra - o contrato nao o
+ * declara neste agregado.
+ */
+export interface DemandRawInputRead {
+  readonly id: Uuid;
+  readonly source: RawInputSource;
+  readonly original_content: string;
+  readonly truncated: boolean;
+  readonly author_id: Uuid;
+  readonly created_at: IsoDateTime;
+}
+
+/**
  * Versao de artefato como o detalhe a entrega.
  *
  * `origin` e `ai_metadata` ficam abertos (`string` e objeto JSON) porque e
@@ -215,12 +265,13 @@ export interface DemandArtifactRead {
  * nao `DemandRead`, como este arquivo supunha enquanto a operacao nao estava
  * publicada.
  *
- * As fontes captadas (`raw_inputs`) nao entram: o contrato ainda nao declara
- * nenhuma operacao que as exponha.
- * TODO(RF09): acrescentar as fontes quando a captacao for publicada.
+ * As fontes captadas entram em `raw_inputs`: o contrato as declara no agregado
+ * (`DemandRawInputRead`), e e de la que a revisao da estruturacao (RF19) tira
+ * o texto que originou cada campo gerado.
  */
 export interface DemandDetail extends DemandRead {
   readonly client: DemandClientRead;
+  readonly raw_inputs: readonly DemandRawInputRead[];
   readonly artifacts: readonly DemandArtifactRead[];
 }
 
@@ -347,6 +398,85 @@ export interface StageTransitionCreate {
 }
 
 // ---------------------------------------------------------------------------
+// Visao de pipeline - DERIVADO de packages/contracts/openapi/pipeline-service.yaml
+// (`PipelineBoard` e seus agregados: resposta de GET /api/v1/pipeline)
+// ---------------------------------------------------------------------------
+
+/**
+ * Cliente ou responsavel como o cartao os recebe: nome e identificador, nada
+ * mais.
+ *
+ * Nao e `Client` nem um recorte dele: o quadro reduz de proposito a pessoa ao
+ * que a coluna desenha. Reaproveitar `Client` aqui faria o cartao prometer
+ * CNPJ, segmento e contato que a resposta do quadro nao traz.
+ */
+export interface PipelineCardPersonRead {
+  readonly id: Uuid;
+  readonly name: string;
+}
+
+/**
+ * Demanda como ela aparece na coluna de uma etapa.
+ *
+ * O cliente e o responsavel vem resolvidos em nome, diferente de `DemandRead`,
+ * que entrega apenas `client_id` e `owner_id`: o quadro mostra dezenas de
+ * cartoes de uma vez e nao teria como traduzir identificador em nome sem uma
+ * consulta por cartao. `owner` e nulo quando ninguem assumiu a demanda.
+ *
+ * Nao ha `current_stage`: a etapa e a da coluna que contem o cartao.
+ */
+export interface PipelineCardRead {
+  readonly id: Uuid;
+  readonly title: string;
+  readonly status: DemandStatus;
+  readonly client: PipelineCardPersonRead;
+  readonly owner: PipelineCardPersonRead | null;
+  readonly created_at: IsoDateTime;
+  readonly updated_at: IsoDateTime;
+}
+
+/**
+ * Uma coluna do quadro.
+ *
+ * `total` conta todas as demandas da etapa que passam pelos filtros, nao
+ * apenas as que vieram em `items` - o recorte por coluna tem teto (`limit`).
+ * Por isso a coluna mostra o total do servidor, e nunca `items.length`.
+ */
+export interface PipelineStageGroup {
+  readonly stage: PipelineStage;
+  readonly total: number;
+  readonly items: readonly PipelineCardRead[];
+}
+
+/**
+ * Quadro completo: as cinco etapas, inclusive as vazias, e o total do recorte.
+ *
+ * A ordem das colunas e a que o servico devolve. A interface nao a recalcula:
+ * a sequencia das etapas e regra de negocio do pipeline-service, e duplica-la
+ * aqui criaria duas versoes da mesma regra para divergirem com o tempo.
+ */
+export interface PipelineBoard {
+  readonly stages: readonly PipelineStageGroup[];
+  readonly total: number;
+}
+
+/**
+ * Filtros de `GET /api/v1/pipeline`, combinados com AND. Sao os mesmos da
+ * listagem de demandas (RF03), menos `stage`: o agrupamento ja e por etapa, e
+ * o servico recusa o parametro com 422 em vez de ignora-lo em silencio.
+ *
+ * `limit` corta cartoes por coluna e nao afeta o `total` de cada etapa.
+ */
+export interface PipelineBoardParams {
+  readonly client_id?: Uuid;
+  readonly owner_id?: Uuid;
+  readonly status?: DemandStatus;
+  readonly from?: IsoDateTime;
+  readonly to?: IsoDateTime;
+  readonly limit?: number;
+}
+
+// ---------------------------------------------------------------------------
 // Artefatos - PREVISTO (RF08, RF15), conforme `artifacts`/`artifact_versions`
 // ---------------------------------------------------------------------------
 
@@ -405,6 +535,68 @@ export interface ArtifactVersionCreate {
   readonly content: JsonObject;
 }
 
+// ---------------------------------------------------------------------------
+// Resultado da IA anexado a demanda - DERIVADO de
+// packages/contracts/openapi/pipeline-service.yaml
+// (`ArtifactRead` e seus agregados: resposta de GET e de POST
+//  /api/v1/demands/{demand_id}/artifacts)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fonte usada por um artefato, na forma em que o vinculo N:N a devolve.
+ *
+ * Traz so a referencia - identificador, canal e data. O texto de cada fonte
+ * vem em `DemandRawInputRead`, no agregado do detalhe: o mesmo identificador
+ * liga os dois, e e esse par que mostra na tela de revisao (RF19) qual texto
+ * originou a estrutura gerada.
+ */
+export interface ArtifactSourceRead {
+  readonly id: Uuid;
+  readonly source: RawInputSource;
+  readonly created_at: IsoDateTime;
+}
+
+/**
+ * Versao do resultado anexado a demanda (RF13).
+ *
+ * `structured_content` e o curso ja validado contra o schema canonico pelo
+ * servico (RNF03) - por isso chega como objeto JSON aberto e a tela o le sem
+ * revalidar regra de negocio. `raw_output` e a resposta integral do modelo,
+ * preservada para auditoria (RNF09).
+ */
+export interface ArtifactResultVersionRead {
+  readonly id: Uuid;
+  readonly number: number;
+  readonly raw_output: string;
+  readonly structured_content: JsonObject;
+  readonly origin: ArtifactVersionOrigin;
+  readonly ai_metadata: JsonObject | null;
+  readonly created_at: IsoDateTime;
+}
+
+/**
+ * Artefato recuperado pela demanda, com as fontes que o originaram e suas
+ * versoes.
+ *
+ * E o que `GET /api/v1/demands/{demand_id}/artifacts` devolve: uma lista
+ * simples, sem envelope de paginacao - o contrato nao pagina esta operacao.
+ */
+export interface ArtifactResultRead {
+  readonly id: Uuid;
+  readonly demand_id: Uuid;
+  readonly type: ArtifactType;
+  readonly title: string | null;
+  readonly created_at: IsoDateTime;
+  readonly sources: readonly ArtifactSourceRead[];
+  readonly versions: readonly ArtifactResultVersionRead[];
+}
+
+// ---------------------------------------------------------------------------
+// Curso estruturado - DERIVADO de
+// packages/contracts/openapi/ai-structuring-service.yaml
+// (`StructuredCourse`, `SyllabusModule`, `FieldGap`, `GapKind`, `CourseFormat`)
+// ---------------------------------------------------------------------------
+
 /**
  * Tipo de lacuna apontada pela estruturacao para um campo (RNF03).
  *
@@ -418,8 +610,8 @@ export const GAP_KINDS = ['ausente', 'ambigua', 'contraditoria'] as const;
 export type GapKind = (typeof GAP_KINDS)[number];
 
 /**
- * PREVISTO. Apontamento de um campo que ficou sem valor utilizavel. `motivo` e
- * nulo quando o modelo nao registrou explicacao - a lacuna continua visivel na
+ * Apontamento de um campo que ficou sem valor utilizavel. `motivo` e nulo
+ * quando o modelo nao registrou explicacao - a lacuna continua visivel na
  * revisao, so sem o porque.
  */
 export interface FieldGap {
@@ -428,31 +620,129 @@ export interface FieldGap {
   readonly motivo: string | null;
 }
 
+/** Formatos de realizacao declarados pelo contrato (RF11). */
+export const COURSE_FORMATS = ['presencial', 'online', 'hibrido'] as const;
+
+export type CourseFormat = (typeof COURSE_FORMATS)[number];
+
 /**
- * PREVISTO. Saida canonica da estruturacao por IA (RF11, RF12).
- * `structured-course.schema.json` ainda e esqueleto: os campos abaixo sao os
- * previstos na PoC e serao confirmados quando o schema for publicado. Por isso
- * o conteudo e tratado como JSON validado pelo servico (RNF03), e a interface
- * so depende do que ja esta acordado.
+ * Modulo da ementa: um bloco de conteudo com titulo, topicos e carga (RF12).
+ *
+ * A ementa e lista de modulos, e nao lista de textos: cada modulo carrega a
+ * propria carga horaria, e achatar isso em frase perderia a unica parte da
+ * saida que da para conferir contra a carga total.
  */
-export type StructuredCourse = {
-  readonly tema?: string;
-  readonly nicho?: string;
-  readonly publico_alvo?: string;
-  readonly numero_participantes?: number;
-  readonly carga_horaria?: number;
-  readonly formato?: string;
-  readonly objetivos_aprendizagem?: readonly string[];
-  readonly ementa?: readonly string[];
+export interface SyllabusModule {
+  readonly titulo: string;
+  readonly topicos: readonly string[];
+  readonly carga_horaria: number | null;
+}
+
+/**
+ * Saida canonica da estruturacao por IA (RF11, RF12).
+ *
+ * DERIVADO de `StructuredCourse` em
+ * packages/contracts/openapi/ai-structuring-service.yaml. Valor nulo ou lista
+ * vazia significa "nao ha valor utilizavel no texto de entrada", e o campo
+ * correspondente aparece em `campos_ausentes`: o servico reconcilia os dois,
+ * entao as duas leituras nunca se contradizem.
+ *
+ * `nicho`, `numero_participantes` e `formato` tem valor padrao no contrato e
+ * por isso podem nao ser serializados; os demais sao obrigatorios na resposta.
+ */
+export interface StructuredCourse {
+  readonly tema: string | null;
+  readonly nicho?: string | null;
+  readonly publico_alvo: string | null;
+  readonly numero_participantes?: number | null;
+  readonly carga_horaria: number | null;
+  readonly formato?: CourseFormat | null;
+  readonly objetivos_aprendizagem: readonly string[];
+  readonly ementa: readonly SyllabusModule[];
   /**
    * Campo sem valor utilizavel no texto de entrada e apontado aqui, nunca
    * inferido (RF14). Cada item traz o campo, o tipo da lacuna e o motivo.
    */
-  readonly campos_ausentes?: readonly FieldGap[];
-  readonly observacoes?: readonly string[];
-};
+  readonly campos_ausentes: readonly FieldGap[];
+  readonly observacoes: readonly string[];
+}
 
-/** Pedido de estruturacao de uma demanda bruta pela IA (RF11). */
+// ---------------------------------------------------------------------------
+// Execucao da estruturacao - DERIVADO de
+// packages/contracts/openapi/ai-structuring-service.yaml
+// (`StructuringRequest`, `StructuringJobAccepted`, `StructuringJobRead`)
+// ---------------------------------------------------------------------------
+
+/**
+ * Texto que entra na estruturacao (RF11, RF17).
+ *
+ * `demand_id` correlaciona log, metrica e reprocessamento; `text` e o texto da
+ * demanda. `prompt_version` tem valor padrao no servico e por isso nao e
+ * enviada: escolher versao de prompt e decisao de quem opera o modelo, nao da
+ * tela.
+ */
 export interface StructuringRequest {
-  readonly raw_input_id: Uuid;
+  readonly demand_id: string;
+  readonly text: string;
+  readonly prompt_version?: string;
+}
+
+/** Estados possiveis de uma execucao de estruturacao (RF24). */
+export const JOB_STATUSES = ['PENDENTE', 'PROCESSANDO', 'CONCLUIDA', 'ERRO'] as const;
+
+export type JobStatus = (typeof JOB_STATUSES)[number];
+
+/** Confirmacao de que o pedido entrou na fila, sem esperar o resultado. */
+export interface StructuringJobAccepted {
+  readonly job_id: Uuid;
+  readonly demand_id: string;
+  readonly status: JobStatus;
+  readonly created_at: IsoDateTime;
+}
+
+/** Falha que encerrou a execucao, no mesmo vocabulario do envelope (RNF02). */
+export interface StructuringJobError {
+  readonly code: string;
+  readonly message: string;
+}
+
+/** Proveniencia da execucao que produziu o curso (RNF04, RNF09). */
+export interface ExecutionMetadata {
+  readonly provider: string;
+  readonly model: string;
+  readonly prompt: string;
+  readonly attempts: number;
+  readonly prompt_tokens: number;
+  readonly completion_tokens: number;
+  readonly total_tokens: number;
+  readonly provider_latency_ms: number;
+  readonly elapsed_ms: number;
+}
+
+/** Curso estruturado devolvido pela estruturacao, com a proveniencia. */
+export interface StructuringResponse {
+  readonly demand_id: string;
+  readonly course: StructuredCourse;
+  readonly execution: ExecutionMetadata;
+}
+
+/**
+ * Estado da execucao e, quando houver, o que ela produziu.
+ *
+ * `result` vem nulo enquanto nao concluiu: nao existe curso parcial, e exibir
+ * um esqueleto vazio faria a tela mostrar campos que ninguem preencheu
+ * (RNF03). `total_elapsed_ms` mede do aceite ao desfecho - e o tempo que o
+ * operador sente (RNF06).
+ */
+export interface StructuringJobRead {
+  readonly job_id: Uuid;
+  readonly demand_id: string;
+  readonly status: JobStatus;
+  readonly created_at: IsoDateTime;
+  readonly started_at: IsoDateTime | null;
+  readonly finished_at: IsoDateTime | null;
+  readonly total_elapsed_ms: number | null;
+  readonly result: StructuringResponse | null;
+  readonly execution: ExecutionMetadata | null;
+  readonly error: StructuringJobError | null;
 }

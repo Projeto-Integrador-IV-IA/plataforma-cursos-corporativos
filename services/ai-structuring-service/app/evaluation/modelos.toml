@@ -1,0 +1,74 @@
+# =============================================================================
+# Catalogo de modelos candidatos a avaliacao (RNF04, card #216).
+#
+# Lido por app/evaluation/catalog.py. Versionado de proposito: comparacao de
+# modelo so e defensavel se outra pessoa conseguir repetir a medicao com a
+# mesma lista.
+#
+# PRECO CONSULTADO EM 2026-10-27, DIRETO NA PAGINA DE CADA MODELO EM
+# openrouter.ai/<slug>/pricing. Preco de API muda; se `preco_consultado_em`
+# ficar velho (meses, nao dias), reconsultar e atualizar os tres campos juntos
+# - foi a falta de data e fonte que a revisao do levantamento de custos (card
+# #121) apontou.
+#
+# Os slugs seguem a convencao vendor/modelo do OpenRouter. `google/gemini-2.0
+# -flash-001`, o terceiro candidato original, foi descontinuado pelo OpenRouter
+# entre a criacao deste catalogo e esta consulta (pagina do modelo devolve 404,
+# e nao aparece mais na busca) - substituido por `google/gemini-2.5-flash`,
+# mesmo papel na disputa (terceiro fornecedor, janela larga). Confirmar o slug
+# na pagina de modelos antes de cada rodada nova: catalogo e a unica fonte
+# desses nomes no projeto, e slug errado ou descontinuado falha so na chamada.
+# =============================================================================
+
+[[modelo]]
+slug = "anthropic/claude-sonnet-4.5"
+apelido = "Sonnet 4.5"
+justificativa = """
+Referencia de qualidade da disputa. Entra como teto: se um modelo mais barato \
+chegar perto dele nas metricas, a escolha por custo fica justificada; se nao \
+chegar, o projeto sabe o que esta abrindo mao.\
+"""
+janela_de_contexto = 1000000
+usd_por_mtok_entrada = 3.00
+usd_por_mtok_saida = 15.00
+preco_consultado_em = 2026-10-27
+
+[[modelo]]
+slug = "openai/gpt-4o-mini"
+apelido = "GPT-4o mini"
+justificativa = """
+Candidato de custo baixo com suporte maduro a saida estruturada, que e o que \
+este projeto mais exige (ADR-0006). Mede se a barreira de schema se sustenta \
+num modelo pequeno.\
+"""
+janela_de_contexto = 128000
+usd_por_mtok_entrada = 0.15
+usd_por_mtok_saida = 0.60
+preco_consultado_em = 2026-10-27
+
+[[modelo]]
+slug = "google/gemini-2.5-flash"
+apelido = "Gemini 2.5 Flash"
+justificativa = """
+Terceiro fornecedor na disputa, para a comparacao nao ficar presa a duas \
+familias. Janela larga interessa as transcricoes de reuniao, que sao a entrada \
+mais longa do conjunto. Substitui o Gemini 2.0 Flash original: descontinuado \
+pelo OpenRouter antes da consulta de preco (pagina do modelo devolve 404).\
+"""
+janela_de_contexto = 1000000
+usd_por_mtok_entrada = 0.30
+usd_por_mtok_saida = 2.50
+preco_consultado_em = 2026-10-27
+
+[[modelo]]
+slug = "meta-llama/llama-3.3-70b-instruct"
+apelido = "Llama 3.3 70B"
+justificativa = """
+Modelo aberto, incluido porque o documento de custos cita Llama como hipotese \
+de operacao barata. Serve para checar se essa hipotese resiste as metricas de \
+conformidade de schema e de alucinacao.\
+"""
+janela_de_contexto = 131072
+usd_por_mtok_entrada = 0.10
+usd_por_mtok_saida = 0.32
+preco_consultado_em = 2026-10-27

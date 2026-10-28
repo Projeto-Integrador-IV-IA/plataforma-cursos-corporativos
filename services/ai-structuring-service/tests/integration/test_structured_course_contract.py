@@ -23,6 +23,7 @@ from app.domain.course import (
 from app.prompts import carregar_prompt
 from app.providers import MockLLMProvider
 from app.providers.base import CompletionParams
+from app.services.structuring_service import DEFAULT_PROMPT_VERSION, EXTRACTION_PROMPT_NAME
 
 DEMANDA = """
 Boa tarde! Precisamos de um treinamento de NR-12 para o pessoal da manutencao
@@ -99,7 +100,7 @@ async def test_resposta_em_texto_livre_e_falha() -> None:
 def test_prompt_ativo_declara_as_chaves_obrigatorias_do_contrato() -> None:
     """Prompt e schema andam juntos: divergir aqui quebra a extracao (RF13, RNF03)."""
 
-    corpo = carregar_prompt("extract-requirements", "v3").corpo
+    corpo = carregar_prompt(EXTRACTION_PROMPT_NAME, DEFAULT_PROMPT_VERSION).corpo
 
     for chave in CHAVES_OBRIGATORIAS:
         assert f'"{chave}"' in corpo, chave
@@ -129,6 +130,14 @@ async def test_resposta_sem_carga_horaria_chega_ao_dominio_como_ausencia() -> No
                     ),
                 }
             ],
+            "procedencia": {
+                "tema": "extraido",
+                "publico_alvo": "extraido",
+            },
+            "evidencias": {
+                "tema": [1],
+                "publico_alvo": [1],
+            },
             "observacoes": [],
         }
     )
@@ -171,6 +180,14 @@ async def test_fonte_contraditoria_chega_ao_dominio_como_apontamento_classificad
                     ),
                 }
             ],
+            "procedencia": {
+                "tema": "extraido",
+                "publico_alvo": "extraido",
+            },
+            "evidencias": {
+                "tema": [1],
+                "publico_alvo": [1],
+            },
             "observacoes": [],
         }
     )

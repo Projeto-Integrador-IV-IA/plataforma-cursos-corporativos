@@ -1,8 +1,8 @@
 # =============================================================================
 # Contrato do ingestion-service (RNF02).
-# Estado: EM CONSTRUCAO - a captacao de texto bruto (RF09) esta implementada e
-# verificada contra o openapi.json do servico; a normalizacao (RF10) e o
-# reprocessamento seguem como caminhos previstos no card #109.
+# Captacao (RF09), inferencia da origem (RF10, #31) e sanitizacao (RF11) estao
+# implementadas. Ordenacao (#32) e reprocessamento seguem como entregas futuras.
+# Operacoes e schemas sao verificados contra o openapi.json do servico.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
 openapi: 3.1.0
@@ -12,7 +12,7 @@ info:
   version: 1.0.0
   description: |
     Ingestao e normalizacao da demanda bruta.
-    Requisitos atendidos: RF09, RF10.
+    Requisitos atendidos: RF09, RF10, RF11.
   contact:
     name: Projeto Integrador de Extensao IV - Equipe 6
 
@@ -159,8 +159,10 @@ components:
           title: Text
           description: Texto bruto preservado sem alteracoes.
         source_type:
-          $ref: '#/components/schemas/SourceKind'
-          description: Canal de origem declarado pelo operador.
+          anyOf:
+          - $ref: '#/components/schemas/SourceKind'
+          - type: 'null'
+          description: Canal declarado pelo operador; ausente ou nulo permite inferencia pelo formato do texto.
         demand_id:
           type: string
           format: uuid
@@ -170,10 +172,9 @@ components:
       type: object
       required:
       - text
-      - source_type
       - demand_id
       title: IngestionCreate
-      description: Texto, origem declarada e demanda de destino.
+      description: Texto, origem opcional e demanda de destino; a declaracao prevalece sobre a inferencia.
     IngestionRead:
       properties:
         raw_input_id:

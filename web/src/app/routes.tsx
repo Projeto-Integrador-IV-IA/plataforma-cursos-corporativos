@@ -2,10 +2,11 @@
  * Mapa de rotas da aplicacao.
  *
  * Rotas previstas:
- *   /login                        autenticacao (RF16)
+ *   /login                        autenticacao (RF26)
  *   /clientes                     lista de clientes (RF01, RF03)
  *   /clientes/novo                cadastro de empresa cliente (RF01)
  *   /clientes/:clientId           detalhe do cliente
+ *   /pipeline                     quadro das demandas por etapa (RF05)
  *   /demandas                     lista com filtro por status, cliente, periodo (RF02, RF03)
  *   /demandas/nova                abertura de negociacao vinculada a cliente (RF02)
  *   /demandas/:demandId           detalhe: pipeline, historico e artefatos (RF04, RF05, RF06)
@@ -17,15 +18,15 @@
  * separa as duas familias: `/login` e rota irma, e as demais sao filhas do
  * layout `App`.
  *
- * TODO(RF16): envolver o elemento do layout no guarda de sessao quando a
- * autenticacao existir. Enquanto o gateway nao emite token, nao ha sessao para
- * verificar e as rotas ficam abertas.
+ * O guarda preserva o destino pretendido no estado de navegacao e o login
+ * devolve o operador a esse caminho depois de autenticar.
  */
 
 import { Navigate, type RouteObject } from 'react-router-dom';
 
 import { App } from '@/app/App';
 import { PATHS } from '@/app/paths';
+import { RequireSession } from '@/features/auth/RequireSession';
 import { ArtifactVersionsPage } from '@/pages/artifact-versions/ArtifactVersionsPage';
 import { ClientDetailPage } from '@/pages/client-detail/ClientDetailPage';
 import { ClientNewPage } from '@/pages/client-new/ClientNewPage';
@@ -37,6 +38,7 @@ import { DemandNewPage } from '@/pages/demand-new/DemandNewPage';
 import { DemandsPage } from '@/pages/demands/DemandsPage';
 import { LoginPage } from '@/pages/login/LoginPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
+import { PipelinePage } from '@/pages/pipeline/PipelinePage';
 
 export const routes: RouteObject[] = [
   {
@@ -45,12 +47,17 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/',
-    element: <App />,
+    element: (
+      <RequireSession>
+        <App />
+      </RequireSession>
+    ),
     children: [
       { index: true, element: <Navigate to={PATHS.clients} replace /> },
       { path: PATHS.clients, element: <ClientsPage /> },
       { path: PATHS.clientNew, element: <ClientNewPage /> },
       { path: PATHS.clientDetail, element: <ClientDetailPage /> },
+      { path: PATHS.pipeline, element: <PipelinePage /> },
       { path: PATHS.demands, element: <DemandsPage /> },
       { path: PATHS.demandNew, element: <DemandNewPage /> },
       { path: PATHS.demandDetail, element: <DemandDetailPage /> },

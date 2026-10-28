@@ -26,6 +26,8 @@ class IngestionService:
 
         A ordem nao e detalhe de implementacao: o original e confirmado primeiro,
         e so entao a copia sanitizada e derivada dele (RF09, RNF05).
+        A sequencia de recebimento e atribuida pelo pipeline nessa primeira
+        transacao; concluir ou repetir a sanitizacao nao reordena as fontes (RF10).
 
         Falha ao gravar a sanitizacao **nao derruba a captacao**. O texto que o
         operador colou ja esta salvo, e e ele que o requisito manda preservar;

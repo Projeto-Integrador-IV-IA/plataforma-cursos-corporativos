@@ -9,6 +9,8 @@ Provedores registrados:
                 e o unico usado na CI (RNF12).
     ``http``    API de chat completions compativel com OpenAI, com endpoint,
                 modelo e chave vindos do ambiente (RNF11).
+    ``openrouter``  o mesmo cliente ``http`` com o endpoint do OpenRouter como
+                padrao; ``LLM_MODEL`` recebe o slug ``vendor/modelo``.
 
 Nome desconhecido falha na criacao, com a lista do que existe - erro de
 configuracao aparece na subida do servico, nao no meio de uma demanda.
@@ -19,13 +21,14 @@ from typing import Final
 
 from app.core.config import Settings, get_settings
 from app.providers.base import LLMProvider
-from app.providers.http_llm_provider import HttpLLMProvider
+from app.providers.http_llm_provider import HttpLLMProvider, OpenRouterProvider
 from app.providers.mock_provider import MockLLMProvider
 
 #: Nome em ``LLM_PROVIDER`` -> fabrica do provedor correspondente.
 PROVEDORES: Final[Mapping[str, Callable[[Settings], LLMProvider]]] = {
     MockLLMProvider.name: lambda settings: MockLLMProvider(model=settings.llm_model),
     HttpLLMProvider.name: HttpLLMProvider,
+    OpenRouterProvider.name: OpenRouterProvider,
 }
 
 

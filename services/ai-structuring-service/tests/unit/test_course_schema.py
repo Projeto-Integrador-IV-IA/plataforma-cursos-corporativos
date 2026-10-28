@@ -17,6 +17,7 @@ from app.domain.course import (
     CHAVES_CANONICAS,
     CHAVES_OBRIGATORIAS,
     CourseFormat,
+    FieldOrigin,
     StructuredCourse,
     schema_do_curso_estruturado,
     validar_curso_estruturado,
@@ -50,6 +51,26 @@ RESPOSTA_COMPLETA: dict[str, Any] = {
         }
     ],
     "campos_ausentes": [],
+    "procedencia": {
+        "tema": "extraido",
+        "nicho": "extraido",
+        "publico_alvo": "extraido",
+        "numero_participantes": "extraido",
+        "carga_horaria": "inferido",
+        "formato": "extraido",
+        "objetivos_aprendizagem": "extraido",
+        "ementa": "inferido",
+    },
+    "evidencias": {
+        "tema": [1],
+        "nicho": [1],
+        "publico_alvo": [1],
+        "numero_participantes": [1],
+        "carga_horaria": [2],
+        "formato": [2],
+        "objetivos_aprendizagem": [3],
+        "ementa": [3],
+    },
     "observacoes": [],
 }
 
@@ -62,7 +83,7 @@ def resposta(**alteracoes: Any) -> dict[str, Any]:
 
 def test_chaves_canonicas_cobrem_extraidos_gerados_e_confianca() -> None:
     assert set(CHAVES_CANONICAS) == set(CAMPOS_EXTRAIDOS + CAMPOS_GERADOS + CAMPOS_DE_CONFIANCA)
-    assert len(CHAVES_CANONICAS) == 10
+    assert len(CHAVES_CANONICAS) == 12
 
 
 def test_chaves_obrigatorias_sao_as_que_o_prompt_ativo_manda_devolver() -> None:
@@ -73,6 +94,8 @@ def test_chaves_obrigatorias_sao_as_que_o_prompt_ativo_manda_devolver() -> None:
         "ementa",
         "objetivos_aprendizagem",
         "campos_ausentes",
+        "procedencia",
+        "evidencias",
         "observacoes",
     }
 
@@ -146,6 +169,19 @@ def test_texto_que_nao_e_json_e_recusado() -> None:
         validar_curso_estruturado("Claro! Aqui esta o curso estruturado:")
 
 
+@pytest.mark.parametrize("bruto", ['[{"tema": "NR-12"}]', '"NR-12"'])
+def test_json_valido_que_nao_e_objeto_e_recusado(bruto: str) -> None:
+    """Curso embrulhado em lista, ou devolvido como texto JSON, nao e o objeto do contrato.
+
+    A reconciliacao de lacunas se afasta de entrada que nao e mapeamento; quem
+    recusa e a validacao normal, para que a violacao nao fique mascarada
+    (ADR-0006).
+    """
+
+    with pytest.raises(LLMInvalidResponseError):
+        validar_curso_estruturado(bruto)
+
+
 @pytest.mark.parametrize(
     ("campo", "valor"),
     [
@@ -155,6 +191,7 @@ def test_texto_que_nao_e_json_e_recusado() -> None:
         ("objetivos_aprendizagem", "Aplicar o procedimento"),
         ("ementa", {"titulo": "Fundamentos"}),
         ("tema", ["NR-12"]),
+        ("formato", ["online"]),
     ],
 )
 def test_valor_fora_do_tipo_declarado_e_recusado(campo: str, valor: Any) -> None:
@@ -231,6 +268,28 @@ def test_schema_json_declara_a_lacuna_classificada_de_campos_ausentes() -> None:
     assert schema["$defs"]["GapKind"]["enum"] == ["ausente", "ambigua", "contraditoria"]
 
 
+def test_schema_json_declara_a_procedencia_do_campo() -> None:
+    """Procedencia faz parte do contrato de saida (RNF06, card #11)."""
+
+    schema = schema_do_curso_estruturado()
+
+    assert schema["properties"]["procedencia"]["additionalProperties"] == {
+        "$ref": "#/$defs/FieldOrigin"
+    }
+    assert schema["$defs"]["FieldOrigin"]["enum"] == ["extraido", "inferido", "ausente"]
+    assert "procedencia" in schema["required"]
+
+
+def test_curso_valido_tem_procedencia_para_todo_campo_preenchido() -> None:
+    """Forma do contrato: procedencia cobre exatamente o que esta preenchido."""
+
+    curso = validar_curso_estruturado(RESPOSTA_COMPLETA)
+
+    assert set(curso.procedencia) == set(CAMPOS_EXTRAIDOS + CAMPOS_GERADOS)
+    assert all(isinstance(origem, FieldOrigin) for origem in curso.procedencia.values())
+    assert curso.to_canonical_dict()["procedencia"]["tema"] == "extraido"
+
+
 def test_curso_pode_ser_construido_em_codigo_com_a_mesma_forma() -> None:
     curso = StructuredCourse(
         tema="Lideranca para coordenadores",
@@ -239,6 +298,8 @@ def test_curso_pode_ser_construido_em_codigo_com_a_mesma_forma() -> None:
         objetivos_aprendizagem=[],
         ementa=[],
         campos_ausentes=["carga_horaria", "objetivos_aprendizagem"],
+        procedencia={"tema": "extraido", "publico_alvo": "extraido"},
+        evidencias={"tema": [1], "publico_alvo": [1]},
         observacoes=[],
     )
 

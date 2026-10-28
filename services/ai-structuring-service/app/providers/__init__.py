@@ -13,7 +13,7 @@ from app.providers.base import (
     LLMProvider,
 )
 from app.providers.factory import PROVEDORES, get_llm_provider
-from app.providers.http_llm_provider import HttpLLMProvider
+from app.providers.http_llm_provider import HttpLLMProvider, OpenRouterProvider
 from app.providers.mock_provider import MockLLMProvider
 
 __all__ = [
@@ -24,5 +24,6 @@ __all__ = [
     "HttpLLMProvider",
     "LLMProvider",
     "MockLLMProvider",
+    "OpenRouterProvider",
     "get_llm_provider",
 ]

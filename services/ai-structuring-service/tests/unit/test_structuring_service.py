@@ -25,6 +25,7 @@ from app.core.exceptions import (
     LLMUnavailableError,
 )
 from app.providers import CompletionParams, CompletionResult, HttpLLMProvider, LLMProvider
+from app.providers.mock_provider import RESPOSTA_FIXA
 from app.services.structuring_service import (
     RawDemand,
     StructuringOutcome,
@@ -40,6 +41,13 @@ em dois dias de 8 horas, no proprio site. Fico no aguardo da proposta.
 DEMANDA = RawDemand(demand_id="dem-2026-0042", text=TEXTO_COLADO)
 
 RESPOSTA_DO_MODELO = '{"tema": "NR-12 para manutencao"}'
+
+#: Curso completo, valido contra ``StructuredCourse`` - para os testes que
+#: precisam de uma resposta que passa na validacao de schema.
+RESPOSTA_VALIDA = json.dumps(RESPOSTA_FIXA)
+
+#: Resposta que o modelo as vezes devolve: chave fora do contrato (``extra="forbid"``).
+RESPOSTA_FORA_DO_SCHEMA = '{"tema": "NR-12 para manutencao", "sobrando": true}'
 
 RESPOSTA_HTTP_OK = {
     "model": "modelo-remoto-1",
@@ -312,11 +320,16 @@ async def test_erro_http_do_provedor_vira_falha_identificada(
     assert outcome.demand.text == TEXTO_COLADO
 
 
-async def test_resposta_malformada_do_fornecedor_e_falha_nao_retentavel(
+async def test_resposta_malformada_do_fornecedor_e_falha_classificada_pelo_schema(
     make_settings: MakeSettings,
     relogio: _Relogio,
 ) -> None:
-    """Corpo que nao e o combinado nao vira "quase certo": e falha (ADR-0006)."""
+    """Corpo que nao e o combinado nao vira "quase certo": e falha (ADR-0006).
+
+    Teto de schema zerado para o teste ficar determinístico: a retentativa de
+    resposta invalida (RNF05) e exercitada a parte, em
+    ``test_resposta_fora_do_schema_e_retentada_ate_o_limite_configurado``.
+    """
 
     chamadas: list[int] = []
 
@@ -324,7 +337,7 @@ async def test_resposta_malformada_do_fornecedor_e_falha_nao_retentavel(
         chamadas.append(1)
         return httpx.Response(200, text="<html>portal de erro</html>")
 
-    settings = _settings_http(make_settings, llm_max_retries=3)
+    settings = _settings_http(make_settings, llm_max_retries=3, llm_schema_max_retries=0)
     servico = StructuringService(
         _provider_http(settings, handler),
         settings,  # type: ignore[arg-type]
@@ -337,21 +350,66 @@ async def test_resposta_malformada_do_fornecedor_e_falha_nao_retentavel(
     assert outcome.attempts == 1
     assert len(chamadas) == 1
     assert relogio.esperas == []
-    assert not outcome.retryable
+    assert outcome.retryable, "resposta fora do schema e intermitente, nao permanente (RNF05)"
 
 
-async def test_falha_nao_retentavel_do_provedor_nao_e_repetida(
+async def test_falha_de_schema_respeita_o_proprio_teto_e_nao_o_de_rede(
     montar_servico: Callable[..., StructuringService],
     relogio: _Relogio,
 ) -> None:
+    """LLM_MAX_RETRIES nao se aplica a falha de schema (RNF05)."""
+
     provider = _ProviderProgramado(LLMInvalidResponseError(provider="programado"))
-    servico = montar_servico(provider, llm_max_retries=3)
+    servico = montar_servico(provider, llm_max_retries=3, llm_schema_max_retries=0)
 
     outcome = await servico.structure(DEMANDA)
 
     assert len(provider.chamadas) == 1
     assert outcome.attempts == 1
     assert relogio.esperas == []
+
+
+async def test_resposta_fora_do_schema_e_retentada_ate_acertar(
+    montar_servico: Callable[..., StructuringService],
+    relogio: _Relogio,
+) -> None:
+    """Criterio de aceite: saida fora do schema dispara nova tentativa (RNF05)."""
+
+    provider = _ProviderProgramado(
+        RESPOSTA_FORA_DO_SCHEMA,
+        RESPOSTA_FORA_DO_SCHEMA,
+        RESPOSTA_VALIDA,
+    )
+    servico = montar_servico(provider, llm_schema_max_retries=3)
+
+    outcome = await servico.structure_course(DEMANDA)
+
+    assert outcome.succeeded
+    assert outcome.error is None
+    assert outcome.course is not None
+    assert len(provider.chamadas) == 3, "duas recusas e a terceira chamada, que acertou"
+    assert outcome.attempts == 3
+
+
+async def test_resposta_fora_do_schema_para_no_limite_configurado(
+    montar_servico: Callable[..., StructuringService],
+    relogio: _Relogio,
+) -> None:
+    """Criterio de aceite: esgotado o limite, nada e persistido e o erro nomeia os campos."""
+
+    provider = _ProviderProgramado(RESPOSTA_FORA_DO_SCHEMA)
+    servico = montar_servico(provider, llm_schema_max_retries=2)
+
+    outcome = await servico.structure_course(DEMANDA)
+
+    assert not outcome.succeeded
+    assert outcome.course is None
+    assert isinstance(outcome.error, LLMInvalidResponseError)
+    assert "sobrando" in outcome.error.violated_fields()
+    assert len(provider.chamadas) == 3, "primeira tentativa + duas retentativas, todas recusadas"
+    assert outcome.attempts == 3
+    with pytest.raises(LLMInvalidResponseError):
+        outcome.raise_for_course()
 
 
 async def test_excecao_inesperada_nao_e_confundida_com_falha_de_provedor(
@@ -502,6 +560,25 @@ def test_desfecho_sem_resultado_e_sem_falha_nao_passa_silenciosamente() -> None:
 
     with pytest.raises(LLMInvalidResponseError):
         outcome.raise_for_error()
+
+
+async def test_saida_bruta_sem_curso_validado_nao_vira_resposta(
+    montar_servico: Callable[..., StructuringService],
+) -> None:
+    """``structure`` devolve o bruto; sem passar pelo schema nao ha curso a responder.
+
+    A rota chama ``raise_for_course``: ou ha curso na forma canonica, ou ha erro
+    identificado - nunca um meio-termo (RF11, RNF03).
+    """
+
+    servico = montar_servico(_ProviderProgramado(RESPOSTA_DO_MODELO))
+
+    outcome = await servico.structure(DEMANDA)
+
+    assert outcome.succeeded
+    assert outcome.course is None
+    with pytest.raises(LLMInvalidResponseError):
+        outcome.raise_for_course()
 
 
 async def test_chave_do_provedor_nunca_aparece_no_desfecho_da_falha(

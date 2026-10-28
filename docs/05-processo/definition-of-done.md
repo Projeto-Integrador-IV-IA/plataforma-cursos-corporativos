@@ -49,6 +49,7 @@ pronto" — item pendente significa card em andamento.
 - [ ] Links internos funcionando
 - [ ] Diagramas em Mermaid, versionados como texto
 - [ ] IDs de requisito citados corretamente
+- [ ] Casos de teste de fluxo (sob `tests/fluxos/`) utilizam o padrão estabelecido em `FT-01`, com dados concretos, chamadas de API, validações de banco e registro de execução.
 
 ## Para uma entrega parcial
 

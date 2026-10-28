@@ -17,10 +17,11 @@ describe('mapa de rotas', () => {
     [PATHS.login, 'Entrar'],
     [PATHS.clients, 'Clientes'],
     ['/clientes/abc-123', 'Detalhe do cliente'],
+    [PATHS.pipeline, 'Pipeline'],
     [PATHS.demands, 'Demandas'],
     ['/demandas/abc-123', 'Detalhe da demanda'],
     ['/demandas/abc-123/ingestao', 'Ingestao da demanda'],
-    ['/demandas/abc-123/estruturacao', 'Estruturacao por IA'],
+    ['/demandas/abc-123/estruturacao', 'Revisao da estruturacao'],
     ['/artefatos/abc-123/versoes', 'Versoes do artefato'],
   ];
 
@@ -58,6 +59,13 @@ describe('mapa de rotas', () => {
 
   it('nao renderiza o layout base em /login', () => {
     renderRoute(PATHS.login);
+    expect(screen.queryByRole('navigation', { name: 'Navegacao principal' })).toBeNull();
+  });
+
+  it('impede acesso a rota protegida sem sessao', () => {
+    renderRoute(PATHS.clients, { authenticated: false });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Entrar' })).toBeDefined();
     expect(screen.queryByRole('navigation', { name: 'Navegacao principal' })).toBeNull();
   });
 });

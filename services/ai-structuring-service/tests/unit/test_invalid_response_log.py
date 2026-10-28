@@ -61,7 +61,10 @@ def montar_servico(make_settings: MakeSettings) -> MontarServico:
     """Monta o caso de uso sobre o provedor mock, sem dormir entre tentativas."""
 
     def _montar(response_text: str, **overrides: object) -> StructuringService:
-        base: dict[str, object] = {"llm_max_retries": 0}
+        # Teto de schema zerado por padrao: este arquivo testa o conteudo do
+        # log e do erro, nao a retentativa (RNF05) - essa fica em
+        # test_structuring_service.py.
+        base: dict[str, object] = {"llm_max_retries": 0, "llm_schema_max_retries": 0}
         base.update(overrides)
         return StructuringService(
             MockLLMProvider(response_text=response_text),
@@ -130,7 +133,25 @@ async def test_resposta_valida_nao_gera_alerta(
         outcome = await servico.structure_course(DEMANDA)
 
     assert outcome.succeeded
-    assert caplog.records == []
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+
+
+async def test_resposta_valida_registra_provedor_e_modelo_sem_texto_do_cliente(
+    montar_servico: MontarServico,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Criterio de aceite do OpenRouter: o slug completo do modelo aparece no log."""
+
+    servico = montar_servico(MockLLMProvider().response_text, llm_model="vendor/modelo:free")
+
+    with caplog.at_level(logging.INFO, logger=LOGGER_DO_CASO_DE_USO):
+        await servico.structure_course(DEMANDA)
+
+    (registro,) = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+    assert "provider=mock" in registro
+    assert "model=vendor/modelo:free" in registro
+    assert "dem-2026-0042" in registro
+    assert not any(termo in registro for termo in TERMOS_DO_CLIENTE)
 
 
 # ----------------------------------------------------------------------
@@ -211,7 +232,7 @@ async def test_erro_devolvido_identifica_o_campo_que_violou_o_contrato(
     assert payload is not None
     detalhes = payload["error"]["details"]
     assert detalhes["demand_id"] == "dem-2026-0042"
-    assert detalhes["retryable"] is False
+    assert detalhes["retryable"] is True
     campos = {violacao["campo"] for violacao in detalhes["violacoes"]}
     assert "sobrando" in campos
     assert {"publico_alvo", "carga_horaria"} <= campos

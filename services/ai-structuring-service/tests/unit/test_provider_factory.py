@@ -5,7 +5,13 @@ import json
 import pytest
 
 from app.core.config import get_settings
-from app.providers import HttpLLMProvider, LLMProvider, MockLLMProvider, get_llm_provider
+from app.providers import (
+    HttpLLMProvider,
+    LLMProvider,
+    MockLLMProvider,
+    OpenRouterProvider,
+    get_llm_provider,
+)
 from tests.conftest import MakeSettings
 
 
@@ -27,6 +33,27 @@ def test_ambiente_seleciona_o_provedor_http(make_settings: MakeSettings) -> None
     )
 
     assert isinstance(get_llm_provider(settings), HttpLLMProvider)
+
+
+def test_ambiente_seleciona_o_openrouter_sem_precisar_de_endpoint(
+    make_settings: MakeSettings,
+) -> None:
+    settings = make_settings(
+        llm_provider="openrouter",
+        llm_model="vendor/modelo",
+        llm_api_key="chave-de-teste",
+    )
+
+    provider = get_llm_provider(settings)
+
+    assert isinstance(provider, OpenRouterProvider)
+    assert isinstance(provider, HttpLLMProvider)
+    assert provider.name == "openrouter"
+
+
+def test_openrouter_exige_chave(make_settings: MakeSettings) -> None:
+    with pytest.raises(ValueError, match="LLM_API_KEY"):
+        make_settings(llm_provider="openrouter", llm_model="vendor/modelo")
 
 
 def test_trocar_a_variavel_troca_o_provedor_sem_mudar_o_codigo_de_chamada(
@@ -62,7 +89,7 @@ def test_provedor_desconhecido_falha_na_criacao_listando_os_disponiveis(
         llm_base_url="https://api.exemplo.invalid/v1",
     )
 
-    with pytest.raises(ValueError, match="Disponiveis: http, mock"):
+    with pytest.raises(ValueError, match="Disponiveis: http, mock, openrouter"):
         get_llm_provider(settings)
 
 
@@ -103,6 +130,7 @@ async def test_provedor_sai_do_ambiente_sem_nenhuma_chave_configurada(
         "LLM_API_KEY": "",
         "LLM_TIMEOUT_SECONDS": "30",
         "LLM_MAX_RETRIES": "2",
+        "LLM_SCHEMA_MAX_RETRIES": "2",
         "LLM_TEMPERATURE": "0.2",
     }.items():
         monkeypatch.setenv(variavel, valor)

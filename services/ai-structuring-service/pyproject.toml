@@ -21,6 +21,15 @@ dev = [
   # Le o contrato OpenAPI no teste que o compara com o openapi.json do servico.
   "pyyaml>=6.0",
 ]
+# Roda notebooks/avaliacao-de-modelos.ipynb, que compara modelos sobre o conjunto
+# de avaliacao (RNF04). Separado de `dev` porque o CI nao executa notebook: quem
+# roda a avaliacao instala com `pip install -e ".[dev,avaliacao]"`.
+avaliacao = [
+  "jupyter>=1.1",
+  "nbclient>=0.10",
+  "nbformat>=5.10",
+  "ipykernel>=6.29",
+]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -39,4 +48,21 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-q"
+# RNF30: a medicao de cobertura vem na propria suite. Rodar `pytest` imprime o
+# relatorio com as linhas e os ramos descobertos, na mesma forma em qualquer
+# maquina e no CI - sem flag extra e sem depender de quem lembrou de passa-la.
+addopts = "-q --cov --cov-report=term-missing"
+
+[tool.coverage.run]
+# `--cov` sem valor usa este fonte: so o codigo do servico entra na conta.
+source = ["app"]
+# Ramo nao exercitado aparece como `136->134` no relatorio; sem isto, um `if`
+# cujo caminho falso nunca roda passa por coberto.
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# RNF30: piso abaixo do qual o build falha. Atual e 94% (linha e ramo); a
+# margem existe para nao reprovar por flutuacao pontual de um modulo, nao para
+# tolerar regressao real - revisar para cima se a suite estabilizar mais alto.
+fail_under = 85

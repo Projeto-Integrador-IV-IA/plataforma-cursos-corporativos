@@ -54,6 +54,20 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: pytest -q
 
+      # RNF30: ai-structuring-service e o unico dos quatro com `--cov`
+      # habilitado no `addopts` (pyproject.toml); os outros nao escrevem
+      # `.coverage`, por isso o passo e so dele. `always()` para o numero
+      # aparecer tambem quando o piso reprova o build, nao so quando passa.
+      - name: Publicar cobertura (RNF30)
+        if: always() && matrix.service == 'ai-structuring-service'
+        working-directory: services/${{ matrix.service }}
+        run: |
+          total=$(coverage report --format=total)
+          {
+            echo "### Cobertura - ai-structuring-service"
+            echo "Total: ${total}% (piso: 85%, ver \`pyproject.toml\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
@@ -140,3 +154,50 @@ jobs:
           fi
 
           echo "nenhum segredo aparente encontrado"
+
+  fronteira-bloco-b:
+    name: Fronteira do nucleo com o Bloco B (RNF13)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Custeio, instrutores, proposta comercial e slides sao Bloco B (RF-F1 a
+      # RF-F5): fora do MVP, entram depois como servico novo (ADR-0008). Fronteira
+      # sem teste volta a vazar, entao a busca reprova o PR. Vocabulario legitimo
+      # - texto de cliente em fixture, teste que prova que o contrato recusa campo
+      # do Bloco B, diretorio de modulo ja aprovado - fica em
+      # .github/fronteira-bloco-b-permitidos.txt: um caminho por linha, com a
+      # justificativa depois de `|`. A fala do cliente "depende do orcamento",
+      # usada em exemplos de prompt e em fixtures, e permitida em qualquer
+      # arquivo (variavel `frases` abaixo).
+      - name: Procurar vocabulario do Bloco B no nucleo
+        run: |
+          # `or[^a-z]{1,2}amento` cobre "orcamento" e "orcamento" com cedilha sem
+          # depender de acento neste arquivo.
+          padrao='custeio|orcamento|or[^a-z]{1,2}amento|instrutor|proposta comercial|slide'
+          lista=.github/fronteira-bloco-b-permitidos.txt
+          frases='depende do (orcamento|or[^a-z]{1,2}amento)'
+
+          excecoes=()
+          if [ -f "$lista" ]; then
+            while IFS= read -r linha || [ -n "$linha" ]; do
+              caminho=$(printf '%s' "${linha%%|*}" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+              case "$caminho" in ''|'#'*) continue ;; esac
+              if [ ! -e "$caminho" ]; then
+                echo "::warning::caminho da lista de permitidos nao existe mais: $caminho"
+              fi
+              excecoes+=(":(exclude)$caminho")
+            done < "$lista"
+          fi
+
+          bruto=$(git grep -nEiI "$padrao" -- services packages web ':(exclude)*package-lock.json' "${excecoes[@]}" || true)
+          achados=$(printf '%s\n' "$bruto" | grep -viE "$frases" | grep -E '.' || true)
+
+          if [ -n "$achados" ]; then
+            printf '%s\n' "$achados"
+            echo "::error::vocabulario do Bloco B no nucleo (ADR-0008)"
+            echo "Se for vazamento, remova do nucleo. Se for vocabulario legitimo, registre o arquivo em $lista com a justificativa."
+            exit 1
+          fi
+
+          echo "nucleo sem vocabulario do Bloco B fora da lista permitida"
