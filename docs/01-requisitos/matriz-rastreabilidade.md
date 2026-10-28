@@ -81,7 +81,7 @@ continua no card #32, que complementa o RF10 consolidado.
 | RNF15 | Portabilidade como serviço web | Média | | 4 | ⬜ | |
 | RNF16 | Rastreabilidade no GitHub Projects | Média | | 1 | 🟡 | Este documento + templates de issue |
 | RNF23 | Custos de API, hospedagem e banco estimados e controlados | Alta | #121 | 3 | 🟡 | Custos operacionais, premissas de volume e STT documentados em [`docs/04-ia/custos-operacao.md`](../04-ia/custos-operacao.md) (Corresponde ao RNF12 do Documento Consolidado v1.0) (#121) |
-| RNF25 | Documentação e READMEs padronizados dos microsserviços | Alta | #114, #115, #116 | 3 | ✅ | READMEs em [`services/ingestion-service/README.md`](../../services/ingestion-service/README.md) (#114), [`services/ai-structuring-service/README.md`](../../services/ai-structuring-service/README.md) (#115) e [`services/pipeline-service/README.md`](../../services/pipeline-service/README.md) (#116) |
+| RNF25 | Documentação e READMEs padronizados dos microsserviços | Alta | #114, #115, #116, #117 | 3 | ✅ | READMEs em [`services/ingestion-service/README.md`](../../services/ingestion-service/README.md) (#114), [`services/ai-structuring-service/README.md`](../../services/ai-structuring-service/README.md) (#115), [`services/pipeline-service/README.md`](../../services/pipeline-service/README.md) (#116) e [`services/gateway-service/README.md`](../../services/gateway-service/README.md) (#117) |
 
 ## Cobertura por serviço
 
