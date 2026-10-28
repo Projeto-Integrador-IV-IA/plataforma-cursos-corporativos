@@ -281,6 +281,14 @@ class FieldGap(CanonicalModel):
         return valor
 
 
+#: Versao da forma canonica (RNF29). Incrementar so quando um campo e
+#: adicionado, removido ou muda de tipo em ``StructuredCourse`` - nao a cada
+#: ajuste de prompt. A avaliacao de modelos (card #217) grava este valor junto
+#: de cada rodada: comparar execucoes feitas sob schemas diferentes mediria
+#: outra coisa.
+SCHEMA_VERSION: Final[str] = "v1"
+
+
 class StructuredCourse(CanonicalModel):
     """Curso estruturado: a saida canonica da estruturacao por IA (RNF03).
 
