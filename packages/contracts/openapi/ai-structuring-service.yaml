@@ -237,7 +237,7 @@ components:
       title: ExecutionMetadata
       description: "Proveniencia da execucao que produziu o curso (RNF04, RNF09, RNF12).\n\nAttributes:\n\
         \    provider: provedor que atendeu a chamada (``LLM_PROVIDER``).\n    model: modelo que efetivamente\
-        \ respondeu.\n    prompt: prompt versionado usado, ex.: ``extract-requirements.v3``.\n    attempts:\
+        \ respondeu.\n    prompt: prompt versionado usado, ex.: ``extract-requirements.v6``.\n    attempts:\
         \ tentativas gastas, contando a primeira (RNF05).\n    prompt_tokens: tokens de entrada consumidos.\n\
         \    completion_tokens: tokens gerados.\n    total_tokens: soma dos dois, insumo do custo de operacao\
         \ (RNF12).\n    provider_latency_ms: tempo da chamada que respondeu.\n    elapsed_ms: tempo do caso\
@@ -565,7 +565,7 @@ components:
           title: Prompt Version
           description: Versao do prompt de extracao a usar, no formato 'v1'. Acompanha o resultado para
             que a execucao seja reproduzivel (RNF04).
-          default: v5
+          default: v6
       additionalProperties: false
       type: object
       required:
@@ -582,7 +582,7 @@ components:
         silencio (RNF02).'
       examples:
       - demand_id: dem-2026-0042
-        prompt_version: v5
+        prompt_version: v6
         text: Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
           da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias de 8 horas, no proprio site. Fico no
           aguardo da proposta.
@@ -650,7 +650,7 @@ components:
           completion_tokens: 210
           elapsed_ms: 861.7
           model: mock
-          prompt: extract-requirements.v5
+          prompt: extract-requirements.v6
           prompt_tokens: 940
           provider: mock
           provider_latency_ms: 820.4
