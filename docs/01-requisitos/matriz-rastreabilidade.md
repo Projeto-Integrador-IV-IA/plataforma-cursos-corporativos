@@ -81,6 +81,7 @@ continua no card #32, que complementa o RF10 consolidado.
 | RNF15 | Portabilidade como serviço web | Média | | 4 | ⬜ | |
 | RNF16 | Rastreabilidade no GitHub Projects | Média | | 1 | 🟡 | Este documento + templates de issue |
 | RNF23 | Custos de API, hospedagem e banco estimados e controlados | Alta | #121 | 3 | 🟡 | Custos operacionais, premissas de volume e STT documentados em [`docs/04-ia/custos-operacao.md`](../04-ia/custos-operacao.md) (Corresponde ao RNF12 do Documento Consolidado v1.0) (#121) |
+| RNF25 | Documentação e README padronizado do serviço de ingestão | Alta | #114 | 3 | ✅ | README documentado em [`services/ingestion-service/README.md`](../../services/ingestion-service/README.md) (#114) |
 
 ## Cobertura por serviço
 
