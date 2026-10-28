@@ -35,6 +35,9 @@ entre 1 e a quantidade de trechos enviados nesta chamada. Citacao fora dessa
 faixa vira ``LLMInvalidResponseError`` no desfecho - mesma regra de RNF05.1,
 agora aplicada a evidencia -, registrada em log para diagnostico sem repetir
 o texto do cliente.
+ordem - ``trechos[n - 1]`` e o conteudo do numero ``n`` citado. A validacao de
+que todo numero citado corresponde a um trecho que de fato foi enviado (RNF27)
+e passo seguinte, ainda nao implementado aqui.
 
 Tratamento de falha (RNF05)
 ---------------------------
@@ -571,64 +574,6 @@ def formatar_trechos_numerados(trechos: Sequence[str]) -> str:
     """
 
     return "\n".join(f"[{numero}] {trecho}" for numero, trecho in enumerate(trechos, start=1))
-
-
-def _citacoes_fora_do_intervalo(
-    curso: StructuredCourse, total_trechos: int
-) -> tuple[dict[str, Any], ...]:
-    """Numeros citados em ``evidencias`` que nao correspondem a trecho enviado (RNF27).
-
-    O numero existe se estiver entre 1 e ``total_trechos`` - a mesma faixa que
-    ``formatar_trechos_numerados`` produziu para esta chamada, numerando a
-    partir de 1. Citar fora dessa faixa e o modelo inventando evidencia para
-    um trecho que nunca foi enviado (RF28): nao basta citar, a citacao tem de
-    existir.
-
-    Returns:
-        Uma entrada ``{"campo", "numero"}`` por citacao invalida, na ordem em
-        que apareceram em ``evidencias``. Vazia quando todas as citacoes
-        correspondem a um trecho real.
-    """
-
-    return tuple(
-        {"campo": campo, "numero": numero}
-        for campo, numeros in curso.evidencias.items()
-        for numero in numeros
-        if not 1 <= numero <= total_trechos
-    )
-
-
-def _registrar_citacao_invalida(
-    *,
-    demand: RawDemand,
-    prompt_id: str,
-    attempts: int,
-    invalidas: tuple[dict[str, Any], ...],
-    total_trechos: int,
-) -> None:
-    """Registra em log a citacao que nao corresponde a trecho enviado (RNF27).
-
-    Mesmo nivel e mesma justificativa de ``_registrar_resposta_recusada``: so
-    nomes de campo e numeros, nada do texto do cliente (RNF10, RNF11).
-
-    Args:
-        demand: demanda em processamento, para correlacionar log e reprocessamento.
-        prompt_id: prompt versionado usado na chamada.
-        attempts: tentativas gastas ate esta recusa.
-        invalidas: citacoes fora do intervalo, de ``_citacoes_fora_do_intervalo``.
-        total_trechos: quantos trechos foram enviados nesta chamada - o que
-            delimita a faixa valida.
-    """
-
-    _logger.warning(
-        "Resposta cita trecho inexistente (demand_id=%s, prompt=%s, tentativas=%d, "
-        "trechos_enviados=%d, citacoes=%s).",
-        demand.demand_id,
-        prompt_id,
-        attempts,
-        total_trechos,
-        ", ".join(f"{item['campo']}:{item['numero']}" for item in invalidas),
-    )
 
 
 def _registrar_resposta_recusada(
