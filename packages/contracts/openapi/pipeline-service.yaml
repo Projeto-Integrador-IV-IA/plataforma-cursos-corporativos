@@ -875,6 +875,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/demands/{demand_id}/available-transitions:
+    get:
+      tags:
+      - pipeline
+      summary: Consultar as etapas disponiveis a partir da atual
+      description: 'Devolve a etapa corrente e as etapas para onde a demanda pode ir agora, na
+        mesma ordem e com a mesma regra que avanco e retrocesso aplicam - a interface consulta
+        aqui para so habilitar o que vale, em vez de descobrir pelo erro 409.'
+      operationId: get_available_transitions_api_v1_demands__demand_id__available_transitions_get
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailableTransitionsRead'
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/demands/{demand_id}/transitions:
     get:
       tags:
@@ -1455,6 +1491,28 @@ components:
         -
 
         qual versao voltou (este campo), quem restaurou (``author_id``) e quando.'
+    AvailableTransitionsRead:
+      properties:
+        current_stage:
+          $ref: '#/components/schemas/PipelineStage'
+        available_stages:
+          items:
+            $ref: '#/components/schemas/PipelineStage'
+          type: array
+          title: Available Stages
+      type: object
+      required:
+      - current_stage
+      - available_stages
+      title: AvailableTransitionsRead
+      description: 'Para onde a demanda pode ir a partir da etapa corrente (RF06.3).
+
+
+        ``available_stages`` vem de ``domain.rules.available_transitions``, a
+
+        mesma fonte que recusa uma transicao invalida - a interface consulta
+
+        aqui antes de tentar, em vez de descobrir so pelo erro 409.'
     ClientCreate:
       properties:
         name:

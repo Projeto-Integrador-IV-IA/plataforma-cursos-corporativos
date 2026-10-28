@@ -761,3 +761,56 @@ def test_evidencia_com_numero_de_trecho_que_nao_e_inteiro_e_recusada() -> None:
         )
 
     assert any(v["campo"].startswith("evidencias.tema") for v in excinfo.value.details["violacoes"])
+
+
+def test_procedencia_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido() -> None:
+    """``procedencia`` fora do tipo nao pode passar batido so porque nao ha nada a exigir.
+
+    Quando todo campo inferivel presente esta vazio ou com lacuna declarada,
+    nenhuma entrada de procedencia e exigida pela reconciliacao - mas isso nao
+    pode servir de disfarce para um valor de ``procedencia`` que nem e
+    mapeamento. A validacao normal e quem recusa, como em qualquer outro
+    campo fora do tipo (ADR-0006).
+    """
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            {
+                "tema": None,
+                "publico_alvo": None,
+                "carga_horaria": None,
+                "objetivos_aprendizagem": [],
+                "ementa": [],
+                "campos_ausentes": [],
+                "procedencia": "isto-nao-e-um-mapeamento",
+                "observacoes": [],
+            }
+        )
+
+    assert [v["campo"] for v in excinfo.value.details["violacoes"]] == ["procedencia"]
+
+
+def test_evidencias_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido() -> None:
+    """Mesma lacuna do teste acima (RF28), agora para ``evidencias``.
+
+    Mesmo com todo campo inferivel vazio - nenhuma entrada de evidencia
+    chegaria a ser exigida pela reconciliacao -, um valor de ``evidencias``
+    que nem e mapeamento tem que ser recusado pela validacao normal do campo,
+    e nao descartado em silencio.
+    """
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            {
+                "tema": None,
+                "publico_alvo": None,
+                "carga_horaria": None,
+                "objetivos_aprendizagem": [],
+                "ementa": [],
+                "campos_ausentes": [],
+                "evidencias": "isto-nao-e-um-mapeamento",
+                "observacoes": [],
+            }
+        )
+
+    assert [v["campo"] for v in excinfo.value.details["violacoes"]] == ["evidencias"]
