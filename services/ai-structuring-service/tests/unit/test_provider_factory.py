@@ -130,6 +130,7 @@ async def test_provedor_sai_do_ambiente_sem_nenhuma_chave_configurada(
         "LLM_API_KEY": "",
         "LLM_TIMEOUT_SECONDS": "30",
         "LLM_MAX_RETRIES": "2",
+        "LLM_SCHEMA_MAX_RETRIES": "2",
         "LLM_TEMPERATURE": "0.2",
     }.items():
         monkeypatch.setenv(variavel, valor)

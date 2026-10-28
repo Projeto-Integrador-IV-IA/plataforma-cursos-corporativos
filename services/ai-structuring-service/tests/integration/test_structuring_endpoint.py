@@ -227,7 +227,7 @@ def test_resposta_fora_do_schema_e_recusada_e_nao_devolve_curso_pela_metade(
     assert resposta.status_code == 502
     assert erro["code"] == "LLM_INVALID_RESPONSE"
     assert erro["details"]["prompt"] == "extract-requirements.v3"
-    assert erro["details"]["retryable"] is False
+    assert erro["details"]["retryable"] is True
     assert erro["details"]["violacoes"]
     assert "course" not in resposta.json()
 
