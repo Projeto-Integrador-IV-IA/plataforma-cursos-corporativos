@@ -1,12 +1,14 @@
 # web
 
 Interface do operador: onde clientes, demandas e o pipeline são consultados e onde a saída da IA é
-revisada antes de qualquer uso externo (RF14).
+revisada antes de qualquer uso externo (RF14). Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `5173`
-- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RNF10
+- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RNF10, RNF25
 
-## Telas previstas
+---
+
+## 1. Telas Previstas
 
 | Tela | Requisitos |
 |---|---|
@@ -21,7 +23,11 @@ revisada antes de qualquer uso externo (RF14).
 O estado de processamento da estruturação (RF17) é feedback global: enquanto a IA trabalha, a
 interface mostra progresso e não bloqueia a navegação.
 
-## Estrutura
+---
+
+## 2. Estrutura e Convenção de Pastas
+
+A organização de código do frontend segue uma separação rigorosa por responsabilidade:
 
 ```
 src/
@@ -37,7 +43,9 @@ src/
 └── styles/       Estilos globais
 ```
 
-## Rotas
+---
+
+## 3. Rotas
 
 Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 [`src/app/paths.ts`](src/app/paths.ts) e nenhum componente escreve URL literal.
@@ -59,18 +67,24 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 lateral. Essa separação é o lugar do guarda de sessão (RNF10) quando RF16 existir — hoje
 não há token para verificar e as rotas ficam abertas.
 
-## Acesso ao gateway
+---
+
+## 4. Acesso ao Gateway e Variáveis de Ambiente
 
 Toda chamada de rede passa por [`src/services/api.ts`](src/services/api.ts) — nenhum componente usa
-`fetch` diretamente. Ele lê a URL base de `VITE_API_BASE_URL` (RNF11), anexa o token da sessão
-(RF16), aplica o timeout da operação (RNF06, RNF07) e traduz qualquer falha em um único tipo,
-`ApiError`: erro da API no envelope `{ "error": { code, message, details, request_id } }`, falha de
-rede, timeout ou resposta ilegível chegam à tela da mesma forma.
+`fetch` diretamente. 
+
+### Variáveis de Ambiente (.env)
+O frontend consome as seguintes variáveis definidas a partir do arquivo `.env.example`:
+
+| Variável | Descrição | Exemplo / Padrão |
+|---|---|---|
+| `VITE_API_BASE_URL` | URL base do gateway da API (RNF11) | `http://localhost:8000` |
+
+O cliente HTTP lê a URL base, anexa o token da sessão (RF16), aplica o timeout da operação (RNF06, RNF07) e traduz qualquer falha em um único tipo, `ApiError`: erro da API no envelope `{ "error": { code, message, details, request_id } }`, falha de rede, timeout ou resposta ilegível chegam à tela da mesma forma.
 
 Os tipos de entrada e saída vivem em [`src/types/api.ts`](src/types/api.ts) e derivam dos contratos
-em `packages/contracts` (RNF02) — divergência falha na compilação, não em produção. Os domínios cujo
-contrato ainda é esqueleto estão marcados como **PREVISTO** no arquivo e seguem o dicionário de
-dados até o contrato ser publicado.
+em `packages/contracts` (RNF02).
 
 | Módulo | Domínio |
 |---|---|
@@ -80,16 +94,18 @@ dados até o contrato ser publicado.
 | [`services/pipeline.ts`](src/services/pipeline.ts) | Etapas e histórico (RF05, RF06, RF07) |
 | [`services/artifacts.ts`](src/services/artifacts.ts) | Artefatos e versões (RF08, RF15) |
 
-## Executar
+---
+
+## 5. Como Executar e Testar
 
 ```bash
 cp .env.example .env
 npm install
-npm run dev     # http://localhost:5173
-npm run build   # tsc -b && vite build
-npm run test    # vitest
-npm run lint    # eslint
-```
+npm run dev     # http://localhost:5173 (Inicia o servidor de desenvolvimento)
+npm run build   # tsc -b && vite build (Gera o build de produção)
+npm run test    # vitest (Executa a suíte de testes unitários e de integração)
+npm run lint    # eslint (Verifica a qualidade de código)
 
-> Estado: **estrutura base pronta** (RNF01) — rotas, layout e providers navegáveis.
-> As telas são molduras: nenhum dado é consumido do gateway ainda.
+Estado: estrutura base pronta (RNF01) — rotas, layout e providers navegáveis.
+As telas são molduras: nenhum dado é consumido do gateway ainda.
+
