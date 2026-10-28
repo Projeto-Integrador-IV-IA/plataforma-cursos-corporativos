@@ -711,3 +711,30 @@ def test_procedencia_com_valor_que_nem_e_texto_e_recusada() -> None:
         )
 
     assert any(v["campo"] == "procedencia.tema" for v in excinfo.value.details["violacoes"])
+
+
+def test_procedencia_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido() -> None:
+    """``procedencia`` fora do tipo nao pode passar batido so porque nao ha nada a exigir.
+
+    Quando todo campo inferivel presente esta vazio ou com lacuna declarada,
+    nenhuma entrada de procedencia e exigida pela reconciliacao - mas isso nao
+    pode servir de disfarce para um valor de ``procedencia`` que nem e
+    mapeamento. A validacao normal e quem recusa, como em qualquer outro
+    campo fora do tipo (ADR-0006).
+    """
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            {
+                "tema": None,
+                "publico_alvo": None,
+                "carga_horaria": None,
+                "objetivos_aprendizagem": [],
+                "ementa": [],
+                "campos_ausentes": [],
+                "procedencia": "isto-nao-e-um-mapeamento",
+                "observacoes": [],
+            }
+        )
+
+    assert [v["campo"] for v in excinfo.value.details["violacoes"]] == ["procedencia"]

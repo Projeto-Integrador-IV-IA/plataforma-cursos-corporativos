@@ -332,10 +332,14 @@ class StructuredCourse(CanonicalModel):
         caso o tipo e ``ausente`` e o motivo vem da linha ``<campo>: <motivo>``
         das ``observacoes``. A saida e sempre a forma rica.
 
-        Resposta que nao e mapeamento, ou que traz ``campos_ausentes`` fora do
-        tipo declarado, passa intacta: recusar isso e trabalho da validacao
-        normal, e mascarar a violacao aqui esconderia o defeito. O mesmo vale
-        para ``procedencia`` com valor fora do vocabulario - a enumeracao
+        Resposta que nao e mapeamento, ou que traz ``campos_ausentes`` ou
+        ``procedencia`` fora do tipo declarado, passa intacta: recusar isso e
+        trabalho da validacao normal, e mascarar a violacao aqui esconderia o
+        defeito - inclusive quando todo campo inferivel presente esta vazio
+        ou com lacuna declarada, caso em que nenhuma entrada de
+        ``procedencia`` chegaria a ser exigida e o valor fora do tipo passaria
+        batido se a reconciliacao o descartasse em silencio. Dentro do
+        mapeamento, valor de procedencia fora do vocabulario - a enumeracao
         ``FieldOrigin`` recusa na validacao normal do campo.
 
         Raises:
@@ -348,13 +352,15 @@ class StructuredCourse(CanonicalModel):
         declaradas = _lacunas_declaradas(dados.get("campos_ausentes"))
         if declaradas is None:
             return dados
+        procedencia_bruta = dados.get("procedencia")
+        if procedencia_bruta is not None and not isinstance(procedencia_bruta, Mapping):
+            return dados
 
         valores = dict(dados)
         registradas = valores.get("observacoes")
         originais = list(registradas) if _e_lista_de_texto(registradas) else None
         observacoes = list(originais) if originais is not None else None
 
-        procedencia_bruta = valores.get("procedencia")
         procedencias: dict[str, Any] = (
             dict(procedencia_bruta) if isinstance(procedencia_bruta, Mapping) else {}
         )
