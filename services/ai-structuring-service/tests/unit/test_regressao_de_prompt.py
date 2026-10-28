@@ -196,12 +196,12 @@ class TestVersoesDoCatalogo:
     def test_por_padrao_inclui_versao_substituida(self) -> None:
         versoes = versoes_do_catalogo("extract-requirements")
 
-        assert versoes == ("v1", "v2", "v3")
+        assert versoes == ("v1", "v2", "v3", "v4")
 
     def test_apenas_ativas_exclui_versao_substituida(self) -> None:
         versoes = versoes_do_catalogo("extract-requirements", apenas_ativas=True)
 
-        assert versoes == ("v3",)
+        assert versoes == ("v4",)
 
     def test_prompt_inexistente_devolve_tupla_vazia(self) -> None:
         assert versoes_do_catalogo("prompt-que-nao-existe") == ()
@@ -232,7 +232,7 @@ class TestCompararVersoesDePromptIntegracao:
             settings=make_settings(),
         )
 
-        assert comparacao.versoes_ordenadas == ("v1", "v2", "v3")
+        assert comparacao.versoes_ordenadas == ("v1", "v2", "v3", "v4")
         for versao in comparacao.versoes_ordenadas:
             assert comparacao.medicoes[versao].casos == len(casos)
         # Mock e deterministico entre versoes de prompt: nao ha regressao real

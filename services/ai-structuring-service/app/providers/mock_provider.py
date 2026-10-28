@@ -72,6 +72,15 @@ RESPOSTA_FIXA: Final[dict[str, object]] = {
             ),
         },
     ],
+    "procedencia": {
+        "tema": "extraido",
+        "nicho": "extraido",
+        "publico_alvo": "extraido",
+        "carga_horaria": "extraido",
+        "formato": "extraido",
+        "objetivos_aprendizagem": "inferido",
+        "ementa": "inferido",
+    },
     "observacoes": [
         "Resposta gerada pelo provedor mock - nao houve chamada a nenhum modelo de linguagem.",
     ],

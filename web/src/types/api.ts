@@ -24,6 +24,39 @@ export type Uuid = string;
 /** Data e hora ISO 8601 com fuso. Ex.: `2026-09-15T14:30:00-03:00`. */
 export type IsoDateTime = string;
 
+// ---------------------------------------------------------------------------
+// Autenticacao - DERIVADO de packages/contracts/openapi/gateway-service.yaml
+// (`LoginRequest`, `OperatorInfo`, `TokenResponse` e `SessionResponse`)
+// ---------------------------------------------------------------------------
+
+/** Credenciais aceitas por `POST /api/v1/auth/login`. */
+export interface LoginCredentials {
+  readonly email: string;
+  readonly password: string;
+}
+
+/** Operador autenticado, presente nas respostas de login e verificacao. */
+export interface OperatorInfo {
+  readonly id: Uuid;
+  readonly name: string;
+  readonly email: string;
+  readonly role: string;
+}
+
+/** Token emitido pelo gateway apos credenciais validas. */
+export interface TokenResponse {
+  readonly access_token: string;
+  readonly token_type?: string;
+  readonly expires_in: number;
+  readonly operator: OperatorInfo;
+}
+
+/** Resultado de `GET /api/v1/auth/verify`. */
+export interface SessionResponse {
+  readonly active?: boolean;
+  readonly operator: OperatorInfo;
+}
+
 /** Valor JSON arbitrario. Existe para nunca precisarmos de `any`. */
 export type JsonValue = string | number | boolean | null | readonly JsonValue[] | JsonObject;
 

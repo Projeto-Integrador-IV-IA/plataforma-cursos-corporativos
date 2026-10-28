@@ -17,7 +17,7 @@
  * Responsavel: nao existe endpoint que liste usuarios, entao nao ha de onde
  * tirar o nome. A coluna exibe "Nao atribuido" quando `owner_id` e nulo e o
  * identificador abreviado quando nao e - o dado que o contrato entrega hoje,
- * sem simular o que ele nao entrega. Com a autenticacao (RF16) o nome substitui
+ * sem simular o que ele nao entrega. Com a autenticacao (RF26) o nome substitui
  * o identificador.
  */
 

@@ -2,7 +2,7 @@
  * Mapa de rotas da aplicacao.
  *
  * Rotas previstas:
- *   /login                        autenticacao (RF16)
+ *   /login                        autenticacao (RF26)
  *   /clientes                     lista de clientes (RF01, RF03)
  *   /clientes/novo                cadastro de empresa cliente (RF01)
  *   /clientes/:clientId           detalhe do cliente
@@ -18,15 +18,15 @@
  * separa as duas familias: `/login` e rota irma, e as demais sao filhas do
  * layout `App`.
  *
- * TODO(RF16): envolver o elemento do layout no guarda de sessao quando a
- * autenticacao existir. Enquanto o gateway nao emite token, nao ha sessao para
- * verificar e as rotas ficam abertas.
+ * O guarda preserva o destino pretendido no estado de navegacao e o login
+ * devolve o operador a esse caminho depois de autenticar.
  */
 
 import { Navigate, type RouteObject } from 'react-router-dom';
 
 import { App } from '@/app/App';
 import { PATHS } from '@/app/paths';
+import { RequireSession } from '@/features/auth/RequireSession';
 import { ArtifactVersionsPage } from '@/pages/artifact-versions/ArtifactVersionsPage';
 import { ClientDetailPage } from '@/pages/client-detail/ClientDetailPage';
 import { ClientNewPage } from '@/pages/client-new/ClientNewPage';
@@ -47,7 +47,11 @@ export const routes: RouteObject[] = [
   },
   {
     path: '/',
-    element: <App />,
+    element: (
+      <RequireSession>
+        <App />
+      </RequireSession>
+    ),
     children: [
       { index: true, element: <Navigate to={PATHS.clients} replace /> },
       { path: PATHS.clients, element: <ClientsPage /> },
