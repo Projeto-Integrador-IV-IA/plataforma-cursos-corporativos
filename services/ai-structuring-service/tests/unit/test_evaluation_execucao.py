@@ -101,6 +101,10 @@ class TestExecucao:
         assert pares == {("vendor/modelo-a", "c2")}, (
             "par ja feito nao pode ser rechamado - e o que torna a rodada retomavel"
         )
+        assert chamados == ["vendor/modelo-a"], (
+            "a fabrica e por modelo, nao por par - pular um caso nao pode fazer o "
+            "executor pedir um provedor extra"
+        )
 
     async def test_ja_feitas_cobrindo_tudo_nao_chama_a_api_do_provedor(self, make_settings) -> None:
         chamadas: list[str] = []
