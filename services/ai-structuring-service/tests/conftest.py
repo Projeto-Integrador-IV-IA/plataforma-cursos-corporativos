@@ -40,6 +40,7 @@ def make_settings() -> MakeSettings:
             "llm_base_url": None,
             "llm_timeout_seconds": 30.0,
             "llm_max_retries": 2,
+            "llm_schema_max_retries": 2,
             "llm_temperature": 0.2,
         }
         base.update(overrides)

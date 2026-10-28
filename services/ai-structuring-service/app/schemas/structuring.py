@@ -41,7 +41,7 @@ EXEMPLO_DE_REQUISICAO: Final[dict[str, Any]] = {
         "pessoal da manutencao da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias "
         "de 8 horas, no proprio site. Fico no aguardo da proposta."
     ),
-    "prompt_version": "v3",
+    "prompt_version": "v4",
 }
 
 #: Resposta de exemplo exibida no Swagger, na ordem canonica dos campos.
@@ -68,6 +68,13 @@ EXEMPLO_DE_RESPOSTA: Final[dict[str, Any]] = {
                 "motivo": "O texto nao diz o que o participante deve saber fazer ao final.",
             },
         ],
+        "procedencia": {
+            "tema": "extraido",
+            "publico_alvo": "extraido",
+            "numero_participantes": "extraido",
+            "carga_horaria": "inferido",
+            "formato": "extraido",
+        },
         "observacoes": [
             "O cliente nao descreveu o conteudo nem os objetivos do treinamento.",
         ],
@@ -75,7 +82,7 @@ EXEMPLO_DE_RESPOSTA: Final[dict[str, Any]] = {
     "execution": {
         "provider": "mock",
         "model": "mock",
-        "prompt": "extract-requirements.v3",
+        "prompt": "extract-requirements.v4",
         "attempts": 1,
         "prompt_tokens": 940,
         "completion_tokens": 210,

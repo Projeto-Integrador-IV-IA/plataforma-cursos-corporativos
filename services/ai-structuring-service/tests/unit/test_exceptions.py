@@ -16,7 +16,7 @@ CONDICOES_DE_FALHA = [
     (LLMUnavailableError, "LLM_UNAVAILABLE", 503, True),
     (LLMTimeoutError, "LLM_TIMEOUT", 504, True),
     (LLMRateLimitError, "LLM_RATE_LIMITED", 429, True),
-    (LLMInvalidResponseError, "LLM_INVALID_RESPONSE", 502, False),
+    (LLMInvalidResponseError, "LLM_INVALID_RESPONSE", 502, True),
 ]
 
 

@@ -62,3 +62,7 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
+# RNF30: piso abaixo do qual o build falha. Atual e 94% (linha e ramo); a
+# margem existe para nao reprovar por flutuacao pontual de um modulo, nao para
+# tolerar regressao real - revisar para cima se a suite estabilizar mais alto.
+fail_under = 85

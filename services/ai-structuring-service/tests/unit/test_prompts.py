@@ -22,22 +22,26 @@ def test_prompt_e_carregado_por_nome_e_versao() -> None:
 
 
 def test_prompt_vive_em_arquivo_versionado_no_catalogo() -> None:
-    for versao in ("v1", "v2", "v3"):
+    for versao in ("v1", "v2", "v3", "v4"):
         assert (PROMPTS_DIR / f"extract-requirements.{versao}.md").is_file()
         assert ("extract-requirements", versao) in listar_prompts()
 
 
 def test_metadados_do_arquivo_sao_lidos() -> None:
-    metadados = carregar_prompt("extract-requirements", "v3").metadados
+    metadados = carregar_prompt("extract-requirements", "v4").metadados
 
-    assert metadados["versao"] == "3"
-    assert metadados["requisito"] == "RF13"
+    assert metadados["versao"] == "4"
+    assert metadados["requisito"] == "RF13, RNF06"
     assert metadados["status"] == "ativo"
 
 
 @pytest.mark.parametrize(
     ("versao", "sucessora"),
-    [("v1", "extract-requirements.v2"), ("v2", "extract-requirements.v3")],
+    [
+        ("v1", "extract-requirements.v2"),
+        ("v2", "extract-requirements.v3"),
+        ("v3", "extract-requirements.v4"),
+    ],
 )
 def test_versao_anterior_fica_no_catalogo_marcada_como_substituida(
     versao: str,
@@ -126,7 +130,7 @@ def test_catalogo_nao_expoe_arquivo_fora_da_convencao() -> None:
 
 @pytest.fixture
 def corpo() -> str:
-    return carregar_prompt("extract-requirements", "v3").corpo
+    return carregar_prompt("extract-requirements", "v4").corpo
 
 
 @pytest.mark.parametrize("campo", CINCO_CAMPOS)
@@ -202,6 +206,30 @@ def test_prompt_traz_exemplo_em_que_quase_nada_e_inferivel(corpo: str) -> None:
 
     assert "quase nada é inferível" in corpo
     assert '"tema": null' in corpo
+
+
+def test_prompt_exige_procedencia_de_todo_campo_preenchido(corpo: str) -> None:
+    """RNF06 (card #11): procedencia e obrigatoria, nao e extra opcional."""
+
+    assert "Declare a procedência de cada campo" in corpo
+    assert "Procedência do campo" in corpo
+
+
+@pytest.mark.parametrize("procedencia", ["extraido", "inferido"])
+def test_prompt_declara_as_duas_procedencias(corpo: str, procedencia: str) -> None:
+    assert f"`{procedencia}`" in corpo
+
+
+def test_prompt_proibe_procedencia_para_campo_ausente(corpo: str) -> None:
+    """Campo em campos_ausentes nao tem - e nao pode ter - entrada em procedencia."""
+
+    assert "nunca** tem entrada em `procedencia`" in corpo
+
+
+def test_prompt_na_duvida_entre_procedencias_orienta_o_valor_mais_conservador(corpo: str) -> None:
+    """Supor copia quando na verdade houve inferencia e a confianca indevida que o campo evita."""
+
+    assert "Na dúvida entre `extraido` e `inferido`, use `inferido`" in corpo
 
 
 def test_o_caso_de_uso_carrega_a_versao_ativa_do_catalogo() -> None:
