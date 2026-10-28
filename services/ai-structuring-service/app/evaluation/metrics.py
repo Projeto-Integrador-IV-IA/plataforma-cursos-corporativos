@@ -62,6 +62,28 @@ diferentes entre si e mediria variacao de conteudo, nao de reprodutibilidade.
 ``comparar_modelos`` agrupa por ``(modelo, caso)`` antes de chamar
 ``estabilidade()``, e agrega os casos que tiveram mais de uma repeticao pela
 media - caso sem repeticao nao entra, porque nao ha o que comparar.
+
+Limite de taxa_de_citacao_invalida: existencia, nao apoio (RNF30, card #224)
+------------------------------------------------------------------------------
+``taxa_de_citacao_invalida`` mede uma unica coisa: se o numero do trecho
+citado existe no intervalo enviado naquela chamada (card #156, verificado por
+``_citacoes_fora_do_intervalo`` em ``structuring_service.py``). Ela **nao**
+mede, e nunca mediu, se o conteudo daquele trecho de fato sustenta o valor
+preenchido - um modelo que cita ``[3]`` para um campo que o trecho 3 nao
+menciona passa por aqui sem ser contado, porque a citacao existe. Sao duas
+falhas diferentes e pedem deteccao diferente: existencia e mecanica, resolvida
+com um conferir de faixa (ja implementado); apoio semantico exige julgamento
+de conteudo - um juiz-LLM independente ou um gabarito com rotulo humano por
+citacao, confirmando que o trecho citado diz o que o campo afirma. Nenhum dos
+dois existe neste projeto hoje: o conjunto de avaliacao nao tem rotulo de
+apoio por citacao, e o card #18, que traria dado real anotado do cliente para
+sustentar esse tipo de rotulo, esta bloqueado pela mesma lacuna de dado real
+que pesa sobre aquele card. Ate que um dos dois exista, a taxa relatada em
+qualquer rodada significa apenas "proporcao de citacoes para trecho
+inexistente" - nunca "proporcao de citacoes que realmente provam o campo". O
+teste ``test_citacao_a_trecho_real_sem_suporte_semantico_nao_e_citacao_invalida``
+(em ``test_evaluation_metricas.py``) demonstra esse limite com um caso
+concreto, em vez de so declara-lo em prosa.
 """
 
 from __future__ import annotations
@@ -126,7 +148,26 @@ METAS: Final[Mapping[str, float]] = {
     "conformidade_de_schema": 0.95,
     "taxa_de_falha": 0.05,
     "cobertura_de_evidencia": 0.95,
-    "taxa_de_citacao_invalida": 0.05,
+    # RNF30, card #224: taxa_de_citacao_invalida nao esta em
+    # docs/04-ia/metricas-qualidade.md - os cards #156/#157 a criaram depois
+    # daquele documento, so no codigo, sem meta justificada em lugar nenhum.
+    # 0.05 (a mesma de taxa_de_falha) seria um numero sem trabalho: toda
+    # execucao que cita trecho inexistente ja vira ``curso is None``
+    # (ver ``_executar_um`` em runner.py) e entra tambem no numerador de
+    # taxa_de_falha, com o mesmo denominador - taxa_de_citacao_invalida e
+    # subconjunto de taxa_de_falha por construcao. Um modelo que cumpre a
+    # meta de taxa_de_falha cumpriria esta aqui automaticamente, tornando-a
+    # uma meta que nunca reprova nada por conta propria. Essa metrica existe
+    # para vigiar especificamente a barreira anti-alucinacao dos cards
+    # #153-#156 - a citacao e o mecanismo que o projeto usa para provar que
+    # um campo tem base real -, e vigiar esse mecanismo com a mesma folga
+    # dada a falha generica (timeout, schema malformado etc., sem relacao
+    # com alucinacao) esvazia a vigilancia. Meta proposta: 0.02, metade do
+    # piso de taxa_de_falha - no maximo 2 em cada 100 execucoes do modelo de
+    # producao podem falhar especificamente por citar trecho que nao existe,
+    # deixando os 3 pontos restantes do orcamento geral de falha (ate 5%)
+    # para ruido de schema que nao e causado por alucinacao.
+    "taxa_de_citacao_invalida": 0.02,
 }
 
 #: Metricas em que o menor valor e o melhor - usado por ``Medicao.atende()``
@@ -451,6 +492,29 @@ class ComparacaoDeModelos:
 
         pares = [(m.modelo, getattr(m, metrica, None)) for m in self.medicoes]
         return sorted(pares, key=chave)
+
+    def violam_meta(self, metrica: str) -> list[str]:
+        """Modelos que nao atingem a meta da metrica, por nome (RNF30, card #224).
+
+        Resposta direta a "quais modelos nao sao aptos para producao por este
+        numero" - ``ranking()`` ordena todos os modelos pela metrica, e
+        ``Medicao.atende()`` julga um modelo so, numa metrica so; nenhum dos
+        dois dá a lista de reprovados isolada desse unico criterio, sem
+        misturar com as demais metricas nem exigir que quem le monte a
+        comparacao a mao. Aqui e so filtrar pelo veredito que ``atende()`` ja
+        sabe calcular, na ordem de ``medicoes``.
+
+        Args:
+            metrica: nome de um atributo numerico de ``Medicao`` com meta
+                declarada em ``METAS``, ex.: ``"taxa_de_citacao_invalida"``.
+
+        Returns:
+            Slugs dos modelos cujo ``atende(metrica)`` e ``False``. Modelo sem
+            a metrica medida (``atende`` devolve ``None``) fica de fora - nao
+            ha base para dizer que viola o que nao foi medido.
+        """
+
+        return [m.modelo for m in self.medicoes if m.atende(metrica) is False]
 
 
 def comparar_modelos(

@@ -284,6 +284,26 @@ class TestMedicao:
 
         assert d.taxa_de_citacao_invalida == pytest.approx(1 / 3)
 
+    def test_citacao_a_trecho_real_sem_suporte_semantico_nao_e_citacao_invalida(self) -> None:
+        """Limite documentado no modulo (RNF30, card #224): so existencia e
+        checada, nunca se o trecho citado realmente sustenta o campo.
+
+        ``nicho`` esta em ``sem_base`` - o gabarito diz que a informacao nao
+        esta no texto. O curso ainda assim preenche ``nicho`` citando o
+        trecho [1], que existe e passaria pela barreira dos cards #153-#156
+        sem ressalva. ``taxa_de_citacao_invalida`` fica em zero porque a
+        citacao existe; e ``taxa_de_alucinacao`` - metrica diferente, que usa
+        o gabarito, nao a existencia do trecho - e que capta o problema real.
+        """
+
+        sem_base = caso(sem_base=frozenset({"nicho"}), esperado={"carga_horaria": 16})
+        cita_trecho_real_mas_sem_relacao = curso(nicho="industrial pesado")
+
+        d = medir(MODELO, {"c1": sem_base}, [execucao(curso=cita_trecho_real_mas_sem_relacao)])
+
+        assert d.taxa_de_citacao_invalida == pytest.approx(0.0)
+        assert d.taxa_de_alucinacao == pytest.approx(1.0)
+
     @pytest.mark.parametrize(
         ("metrica", "valor", "esperado"),
         [
@@ -419,6 +439,46 @@ class TestComparacaoDeModelos:
         c = comparar_modelos([MODELO], {"c1": caso()}, [execucao()])
 
         assert c.estabilidade_por_modelo[MODELO] is None
+
+    def test_violam_meta_isola_quem_reprova_so_nessa_metrica(self) -> None:
+        """RNF30, card #224: "quais modelos nao servem para producao por este
+        numero" - sem misturar com as demais metricas de ``Medicao``."""
+
+        casos = {f"c{n}": caso(f"c{n}") for n in range(1, 11)}
+        execucoes_dentro_da_meta = [
+            execucao(modelo="vendor/dentro-da-meta", caso=ident) for ident in casos
+        ]
+        # 2 em 10 == 0.20, acima da meta de 0.02: viola.
+        execucoes_fora_da_meta = [
+            execucao(
+                modelo="vendor/fora-da-meta",
+                caso=ident,
+                curso=None,
+                valida_de_primeira=False,
+                erro="LLMInvalidResponseError: Resposta cita trecho que nao foi enviado "
+                "nesta chamada.",
+            )
+            if ident in ("c1", "c2")
+            else execucao(modelo="vendor/fora-da-meta", caso=ident)
+            for ident in casos
+        ]
+
+        c = comparar_modelos(
+            ["vendor/dentro-da-meta", "vendor/fora-da-meta"],
+            casos,
+            execucoes_dentro_da_meta + execucoes_fora_da_meta,
+        )
+
+        assert c.medicoes[0].taxa_de_citacao_invalida == pytest.approx(0.0)
+        assert c.medicoes[1].taxa_de_citacao_invalida == pytest.approx(0.2)
+        assert c.violam_meta("taxa_de_citacao_invalida") == ["vendor/fora-da-meta"]
+
+    def test_violam_meta_ignora_modelo_sem_a_metrica_medida(self) -> None:
+        c = comparar_modelos(
+            ["vendor/a", "vendor/sem-execucao"], {"c1": caso()}, [execucao(modelo="vendor/a")]
+        )
+
+        assert c.violam_meta("acuracia_global") == []
 
 
 class TestPersistenciaDaRodada:
