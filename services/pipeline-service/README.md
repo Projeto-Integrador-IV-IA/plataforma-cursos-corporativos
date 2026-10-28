@@ -1,12 +1,94 @@
 # pipeline-service
 
-Nucleo do CRM: clientes, demandas, etapas do pipeline, historico e artefatos versionados.
+Nucleo do CRM: clientes, demandas, etapas do pipeline, historico e artefatos versionados. **Dono do banco de dados relacional** do sistema. Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `8001`
-- **Requisitos atendidos:** RF01-RF08, RF13, RF15, RNF07, RNF08, RNF09
+- **Requisitos atendidos:** RF01-RF08, RF10, RF13, RF15, RNF07, RNF08, RNF09, RNF14, RNF25
 - **Contrato de API:** [`packages/contracts/openapi/pipeline-service.yaml`](../../packages/contracts/openapi/pipeline-service.yaml)
 
-## Ordem de recebimento das fontes (RF10, #32)
+---
+
+## 1. Responsabilidade e Fronteira
+
+O **Pipeline Service** é o centro de orquestração do fluxo e o único microsserviço responsável pela gestão do banco de dados PostgreSQL central.
+- **O que ele faz:** Gerencia o ciclo de vida das demandas, orquestra transações com garantias de integridade referencial, executa migrações do Alembic e mantém o histórico e artefatos versionados.
+- **O que ele NÃO faz:** Não realiza chamadas diretas a provedores externos de LLM (responsabilidade do `ai-structuring-service`) e não faz a captação e sanitização inicial de texto bruto (responsabilidade do `ingestion-service`).
+
+---
+
+## 2. Estrutura
+
+```
+app/
+├── main.py        Ponto de entrada da aplicacao (FastAPI)
+├── core/          Configuracao, logging e excecoes
+├── api/v1/        Rotas HTTP versionadas (RNF02)
+├── schemas/       DTOs de entrada e saida (Pydantic)
+└── services/      Casos de uso / regras de aplicacao
+```
+
+---
+
+## 3. Endpoints Expostos
+
+O serviço expõe sua API REST documentada via OpenAPI/Swagger:
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/v1/demands` | Cria uma nova demanda (RF02) |
+| `GET` | `/api/v1/demands/{id}` | Consulta detalhes, etapa e artefatos de uma demanda (RF02) |
+| `PATCH` | `/api/v1/demands/{id}` | Atualiza o contexto (título, descrição, responsável) da demanda |
+| `POST` | `/api/v1/demands/{id}/raw-inputs` | Vincula e atribui ordem de recebimento às fontes (RF10) |
+| `POST` | `/api/v1/raw-inputs/{id}/segments` | Persiste trechos de fontes enviados pelo Ingestion Service |
+| `POST` | `/api/v1/demands/{id}/artifacts` | Grava na mesma transação o resultado gerado pela IA |
+| `GET` | `/api/v1/internal/auth/users/by-email` | Rota interna para o gateway validar credenciais (RF26) |
+
+---
+
+## 4. Gerenciamento de Migrações de Banco de Dados (Alembic)
+
+Como o `pipeline-service` é o dono do banco relacional, todas as alterações de esquema dependem do Alembic.
+
+### Aplicar migrações
+Antes de subir a aplicação ou executar testes integrados, atualize a base local:
+```bash
+alembic upgrade head
+
+Criar uma nova migração
+Após alterar ou criar modelos ORM em app/models/, gere o script de migração:
+
+alembic revision --autogenerate -m "descricao_da_alteracao"
+
+Atenção: Sempre verifique o arquivo gerado dentro de alembic/versions/ antes de realizar o commit.
+
+---
+
+## 5. Variáveis de Ambiente
+
+Crie um arquivo `.env` na raiz de `services/pipeline-service/` com base no `.env.example`:
+
+| Variável | Descrição | Padrão / Exemplo |
+| :--- | :--- | :--- |
+| **DATABASE_URL** | String de conexão com o PostgreSQL | `postgresql://user:pass@localhost:5432/db_name` |
+| **PIPELINE_PORT** | Porta em que o Uvicorn irá escutar | `8001` |
+| **AUTH_SERVICE_KEY** | Chave de comunicação interna entre serviços | `chave-secreta-interna` |
+
+---
+
+## 6. Executar
+
+```bash
+# Exporte no shell as variaveis de .env.example e preencha os campos vazios.
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn app.main:app --reload --port "$PIPELINE_PORT"
+
+Criacao, consulta e edicao de contexto de demandas implementadas. As demais rotas, incluindo o
+cadastro de clientes (dependencia RF01.1), ainda sao scaffolding nesta branch.
+
+---
+
+## 7. Ordem de recebimento das fontes (RF10, #32)
 
 `POST /api/v1/demands/{id}/raw-inputs` atribui `received_order`, uma sequencia
 positiva e unica por demanda. `GET /api/v1/demands/{id}` devolve `raw_inputs`
@@ -20,43 +102,22 @@ e Unicode. A rota de normalizacao aceita somente `normalized_content`; repetir a
 normalizacao nao altera a posicao nem o original. O ingestion confirma o original
 em uma transacao antes de sanitizar e persistir a copia.
 
-Aplique `alembic upgrade head` antes de iniciar a nova versao. A migration
-`20261025_1200` numera fontes existentes por `created_at, id` dentro de cada demanda,
+Aplique `alembic upgrade head` antes de iniciar a nova versao. A migration `20261025_1200` numera fontes existentes por `created_at, id` dentro de cada demanda,
 sem alterar os conteudos. Em empates anteriores a essa migration, a chegada real
 nao pode ser recuperada; o UUID fornece apenas um desempate deterministico.
 O downgrade remove somente a sequencia.
 
-## Estrutura
+---
 
-```
-app/
-├── main.py        Ponto de entrada da aplicacao (FastAPI)
-├── core/          Configuracao, logging e excecoes
-├── api/v1/        Rotas HTTP versionadas (RNF02)
-├── schemas/       DTOs de entrada e saida (Pydantic)
-└── services/      Casos de uso / regras de aplicacao
-```
-
-## Executar
-
-```bash
-# Exporte no shell as variaveis de .env.example e preencha os campos vazios.
-pip install -e ".[dev]"
-uvicorn app.main:app --reload --port "$PIPELINE_PORT"
-```
-
-> Criacao, consulta e edicao de contexto de demandas implementadas. As demais rotas, incluindo o
-> cadastro de clientes (dependencia RF01.1), ainda sao scaffolding nesta branch.
-
-## Criar demanda (RF02)
+## 8. Criar demanda (RF02)
 
 Com as variaveis de ambiente configuradas, aplique o schema antes de iniciar:
 
 ```bash
 alembic upgrade head
-```
 
-O Swagger fica em `http://localhost:8001/docs` quando o servico estiver em execucao.
+O Swagger fica em `http://localhost:8001/docs` quando o servico estiver em execucao. 
+
 `POST /api/v1/demands` aceita, por exemplo:
 
 ```json
@@ -66,7 +127,6 @@ O Swagger fica em `http://localhost:8001/docs` quando o servico estiver em execu
   "description": "Capacitacao de vinte gestores.",
   "owner_id": "00000000-0000-0000-0000-000000000001"
 }
-```
 
 Substitua os IDs por registros existentes no banco. `client_id` e `title` sao
 obrigatorios; contexto (`description`) e responsavel (`owner_id`) sao opcionais.
@@ -94,7 +154,9 @@ A operacao fica no contrato do servico,
 e o teste `test_versioned_contract_declares_every_published_operation` compara o arquivo
 com o `openapi.json` gerado, impedindo que os dois divirjam.
 
-## Consultar e editar o contexto (RF02)
+---
+
+## 9. Consultar e editar o contexto (RF02)
 
 `GET /api/v1/demands/{id}` devolve a demanda com o cliente, a etapa corrente e
 os artefatos vinculados, incluindo as versoes necessárias para exibir a estrutura
@@ -103,7 +165,9 @@ somente os campos enviados sao alterados. Enviar `null` limpa `description` ou
 `owner_id`, enquanto etapa, situacao, cliente, artefatos e datas anteriores sao
 preservados. Identificadores inexistentes retornam `DEMAND_NOT_FOUND` com HTTP 404.
 
-## Persistir e consultar trechos das fontes (issue #151)
+---
+
+## 10. Persistir e consultar trechos das fontes (issue #151)
 
 `POST /api/v1/raw-inputs/{id}/segments` recebe os UUIDs estaveis, a posicao e o
 conteudo gerados pelo `ingestion-service`. Reenviar o mesmo lote nao duplica
@@ -114,7 +178,9 @@ ordem original. `GET /api/v1/demands/{id}/segments` reune os trechos de todas as
 fontes da demanda. A FK `source_segments.raw_input_id` usa `ON DELETE RESTRICT`,
 portanto um trecho orfao nao pode ser criado nem deixado para tras.
 
-## Persistir resultados da IA (RF16.1 consolidado)
+---
+
+## 11. Persistir resultados da IA (RF16.1 consolidado)
 
 `POST /api/v1/demands/{id}/artifacts` grava, na mesma transacao, a resposta
 bruta do LLM, o JSON estruturado validado, os metadados da execucao e os
@@ -127,7 +193,9 @@ fonte por compatibilidade. A tabela `artifact_sources` representa todas as
 fontes e impede, por chave estrangeira composta, vinculos entre demandas
 diferentes.
 
-## Consulta interna de credenciais (RF26 consolidado)
+---
+
+## 12. Consulta interna de credenciais (RF26 consolidado)
 
 O gateway consulta `GET /api/v1/internal/auth/users/by-email` para autenticar o
 usuario sem acessar diretamente o banco. A rota exige `X-Service-Key`, cujo
@@ -135,11 +203,13 @@ valor vem de `AUTH_SERVICE_KEY` nos dois servicos, e deve permanecer acessivel
 somente na rede interna. Ela devolve o hash bcrypt armazenado; senha em texto
 puro nao faz parte do modelo nem da resposta.
 
-## Testes
+---
+
+## 13. Testes
 
 ```bash
 pytest
-```
 
 Os testes de criacao usam SQLite temporario com a cadeia Alembic aplicada e FKs
 habilitadas; nao criam registros no banco do projeto.
+
