@@ -97,6 +97,11 @@ EXEMPLO_DE_RESPOSTA: Final[dict[str, Any]] = {
         "provider_latency_ms": 820.4,
         "elapsed_ms": 861.7,
     },
+    "trechos": [
+        "Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da"
+        " manutencao da planta 2, uns 25 tecnicos.",
+        "A ideia e fazer em dois dias de 8 horas, no proprio site.",
+    ],
 }
 
 
@@ -185,6 +190,12 @@ class StructuringResponse(BaseModel):
     O curso vai aninhado em ``course`` de proposito: e exatamente a forma que o
     pipeline-service vai gravar como artefato da negociacao (RF13), sem que a
     proveniencia da execucao se misture aos campos pedagogicos.
+
+    ``trechos`` e o que resolve a citacao de ``course.evidencias`` sem uma
+    segunda chamada por campo (RF28): o numero que o modelo citou e a posicao
+    nesta lista, ``trechos[n - 1]``. Fica fora de ``course`` porque nao e
+    saida do modelo - e o que o caso de uso montou como entrada, devolvido
+    aqui so para a tela de revisao nao precisar remontar a numeracao.
     """
 
     model_config = ConfigDict(
@@ -195,6 +206,7 @@ class StructuringResponse(BaseModel):
     demand_id: str
     course: StructuredCourse
     execution: ExecutionMetadata
+    trechos: tuple[str, ...]
 
     @classmethod
     def from_outcome(cls, outcome: StructuringOutcome) -> Self:
@@ -204,7 +216,8 @@ class StructuringResponse(BaseModel):
             outcome: desfecho de ``StructuringService.structure_course``.
 
         Returns:
-            A resposta correspondente, com curso e proveniencia.
+            A resposta correspondente, com curso, proveniencia e os trechos
+            que resolvem a citacao de ``course.evidencias``.
 
         Raises:
             LLMProviderError: o desfecho carrega falha em vez de curso - a
@@ -227,4 +240,5 @@ class StructuringResponse(BaseModel):
                 provider_latency_ms=completion.latency_ms,
                 elapsed_ms=outcome.elapsed_ms,
             ),
+            trechos=outcome.trechos,
         )

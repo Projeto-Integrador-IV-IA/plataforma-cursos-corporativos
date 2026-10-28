@@ -595,11 +595,17 @@ components:
           $ref: '#/components/schemas/StructuredCourse'
         execution:
           $ref: '#/components/schemas/ExecutionMetadata'
+        trechos:
+          items:
+            type: string
+          type: array
+          title: Trechos
       type: object
       required:
       - demand_id
       - course
       - execution
+      - trechos
       title: StructuringResponse
       description: 'Curso estruturado devolvido pela estruturacao (RF11, RF12).
 
@@ -608,7 +614,18 @@ components:
 
         pipeline-service vai gravar como artefato da negociacao (RF13), sem que a
 
-        proveniencia da execucao se misture aos campos pedagogicos.'
+        proveniencia da execucao se misture aos campos pedagogicos.
+
+
+        ``trechos`` e o que resolve a citacao de ``course.evidencias`` sem uma
+
+        segunda chamada por campo (RF28): o numero que o modelo citou e a posicao
+
+        nesta lista, ``trechos[n - 1]``. Fica fora de ``course`` porque nao e
+
+        saida do modelo - e o que o caso de uso montou como entrada, devolvido
+
+        aqui so para a tela de revisao nao precisar remontar a numeracao.'
       examples:
       - course:
           campos_ausentes:
@@ -655,6 +672,10 @@ components:
           provider: mock
           provider_latency_ms: 820.4
           total_tokens: 1150
+        trechos:
+        - Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
+          da planta 2, uns 25 tecnicos.
+        - A ideia e fazer em dois dias de 8 horas, no proprio site.
     SyllabusModule:
       properties:
         titulo:
