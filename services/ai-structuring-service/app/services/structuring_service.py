@@ -136,7 +136,7 @@ EXTRACTION_PROMPT_NAME: Final[str] = "extract-requirements"
 #: ``status: ativo`` no catalogo. Versao nova e arquivo novo, nunca edicao no
 #: lugar - ver ``app/prompts/README.md``. Ao publicar uma versao nova, mova este
 #: padrao junto: prompt ativo que ninguem carrega nao vale nada.
-DEFAULT_PROMPT_VERSION: Final[str] = "v3"
+DEFAULT_PROMPT_VERSION: Final[str] = "v4"
 
 
 @dataclass(frozen=True, slots=True)
