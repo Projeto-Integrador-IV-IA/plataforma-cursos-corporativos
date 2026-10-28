@@ -152,7 +152,10 @@ def test_texto_da_demanda_chega_integro_dentro_do_prompt_versionado(
         assert client.post(ROTA, json=DEMANDA).status_code == 200
 
     enviado, params = provider.chamadas[0]
-    assert EMAIL_COLADO.strip() in enviado
+    linhas = [linha.strip() for linha in EMAIL_COLADO.splitlines() if linha.strip()]
+    assert linhas, "fixture sem linha nao vazia - o teste nao estaria provando nada"
+    for linha in linhas:
+        assert linha in enviado, f"linha colada nao chegou intacta ao prompt: {linha!r}"
     assert "Nunca invente" in enviado
     assert params is not None
     assert params.response_schema is not None

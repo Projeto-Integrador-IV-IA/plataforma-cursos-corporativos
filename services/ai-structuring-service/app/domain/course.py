@@ -23,6 +23,8 @@ Metadados de confianca:
                             (ausente, ambigua ou contraditoria) e motivo
     procedencia             por campo inferivel, se o valor foi extraido
                             literal da fonte, inferido ou ficou ausente
+    evidencias              por campo inferivel, os numeros dos trechos da
+                            fonte que sustentam o valor
     observacoes             ambiguidades que o operador precisa resolver
 
 O modelo NUNCA inventa valor ausente: campo sem base no texto e reportado como
@@ -37,6 +39,20 @@ nao sabe, so olhando o resultado, no que confiar sem reabrir a fonte - por
 isso todo campo preenchido carrega sua procedencia, e a ausencia dela e
 violacao de schema como qualquer outra (ver ``FieldOrigin`` e
 ``marcar_campos_nao_inferiveis``).
+
+Evidencia por trecho (RF28)
+----------------------------
+Procedencia diz *como* o campo foi preenchido; evidencia diz *onde na fonte*.
+A entrada que chega ao provedor e numerada em trechos (``numerar_trechos``,
+em ``structuring_service``), e cada campo preenchido precisa citar ao menos
+um numero de trecho em ``evidencias`` - "a IA nao inventa" deixa de ser
+promessa e passa a ser verificavel: quem revisa confere o trecho citado sem
+reler a demanda inteira. Campo que acaba em ``campos_ausentes`` nunca tem
+evidencia - não há trecho que sustente o que nao foi preenchido. Este modulo
+so garante a forma (lista nao vazia de inteiros por campo preenchido); que os
+numeros citados correspondem a trechos que de fato existiram na chamada e
+responsabilidade de ``structuring_service`` (RNF27), que conhece quantos
+trechos foram enviados e este modulo nao.
 
 Forma fixa entre execucoes
 --------------------------
@@ -300,6 +316,12 @@ class StructuredCourse(CanonicalModel):
     ``AUSENTE`` para o que esta em ``campos_ausentes``, ``EXTRAIDO`` ou
     ``INFERIDO`` para o que esta preenchido. Campo preenchido sem procedencia
     declarada e violacao de schema, tratada como qualquer outra (ADR-0006).
+
+    ``evidencias`` e mais uma camada, ortogonal a ``procedencia`` (RF28): os
+    numeros dos trechos da fonte (numerada por ``numerar_trechos``) que
+    sustentam o valor de cada campo preenchido. Campo em ``campos_ausentes``
+    nunca tem entrada aqui; campo preenchido sem ao menos um numero citado e
+    violacao de schema, igual a procedencia ausente.
     """
 
     tema: str | None
@@ -312,20 +334,23 @@ class StructuredCourse(CanonicalModel):
     ementa: list[SyllabusModule]
     campos_ausentes: list[FieldGap]
     procedencia: dict[str, FieldOrigin]
+    evidencias: dict[str, list[int]]
     observacoes: list[str]
 
     @model_validator(mode="before")
     @classmethod
     def marcar_campos_nao_inferiveis(cls, dados: Any) -> Any:
-        """Reconcilia valor, lacuna e procedencia antes de montar o curso (RNF03, RNF06).
+        """Reconcilia valor, lacuna, procedencia e evidencia antes de montar o curso.
 
-        Campo vazio vira o vazio canonico do seu tipo e entra em
-        ``campos_ausentes``, classificado, com ``procedencia`` forcada para
-        ``AUSENTE`` - sem exceca: valor descartado nao tem procedencia que
-        valha. Campo preenchido e nao declarado em ``campos_ausentes`` precisa
-        trazer sua propria entrada em ``procedencia`` (``EXTRAIDO`` ou
-        ``INFERIDO``); sem ela, a resposta e recusada - procedencia nao e
-        inferida aqui, e informacao que so o modelo tem.
+        RNF03, RNF06, RF28. Campo vazio vira o vazio canonico do seu tipo e
+        entra em ``campos_ausentes``, classificado, com ``procedencia``
+        forcada para ``AUSENTE`` e ``evidencias`` forcada para ``[]`` - sem
+        exceca: valor descartado nao tem procedencia nem evidencia que valham.
+        Campo preenchido e nao declarado em ``campos_ausentes`` precisa trazer
+        sua propria entrada em ``procedencia`` (``EXTRAIDO`` ou ``INFERIDO``) e
+        ao menos um numero em ``evidencias``; sem qualquer um dos dois, a
+        resposta e recusada - nenhum dos dois e inferido aqui, sao informacao
+        que so o modelo tem.
 
         A lacuna declarada e aceita tanto no item rico (``campo``, ``tipo``,
         ``motivo``) quanto no nome solto da ``extract-requirements.v2`` - nesse
@@ -335,12 +360,14 @@ class StructuredCourse(CanonicalModel):
         Resposta que nao e mapeamento, ou que traz ``campos_ausentes`` fora do
         tipo declarado, passa intacta: recusar isso e trabalho da validacao
         normal, e mascarar a violacao aqui esconderia o defeito. O mesmo vale
-        para ``procedencia`` com valor fora do vocabulario - a enumeracao
-        ``FieldOrigin`` recusa na validacao normal do campo.
+        para ``procedencia`` com valor fora do vocabulario e para
+        ``evidencias`` com item que nao e inteiro - a validacao normal do
+        campo recusa os dois.
 
         Raises:
             ValueError: campo preenchido e sem lacuna declarada nao tem
-                entrada correspondente em ``procedencia``.
+                entrada correspondente em ``procedencia``, ou tem a entrada
+                mas ``evidencias`` para o campo esta ausente ou vazia.
         """
 
         if not isinstance(dados, Mapping):
@@ -358,6 +385,10 @@ class StructuredCourse(CanonicalModel):
         procedencias: dict[str, Any] = (
             dict(procedencia_bruta) if isinstance(procedencia_bruta, Mapping) else {}
         )
+        evidencias_brutas = valores.get("evidencias")
+        evidencias: dict[str, Any] = (
+            dict(evidencias_brutas) if isinstance(evidencias_brutas, Mapping) else {}
+        )
 
         lacunas: list[dict[str, Any]] = []
         for campo in CAMPOS_INFERIVEIS:
@@ -368,6 +399,8 @@ class StructuredCourse(CanonicalModel):
             if not vazio and declarada is None:
                 if campo not in procedencias:
                     raise ValueError(f"procedencia ausente para campo preenchido: {campo!r}")
+                if not isinstance(evidencias.get(campo), list) or not evidencias[campo]:
+                    raise ValueError(f"evidencia ausente para campo preenchido: {campo!r}")
                 continue
             tipo = declarada["tipo"] if declarada is not None else GapKind.AUSENTE.value
             if not vazio and observacoes is not None:
@@ -382,12 +415,15 @@ class StructuredCourse(CanonicalModel):
                 }
             )
             # Valor descartado (vazio, ou preenchido mas com lacuna declarada)
-            # nunca tem procedencia que valha - a entrada e sempre AUSENTE,
-            # por cima de qualquer coisa que o modelo tenha dito.
+            # nunca tem procedencia nem evidencia que valham - as duas entradas
+            # sao sempre AUSENTE/[], por cima de qualquer coisa que o modelo
+            # tenha dito.
             procedencias[campo] = FieldOrigin.AUSENTE.value
+            evidencias[campo] = []
 
         valores["campos_ausentes"] = lacunas
         valores["procedencia"] = procedencias
+        valores["evidencias"] = evidencias
         if observacoes is not None:
             valores["observacoes"] = observacoes
         return valores
@@ -486,7 +522,12 @@ CAMPOS_INFERIVEIS: Final[tuple[str, ...]] = CAMPOS_EXTRAIDOS + CAMPOS_GERADOS
 _CAMPOS_DE_LISTA: Final[frozenset[str]] = frozenset(CAMPOS_GERADOS)
 
 #: Metadados de confianca que sustentam a revisao humana (RF14) e as metricas (RNF04).
-CAMPOS_DE_CONFIANCA: Final[tuple[str, ...]] = ("campos_ausentes", "procedencia", "observacoes")
+CAMPOS_DE_CONFIANCA: Final[tuple[str, ...]] = (
+    "campos_ausentes",
+    "procedencia",
+    "evidencias",
+    "observacoes",
+)
 
 #: Chaves da saida canonica, na ordem em que sao serializadas.
 CHAVES_CANONICAS: Final[tuple[str, ...]] = tuple(StructuredCourse.model_fields)
