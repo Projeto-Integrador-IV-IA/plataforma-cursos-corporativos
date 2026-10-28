@@ -426,6 +426,7 @@ class TestPersistenciaDaRodada:
         rodada = Rodada(
             iniciada_em=datetime(2026, 10, 16, 12, 0, tzinfo=UTC),
             prompt_version="v3",
+            schema_version="v1",
             modelos=(MODELO,),
             casos=("c1",),
             execucoes=(
@@ -443,6 +444,7 @@ class TestPersistenciaDaRodada:
 
         assert destino.exists(), "o diretorio de destino e criado quando falta"
         assert lida.prompt_version == "v3"
+        assert lida.schema_version == "v1"
         assert lida.modelos == (MODELO,)
         e = lida.execucoes[0]
         assert e.modelo == MODELO
@@ -458,6 +460,7 @@ class TestPersistenciaDaRodada:
         rodada = Rodada(
             iniciada_em=datetime(2026, 10, 16, tzinfo=UTC),
             prompt_version="v3",
+            schema_version="v1",
             modelos=(MODELO,),
             casos=("c1",),
             execucoes=(execucao(),),
@@ -474,6 +477,7 @@ class TestPersistenciaDaRodada:
         rodada = Rodada(
             iniciada_em=datetime(2026, 10, 16, tzinfo=UTC),
             prompt_version="v3",
+            schema_version="v1",
             modelos=(MODELO,),
             casos=("c1",),
             execucoes=(execucao(curso=None, erro="LLMTimeoutError: estourou"),),
@@ -483,3 +487,25 @@ class TestPersistenciaDaRodada:
 
         assert bruto["execucoes"][0]["curso"] is None
         assert "estourou" in bruto["execucoes"][0]["erro"]
+
+    def test_le_rodada_antiga_sem_versao_de_schema(self, tmp_path: Path) -> None:
+        """Arquivo gravado antes do campo existir nao pode virar erro de leitura."""
+
+        import json
+
+        rodada = Rodada(
+            iniciada_em=datetime(2026, 10, 16, tzinfo=UTC),
+            prompt_version="v3",
+            schema_version="v1",
+            modelos=(MODELO,),
+            casos=("c1",),
+            execucoes=(execucao(),),
+        )
+        destino = salvar(rodada, tmp_path / "r.json")
+        bruto = json.loads(destino.read_text(encoding="utf-8"))
+        del bruto["schema_version"]
+        destino.write_text(json.dumps(bruto, ensure_ascii=False), encoding="utf-8")
+
+        lida = carregar(destino)
+
+        assert lida.schema_version == "desconhecida"

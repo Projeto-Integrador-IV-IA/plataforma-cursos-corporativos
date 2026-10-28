@@ -18,12 +18,13 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
 from app.domain.enums import DemandStatus, PipelineStage
-from app.domain.rules import advance_target, can_transition
+from app.domain.rules import advance_target, available_transitions, can_transition
 from app.models.demand import Demand
 from app.models.user import User
 from app.repositories.demand_repository import DemandRepository
 from app.repositories.transition_repository import TransitionRepository
 from app.schemas.pipeline import (
+    AvailableTransitionsRead,
     PipelineBoard,
     PipelineCardRead,
     PipelineStageGroup,
@@ -137,6 +138,23 @@ class PipelineService:
             for transition in self.transitions.list_for_demand(demand_id)
         ]
         return StageTransitionTimeline(items=items, total=len(items))
+
+    def available_transitions(self, demand_id: UUID) -> AvailableTransitionsRead:
+        """Etapas para onde a demanda pode ir agora (RF06.3); 404 se nao existe.
+
+        A mesma funcao que decide aqui e a que recusa um avanco ou retrocesso
+        invalido - a interface nunca ve uma lista que o backend depois contradiz.
+        """
+
+        demand = self.session.get(Demand, demand_id)
+        if demand is None:
+            raise NotFoundError(code="DEMAND_NOT_FOUND", message="Demanda nao encontrada.")
+
+        current = PipelineStage(demand.current_stage)
+        return AvailableTransitionsRead(
+            current_stage=current,
+            available_stages=list(available_transitions(current, demand.status)),
+        )
 
     def rollback(
         self,

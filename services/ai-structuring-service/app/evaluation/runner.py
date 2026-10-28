@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.config import Settings, get_settings
+from app.domain.course import SCHEMA_VERSION
 from app.evaluation.catalog import ModeloCandidato
 from app.evaluation.dataset import CasoDeAvaliacao
 from app.evaluation.metrics import Execucao
@@ -41,12 +42,14 @@ FabricaDeProvedor = Callable[[str, Settings], LLMProvider]
 class Rodada:
     """Uma rodada de avaliacao, identificada pelo que a torna comparavel.
 
-    Conjunto, versao de prompt e lista de modelos sao o que precisa estar igual
-    entre duas rodadas para os numeros poderem ser comparados.
+    Conjunto, versao de prompt, versao de schema e lista de modelos sao o que
+    precisa estar igual entre duas rodadas para os numeros poderem ser
+    comparados (RNF29).
     """
 
     iniciada_em: datetime
     prompt_version: str
+    schema_version: str
     modelos: Sequence[str]
     casos: Sequence[str]
     execucoes: Sequence[Execucao]
@@ -84,6 +87,7 @@ def salvar(rodada: Rodada, destino: Path) -> Path:
     corpo = {
         "iniciada_em": rodada.iniciada_em.isoformat(),
         "prompt_version": rodada.prompt_version,
+        "schema_version": rodada.schema_version,
         "modelos": list(rodada.modelos),
         "casos": list(rodada.casos),
         "execucoes": [_para_registro(e) for e in rodada.execucoes],
@@ -119,6 +123,7 @@ def carregar(origem: Path) -> Rodada:
     return Rodada(
         iniciada_em=datetime.fromisoformat(bruto["iniciada_em"]),
         prompt_version=bruto["prompt_version"],
+        schema_version=bruto.get("schema_version", "desconhecida"),
         modelos=tuple(bruto.get("modelos", ())),
         casos=tuple(bruto.get("casos", ())),
         execucoes=tuple(execucoes),
@@ -180,6 +185,7 @@ async def executar(
     return Rodada(
         iniciada_em=datetime.now(UTC),
         prompt_version=versao,
+        schema_version=SCHEMA_VERSION,
         modelos=tuple(m.slug for m in modelos),
         casos=tuple(c.identificador for c in casos),
         execucoes=tuple(execucoes),
