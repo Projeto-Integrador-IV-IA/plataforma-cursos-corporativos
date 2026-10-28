@@ -1,9 +1,10 @@
 """Rotas do pipeline.
 
-    GET  /api/v1/pipeline                   demandas agrupadas por etapa (RF05)
-    POST /api/v1/demands/{id}/advance       avanca para a proxima etapa (RF06)
-    POST /api/v1/demands/{id}/rollback      retrocede para qualquer etapa anterior (RF06)
-    GET  /api/v1/demands/{id}/transitions   linha do tempo de etapas (RF07)
+    GET  /api/v1/pipeline                             demandas agrupadas por etapa (RF05)
+    POST /api/v1/demands/{id}/advance                 avanca para a proxima etapa (RF06)
+    POST /api/v1/demands/{id}/rollback                retrocede para qualquer etapa anterior (RF06)
+    GET  /api/v1/demands/{id}/available-transitions   etapas possiveis a partir da atual (RF06.3)
+    GET  /api/v1/demands/{id}/transitions             linha do tempo de etapas (RF07)
 
 O avanco nao recebe destino: a proxima etapa sai da maquina de estados. O autor
 vem do cabecalho ``X-User-ID``, nunca do corpo da requisicao (RNF10) - o mesmo
@@ -23,6 +24,7 @@ from app.db.session import get_session
 from app.domain.enums import DemandStatus
 from app.schemas.error import ErrorResponse
 from app.schemas.pipeline import (
+    AvailableTransitionsRead,
     PipelineBoard,
     RollbackRequest,
     StageChangeRead,
@@ -160,6 +162,29 @@ def advance_demand(
         author_id,
         reason=payload.reason if payload is not None else None,
     )
+
+
+@demands_router.get(
+    "/{demand_id}/available-transitions",
+    response_model=AvailableTransitionsRead,
+    summary="Consultar as etapas disponiveis a partir da atual",
+    description=(
+        "Devolve a etapa corrente e as etapas para onde a demanda pode ir agora, na "
+        "mesma ordem e com a mesma regra que avanco e retrocesso aplicam - a interface "
+        "consulta aqui para so habilitar o que vale, em vez de descobrir pelo erro 409."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Demanda inexistente."},
+        422: {"model": ErrorResponse, "description": "Identificador invalido."},
+    },
+)
+def get_available_transitions(
+    demand_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+) -> AvailableTransitionsRead:
+    """Leitura pura da maquina de estados; nao altera nada e nao exige autor."""
+
+    return PipelineService(session).available_transitions(demand_id)
 
 
 @demands_router.get(
