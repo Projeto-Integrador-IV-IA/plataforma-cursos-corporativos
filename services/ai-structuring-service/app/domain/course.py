@@ -297,6 +297,14 @@ class FieldGap(CanonicalModel):
         return valor
 
 
+#: Versao da forma canonica (RNF29). Incrementar so quando um campo e
+#: adicionado, removido ou muda de tipo em ``StructuredCourse`` - nao a cada
+#: ajuste de prompt. A avaliacao de modelos (card #217) grava este valor junto
+#: de cada rodada: comparar execucoes feitas sob schemas diferentes mediria
+#: outra coisa.
+SCHEMA_VERSION: Final[str] = "v1"
+
+
 class StructuredCourse(CanonicalModel):
     """Curso estruturado: a saida canonica da estruturacao por IA (RNF03).
 
@@ -357,12 +365,17 @@ class StructuredCourse(CanonicalModel):
         caso o tipo e ``ausente`` e o motivo vem da linha ``<campo>: <motivo>``
         das ``observacoes``. A saida e sempre a forma rica.
 
-        Resposta que nao e mapeamento, ou que traz ``campos_ausentes`` fora do
-        tipo declarado, passa intacta: recusar isso e trabalho da validacao
-        normal, e mascarar a violacao aqui esconderia o defeito. O mesmo vale
-        para ``procedencia`` com valor fora do vocabulario e para
-        ``evidencias`` com item que nao e inteiro - a validacao normal do
-        campo recusa os dois.
+        Resposta que nao e mapeamento, ou que traz ``campos_ausentes``,
+        ``procedencia`` ou ``evidencias`` fora do tipo declarado, passa
+        intacta: recusar isso e trabalho da validacao normal, e mascarar a
+        violacao aqui esconderia o defeito - inclusive quando todo campo
+        inferivel presente esta vazio ou com lacuna declarada, caso em que
+        nenhuma entrada de ``procedencia``/``evidencias`` chegaria a ser
+        exigida e o valor fora do tipo passaria batido se a reconciliacao o
+        descartasse em silencio. Dentro do mapeamento, valor de procedencia
+        fora do vocabulario - a enumeracao ``FieldOrigin`` recusa na
+        validacao normal do campo. O mesmo vale para ``evidencias`` com item
+        que nao e inteiro - a validacao normal do campo recusa.
 
         Raises:
             ValueError: campo preenchido e sem lacuna declarada nao tem
@@ -375,17 +388,21 @@ class StructuredCourse(CanonicalModel):
         declaradas = _lacunas_declaradas(dados.get("campos_ausentes"))
         if declaradas is None:
             return dados
+        procedencia_bruta = dados.get("procedencia")
+        if procedencia_bruta is not None and not isinstance(procedencia_bruta, Mapping):
+            return dados
+        evidencias_brutas = dados.get("evidencias")
+        if evidencias_brutas is not None and not isinstance(evidencias_brutas, Mapping):
+            return dados
 
         valores = dict(dados)
         registradas = valores.get("observacoes")
         originais = list(registradas) if _e_lista_de_texto(registradas) else None
         observacoes = list(originais) if originais is not None else None
 
-        procedencia_bruta = valores.get("procedencia")
         procedencias: dict[str, Any] = (
             dict(procedencia_bruta) if isinstance(procedencia_bruta, Mapping) else {}
         )
-        evidencias_brutas = valores.get("evidencias")
         evidencias: dict[str, Any] = (
             dict(evidencias_brutas) if isinstance(evidencias_brutas, Mapping) else {}
         )
