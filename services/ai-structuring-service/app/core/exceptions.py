@@ -235,3 +235,21 @@ class LLMInvalidResponseError(LLMProviderError):
                 if isinstance(campo, str) and campo:
                     campos.setdefault(campo, None)
         return tuple(campos)
+
+    def citacoes_invalidas(self) -> tuple[dict[str, Any], ...]:
+        """Campo e numero de cada citacao que nao corresponde a trecho enviado (RNF27).
+
+        Le o resumo que ``structuring_service`` deixa em
+        ``details["citacoes_invalidas"]`` quando ``evidencias`` cita um numero
+        fora do intervalo de trechos daquela chamada - o modelo citou, mas o
+        trecho citado nao existiu (RF28).
+
+        Returns:
+            Tupla de ``{"campo": str, "numero": int}``, na ordem em que foram
+            encontradas. Vazia quando a falha nao veio dessa checagem.
+        """
+
+        citacoes = self.details.get("citacoes_invalidas")
+        if not isinstance(citacoes, list):
+            return ()
+        return tuple(item for item in citacoes if isinstance(item, Mapping))
