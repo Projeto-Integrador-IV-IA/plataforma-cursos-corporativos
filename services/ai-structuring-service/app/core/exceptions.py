@@ -15,7 +15,8 @@ Hierarquia implementada:
             ├── LLMUnavailableError    fornecedor fora do ar        -> 503
             ├── LLMTimeoutError        estourou o tempo maximo      -> 504
             ├── LLMRateLimitError      limite de uso/cota atingido  -> 429
-            └── LLMInvalidResponseError resposta ilegivel           -> 502
+            └── LLMInvalidResponseError resposta ilegivel, retentavel
+                                         com teto proprio            -> 502
 
 As quatro condicoes de falha do provedor sao as unicas formas de ``complete``
 terminar sem resultado (ver ``app.providers.base``). Excecao de SDK ou de
@@ -200,15 +201,19 @@ class LLMInvalidResponseError(LLMProviderError):
     passa no JSON Schema da saida e requisicao recusada pelo fornecedor por
     credencial ou parametro invalido (HTTP 4xx que nao seja limite de uso): em
     todos os casos nao ha resposta utilizavel, e resposta invalida e falha, nao
-    e aceita como "quase certa" (ADR-0006). Repetir sem mudar prompt,
-    parametros ou configuracao tende a repetir o erro, por isso nao e
-    retentavel por padrao.
+    e aceita como "quase certa" (ADR-0006).
+
+    Retentavel, mas com teto proprio (``LLM_SCHEMA_MAX_RETRIES`` em
+    ``structuring_service``): o modelo erra formato de forma intermitente, e
+    uma nova chamada costuma resolver. Reaproveitar o teto de falha de rede
+    (``LLM_MAX_RETRIES``) misturaria causas diferentes num so numero - por
+    isso o teto e independente, nao o mesmo.
     """
 
     code: ClassVar[str] = "LLM_INVALID_RESPONSE"
     http_status: ClassVar[int] = 502
     default_message: ClassVar[str] = "Resposta do provedor de LLM fora do formato esperado."
-    retryable: ClassVar[bool] = False
+    retryable: ClassVar[bool] = True
 
     def violated_fields(self) -> tuple[str, ...]:
         """Nomes dos campos que violaram o contrato, na ordem em que foram reportados.

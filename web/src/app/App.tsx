@@ -9,15 +9,27 @@
  * por IA, que precisa ser visivel sem bloquear a navegacao.
  */
 
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 
 import { AppNav } from '@/components/AppNav';
+import { PATHS } from '@/app/paths';
+import { logout } from '@/services/auth';
 
 export function App() {
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate(PATHS.login, { replace: true });
+  }
+
   return (
     <div className="layout">
       <header className="layout__header">
         <span className="layout__brand">Cursos Corporativos</span>
+        <button className="layout__logout" type="button" onClick={handleLogout}>
+          Sair
+        </button>
       </header>
       <div className="layout__body">
         <aside className="layout__sidebar">

@@ -115,7 +115,7 @@ describe('caminho feliz', () => {
     expect(headerOf(firstRequest(), 'Content-Type')).toBe('application/json');
   });
 
-  it('anexa o token de acesso quando ha sessao (RF16)', async () => {
+  it('anexa o token de acesso quando ha sessao (RF26)', async () => {
     vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
     stubFetch(() => Promise.resolve(jsonResponse({ ok: true })));
     setAccessToken('token-123');
