@@ -17,12 +17,16 @@ import { MemoryRouter, useRoutes } from 'react-router-dom';
 
 import { Providers } from '@/app/providers';
 import { routes } from '@/app/routes';
+import { setAccessToken } from '@/services/api';
 
 function RoutedApp() {
   return useRoutes(routes);
 }
 
-export function renderRoute(initialPath: string) {
+export function renderRoute(initialPath: string, options: { authenticated?: boolean } = {}) {
+  const authenticated = options.authenticated ?? initialPath !== '/login';
+  setAccessToken(authenticated ? 'test-access-token' : null);
+
   return render(
     <Providers>
       <MemoryRouter
