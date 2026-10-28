@@ -27,6 +27,14 @@ Antes de montar o prompt, ``numerar_trechos`` divide o texto normalizado em
 trechos citaveis e ``formatar_trechos_numerados`` apresenta cada um como
 ``[n] trecho``. O prompt instrui o modelo a citar esses numeros em
 ``evidencias``, e ``StructuringOutcome.trechos`` guarda a mesma lista na mesma
+ordem - ``trechos[n - 1]`` e o conteudo do numero ``n`` citado.
+
+Nao basta citar, a citacao tem de existir (RNF27): ``_citacoes_fora_do_intervalo``
+confere, depois da validacao de schema, que todo numero em ``evidencias`` cai
+entre 1 e a quantidade de trechos enviados nesta chamada. Citacao fora dessa
+faixa vira ``LLMInvalidResponseError`` no desfecho - mesma regra de RNF05.1,
+agora aplicada a evidencia -, registrada em log para diagnostico sem repetir
+o texto do cliente.
 ordem - ``trechos[n - 1]`` e o conteudo do numero ``n`` citado. A validacao de
 que todo numero citado corresponde a um trecho que de fato foi enviado (RNF27)
 e passo seguinte, ainda nao implementado aqui.
@@ -379,16 +387,18 @@ class StructuringService:
 
         Nao levanta excecao, pela mesma razao que ``structure`` nao levanta: o
         chamador sempre recebe o desfecho com a demanda bruta em maos (RNF05).
-        Resposta fora do schema dispara nova chamada ao provedor, ate
+        Resposta fora do schema, ou que cita em ``evidencias`` um trecho que
+        nao foi enviado (RNF27), dispara nova chamada ao provedor, ate
         ``LLM_SCHEMA_MAX_RETRIES`` vezes alem da primeira - o modelo erra
-        formato de forma intermitente, e uma nova tentativa costuma resolver
-        (``_politica_de_retentativa``, reaproveitada aqui para a falha de
-        schema do mesmo jeito que ``structure`` reaproveita para a falha de
-        rede). Esgotado o limite, a ultima recusa vira ``LLMInvalidResponseError``
-        no desfecho - nao e aceita como "quase certa" (ADR-0006) - e cada
-        recusa da sequencia e registrada em log para diagnostico, sem devolver
-        o texto recusado a quem chamou. A fronteira HTTP chama
-        ``raise_for_course`` e deixa o handler de ``app.main`` traduzir o erro.
+        formato ou citacao de forma intermitente, e uma nova tentativa
+        costuma resolver (``_politica_de_retentativa``, reaproveitada aqui
+        para a falha de schema do mesmo jeito que ``structure`` reaproveita
+        para a falha de rede). Esgotado o limite, a ultima recusa vira
+        ``LLMInvalidResponseError`` no desfecho - nao e aceita como "quase
+        certa" (ADR-0006) - e cada recusa da sequencia e registrada em log
+        para diagnostico, sem devolver o texto recusado a quem chamou. A
+        fronteira HTTP chama ``raise_for_course`` e deixa o handler de
+        ``app.main`` traduzir o erro.
 
         Args:
             demand: demanda bruta ja persistida pelo ingestion-service.
@@ -444,6 +454,20 @@ class StructuringService:
                                 bruto=outcome.completion.text,
                             )
                             raise
+                        invalidas = _citacoes_fora_do_intervalo(curso, len(trechos))
+                        if invalidas:
+                            erro = LLMInvalidResponseError(
+                                "Resposta cita trecho que nao foi enviado nesta chamada.",
+                                details={"citacoes_invalidas": list(invalidas)},
+                            )
+                            _registrar_citacao_invalida(
+                                demand=demand,
+                                prompt_id=prompt.identificador,
+                                attempts=tentativa.retry_state.attempt_number,
+                                invalidas=invalidas,
+                                total_trechos=len(trechos),
+                            )
+                            raise erro
         except LLMInvalidResponseError as erro:
             assert outcome is not None
             outcome = replace(outcome, attempts=tentativas_totais)
