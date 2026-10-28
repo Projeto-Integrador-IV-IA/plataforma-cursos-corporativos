@@ -61,6 +61,16 @@ RESPOSTA_COMPLETA: dict[str, Any] = {
         "objetivos_aprendizagem": "extraido",
         "ementa": "inferido",
     },
+    "evidencias": {
+        "tema": [1],
+        "nicho": [1],
+        "publico_alvo": [1],
+        "numero_participantes": [1],
+        "carga_horaria": [2],
+        "formato": [2],
+        "objetivos_aprendizagem": [3],
+        "ementa": [3],
+    },
     "observacoes": [],
 }
 
@@ -73,7 +83,7 @@ def resposta(**alteracoes: Any) -> dict[str, Any]:
 
 def test_chaves_canonicas_cobrem_extraidos_gerados_e_confianca() -> None:
     assert set(CHAVES_CANONICAS) == set(CAMPOS_EXTRAIDOS + CAMPOS_GERADOS + CAMPOS_DE_CONFIANCA)
-    assert len(CHAVES_CANONICAS) == 11
+    assert len(CHAVES_CANONICAS) == 12
 
 
 def test_chaves_obrigatorias_sao_as_que_o_prompt_ativo_manda_devolver() -> None:
@@ -85,6 +95,7 @@ def test_chaves_obrigatorias_sao_as_que_o_prompt_ativo_manda_devolver() -> None:
         "objetivos_aprendizagem",
         "campos_ausentes",
         "procedencia",
+        "evidencias",
         "observacoes",
     }
 
@@ -288,6 +299,7 @@ def test_curso_pode_ser_construido_em_codigo_com_a_mesma_forma() -> None:
         ementa=[],
         campos_ausentes=["carga_horaria", "objetivos_aprendizagem"],
         procedencia={"tema": "extraido", "publico_alvo": "extraido"},
+        evidencias={"tema": [1], "publico_alvo": [1]},
         observacoes=[],
     )
 

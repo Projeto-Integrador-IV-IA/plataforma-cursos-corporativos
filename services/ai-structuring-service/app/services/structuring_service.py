@@ -21,6 +21,16 @@ ementa e os objetivos devolvidos hoje sao os que o proprio cliente descreveu no
 texto, extraidos junto com os demais campos (RF12 parcial). Os passos 6 e 7
 entram com os cards de RNF04 e RF13.
 
+Evidencia por trecho (RF28)
+----------------------------
+Antes de montar o prompt, ``numerar_trechos`` divide o texto normalizado em
+trechos citaveis e ``formatar_trechos_numerados`` apresenta cada um como
+``[n] trecho``. O prompt instrui o modelo a citar esses numeros em
+``evidencias``, e ``StructuringOutcome.trechos`` guarda a mesma lista na mesma
+ordem - ``trechos[n - 1]`` e o conteudo do numero ``n`` citado. A validacao de
+que todo numero citado corresponde a um trecho que de fato foi enviado (RNF27)
+e passo seguinte, ainda nao implementado aqui.
+
 Tratamento de falha (RNF05)
 ---------------------------
 
@@ -95,7 +105,7 @@ que e respeitado como veio.
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Final
 
@@ -136,7 +146,7 @@ EXTRACTION_PROMPT_NAME: Final[str] = "extract-requirements"
 #: ``status: ativo`` no catalogo. Versao nova e arquivo novo, nunca edicao no
 #: lugar - ver ``app/prompts/README.md``. Ao publicar uma versao nova, mova este
 #: padrao junto: prompt ativo que ninguem carrega nao vale nada.
-DEFAULT_PROMPT_VERSION: Final[str] = "v4"
+DEFAULT_PROMPT_VERSION: Final[str] = "v5"
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +187,10 @@ class StructuringOutcome:
         prompt_id: prompt versionado usado na execucao, ex.:
             ``extract-requirements.v1``. Acompanha a proveniencia do artefato
             (RNF04, RNF09).
+        trechos: trechos numerados enviados ao provedor (RF28), na mesma ordem
+            da citacao em ``course.evidencias`` - o numero ``n`` citado
+            corresponde a ``trechos[n - 1]``. Vazio quando a chamada nao
+            passou por ``structure_course``.
     """
 
     demand: RawDemand
@@ -186,6 +200,7 @@ class StructuringOutcome:
     elapsed_ms: float = 0.0
     course: StructuredCourse | None = None
     prompt_id: str | None = None
+    trechos: tuple[str, ...] = ()
 
     @property
     def succeeded(self) -> bool:
@@ -392,6 +407,7 @@ class StructuringService:
         """
 
         prompt = carregar_prompt(EXTRACTION_PROMPT_NAME, prompt_version)
+        trechos = numerar_trechos(demand.text)
         params = self._parametros_da_extracao()
         outcome: StructuringOutcome | None = None
         curso: StructuredCourse | None = None
@@ -403,10 +419,13 @@ class StructuringService:
                     outcome = replace(
                         await self.structure(
                             demand,
-                            prompt=prompt.render(texto_normalizado=demand.text),
+                            prompt=prompt.render(
+                                texto_normalizado=formatar_trechos_numerados(trechos)
+                            ),
                             params=params,
                         ),
                         prompt_id=prompt.identificador,
+                        trechos=trechos,
                     )
                     tentativas_totais += outcome.attempts
                     # ``completion is None`` e falha de rede/provedor, que ja
@@ -501,6 +520,36 @@ class StructuringService:
         if parametros.timeout_seconds is not None:
             return parametros
         return replace(parametros, timeout_seconds=self._settings.llm_timeout_seconds)
+
+
+def numerar_trechos(texto: str) -> tuple[str, ...]:
+    """Divide o texto normalizado em trechos citaveis, um por linha nao vazia (RF28).
+
+    Cada trecho e a unidade que o modelo cita em ``evidencias``: granularidade
+    de linha casa com a forma como a demanda ja chega (e-mail colado,
+    mensagem de chat, fala de reuniao transcrita sao naturalmente quebrados em
+    linha) e fica pequena o bastante para a citacao apontar algo especifico,
+    nao o texto inteiro. Linha em branco nao e trecho - citar "nada" nao
+    sustenta campo nenhum.
+
+    A numeracao e por chamada, nao persistida: comeca em 1 a cada execucao e
+    nao tem relacao com os identificadores estaveis de trecho que o
+    ingestion-service e o pipeline-service mantem entre si (RF27) - aqui o que
+    importa e so distinguir trecho dentro desta unica resposta.
+    """
+
+    return tuple(linha.strip() for linha in texto.splitlines() if linha.strip())
+
+
+def formatar_trechos_numerados(trechos: Sequence[str]) -> str:
+    """Formata os trechos como ``[n] trecho``, um por linha, para o prompt citar.
+
+    A numeracao comeca em 1: e o que o prompt instrui o modelo a citar em
+    ``evidencias``, e zero nao e um indice natural para citacao humana nem do
+    modelo.
+    """
+
+    return "\n".join(f"[{numero}] {trecho}" for numero, trecho in enumerate(trechos, start=1))
 
 
 def _registrar_resposta_recusada(
