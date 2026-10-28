@@ -11,7 +11,7 @@
  * nao aparecem aqui: quem move a demanda e o pipeline (RF05, RF06).
  *
  * Responsavel (`owner_id`): a API aceita, mas nao existe endpoint que liste
- * usuarios, e com a autenticacao (RF16) o responsavel provavelmente passa a ser
+ * usuarios, e com a autenticacao (RF26) o responsavel provavelmente passa a ser
  * o usuario da sessao. Um campo de UUID livre seria descartado depois, entao o
  * controle fica de fora ate haver de onde escolher.
  */

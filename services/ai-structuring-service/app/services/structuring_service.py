@@ -97,11 +97,13 @@ Fica aqui, e apenas aqui: o provedor traduz o transporte em erro tipado, o
 caso de uso decide se insiste. Assim qualquer provedor registrado - inclusive
 um futuro, com dialeto proprio - herda a mesma politica sem reimplementa-la.
 
-Implementada com ``tenacity``: no maximo ``LLM_MAX_RETRIES`` repeticoes alem da
-primeira tentativa, somente para falhas marcadas como ``retryable``
-(indisponibilidade, timeout, limite de uso). Resposta invalida nao e retentada
-- repetir sem mudar prompt, parametros ou configuracao tende a repetir o erro.
-O intervalo e exponencial, exceto quando o fornecedor informa ``Retry-After``,
+Implementada com ``tenacity``: repeticoes alem da primeira tentativa, somente
+para falhas marcadas como ``retryable`` (indisponibilidade, timeout, limite de
+uso e resposta fora do schema). O teto depende da causa, nao de um numero so:
+``LLM_MAX_RETRIES`` para falha de rede/provedor, ``LLM_SCHEMA_MAX_RETRIES``
+para resposta fora do schema - o modelo erra formato de forma intermitente, e
+misturar os dois num teto so esconderia qual causa esta se repetindo. O
+intervalo e exponencial, exceto quando o fornecedor informa ``Retry-After``,
 que e respeitado como veio.
 """
 
@@ -112,7 +114,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Final
 
-from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt
+from tenacity import AsyncRetrying, RetryCallState, retry_if_exception
 
 from app.core.config import Settings
 from app.core.exceptions import LLMInvalidResponseError, LLMProviderError
@@ -177,7 +179,10 @@ class StructuringOutcome:
     Attributes:
         demand: a mesma demanda que entrou - e o que garante que a falha nao
             deixa o chamador sem o texto original (RNF05).
-        attempts: tentativas gastas, contando a primeira.
+        attempts: tentativas gastas, contando a primeira. Em ``structure``, so
+            chamadas ao provedor (falha de rede). Em ``structure_course``, a
+            soma de todas as chamadas, inclusive as refeitas por resposta fora
+            do schema (``LLM_SCHEMA_MAX_RETRIES``).
         completion: saida bruta do modelo; ``None`` quando houve falha.
         error: falha tipada do provedor; ``None`` quando houve sucesso.
         elapsed_ms: tempo de parede da execucao inteira, incluindo as esperas
@@ -380,9 +385,15 @@ class StructuringService:
         Nao levanta excecao, pela mesma razao que ``structure`` nao levanta: o
         chamador sempre recebe o desfecho com a demanda bruta em maos (RNF05).
         Resposta fora do schema, ou que cita em ``evidencias`` um trecho que
-        nao foi enviado (RNF27), vira ``LLMInvalidResponseError`` no desfecho -
-        nao e aceita como "quase certa" (ADR-0006) - e a recusa e registrada em
-        log para diagnostico, sem devolver o texto recusado a quem chamou. A
+        nao foi enviado (RNF27), dispara nova chamada ao provedor, ate
+        ``LLM_SCHEMA_MAX_RETRIES`` vezes alem da primeira - o modelo erra
+        formato ou citacao de forma intermitente, e uma nova tentativa
+        costuma resolver (``_politica_de_retentativa``, reaproveitada aqui
+        para a falha de schema do mesmo jeito que ``structure`` reaproveita
+        para a falha de rede). Esgotado o limite, a ultima recusa vira
+        ``LLMInvalidResponseError`` no desfecho - nao e aceita como "quase
+        certa" (ADR-0006) - e cada recusa da sequencia e registrada em log
+        para diagnostico, sem devolver o texto recusado a quem chamou. A
         fronteira HTTP chama ``raise_for_course`` e deixa o handler de
         ``app.main`` traduzir o erro.
 
@@ -393,7 +404,8 @@ class StructuringService:
 
         Returns:
             ``StructuringOutcome`` com ``course`` preenchido quando deu certo,
-            ou com o erro tipado quando nao deu.
+            ou com o erro tipado quando nao deu. ``attempts`` soma as chamadas
+            ao provedor gastas em todas as rodadas - de rede e de schema.
 
         Raises:
             ValueError: ``prompt_version`` nao existe no catalogo de prompts.
@@ -403,54 +415,71 @@ class StructuringService:
 
         prompt = carregar_prompt(EXTRACTION_PROMPT_NAME, prompt_version)
         trechos = numerar_trechos(demand.text)
-        outcome = await self.structure(
-            demand,
-            prompt=prompt.render(texto_normalizado=formatar_trechos_numerados(trechos)),
-            params=self._parametros_da_extracao(),
-        )
-        outcome = replace(outcome, prompt_id=prompt.identificador, trechos=trechos)
-        if outcome.completion is None:
-            return outcome
+        params = self._parametros_da_extracao()
+        outcome: StructuringOutcome | None = None
+        curso: StructuredCourse | None = None
+        tentativas_totais = 0
 
         try:
-            curso = validar_curso_estruturado(outcome.completion.text)
+            async for tentativa in self._politica_de_retentativa():
+                with tentativa:
+                    outcome = replace(
+                        await self.structure(
+                            demand,
+                            prompt=prompt.render(
+                                texto_normalizado=formatar_trechos_numerados(trechos)
+                            ),
+                            params=params,
+                        ),
+                        prompt_id=prompt.identificador,
+                        trechos=trechos,
+                    )
+                    tentativas_totais += outcome.attempts
+                    # ``completion is None`` e falha de rede/provedor, que ja
+                    # esgotou o proprio limite (LLM_MAX_RETRIES) dentro de
+                    # ``structure``; nao e falha de schema e nao ha o que
+                    # validar nem retentar nesta rodada.
+                    if outcome.completion is not None:
+                        try:
+                            curso = validar_curso_estruturado(outcome.completion.text)
+                        except LLMInvalidResponseError as erro:
+                            _registrar_resposta_recusada(
+                                demand=demand,
+                                prompt_id=prompt.identificador,
+                                attempts=tentativa.retry_state.attempt_number,
+                                erro=erro,
+                                bruto=outcome.completion.text,
+                            )
+                            raise
+                        invalidas = _citacoes_fora_do_intervalo(curso, len(trechos))
+                        if invalidas:
+                            erro = LLMInvalidResponseError(
+                                "Resposta cita trecho que nao foi enviado nesta chamada.",
+                                details={"citacoes_invalidas": list(invalidas)},
+                            )
+                            _registrar_citacao_invalida(
+                                demand=demand,
+                                prompt_id=prompt.identificador,
+                                attempts=tentativa.retry_state.attempt_number,
+                                invalidas=invalidas,
+                                total_trechos=len(trechos),
+                            )
+                            raise erro
         except LLMInvalidResponseError as erro:
-            _registrar_resposta_recusada(
-                demand=demand,
-                prompt_id=prompt.identificador,
-                attempts=outcome.attempts,
-                erro=erro,
-                bruto=outcome.completion.text,
-            )
+            assert outcome is not None
+            outcome = replace(outcome, attempts=tentativas_totais)
             erro.add_context(
                 demand_id=demand.demand_id,
-                attempts=outcome.attempts,
+                attempts=tentativas_totais,
                 prompt=prompt.identificador,
                 retryable=erro.retryable,
             )
             return replace(outcome, error=erro)
 
-        invalidas = _citacoes_fora_do_intervalo(curso, len(trechos))
-        if invalidas:
-            erro = LLMInvalidResponseError(
-                "Resposta cita trecho que nao foi enviado nesta chamada.",
-                details={"citacoes_invalidas": list(invalidas)},
-            )
-            _registrar_citacao_invalida(
-                demand=demand,
-                prompt_id=prompt.identificador,
-                attempts=outcome.attempts,
-                invalidas=invalidas,
-                total_trechos=len(trechos),
-            )
-            erro.add_context(
-                demand_id=demand.demand_id,
-                attempts=outcome.attempts,
-                prompt=prompt.identificador,
-                retryable=erro.retryable,
-            )
-            return replace(outcome, error=erro)
-
+        assert outcome is not None
+        outcome = replace(outcome, attempts=tentativas_totais)
+        if curso is None:
+            return outcome
         return replace(outcome, course=curso)
 
     def _parametros_da_extracao(self) -> CompletionParams:
@@ -470,15 +499,40 @@ class StructuringService:
         )
 
     def _politica_de_retentativa(self) -> AsyncRetrying:
-        """Monta a politica de retentativa a partir do ambiente."""
+        """Monta a politica de retentativa a partir do ambiente.
+
+        Usada tanto por ``structure`` (falha de rede/provedor, em volta de
+        ``complete``) quanto por ``structure_course`` (falha de schema, em
+        volta de ``complete`` + ``validar_curso_estruturado``): o teto que
+        ``_parar_apos_tentativas`` aplica depende do tipo da falha, nao de
+        quem chamou, por isso uma politica so basta para os dois.
+        """
 
         return AsyncRetrying(
-            stop=stop_after_attempt(self._settings.llm_max_retries + 1),
+            stop=self._parar_apos_tentativas,
             retry=retry_if_exception(_e_retentavel),
             wait=_espera,
             sleep=self._sleep,
             reraise=True,
         )
+
+    def _parar_apos_tentativas(self, estado: RetryCallState) -> bool:
+        """Decide parar com base no teto da falha que acabou de acontecer.
+
+        Falha de schema (``LLMInvalidResponseError``) usa
+        ``LLM_SCHEMA_MAX_RETRIES``; qualquer outra falha de provedor usa
+        ``LLM_MAX_RETRIES``. Os dois tetos sao independentes porque as causas
+        sao independentes: misturar formatacao do modelo com falha de rede num
+        so numero esconderia qual delas esta acontecendo.
+        """
+
+        falha = estado.outcome.exception() if estado.outcome is not None else None
+        limite = (
+            self._settings.llm_schema_max_retries
+            if isinstance(falha, LLMInvalidResponseError)
+            else self._settings.llm_max_retries
+        )
+        return estado.attempt_number >= limite + 1
 
     def _com_padroes(self, params: CompletionParams | None) -> CompletionParams:
         """Completa os parametros com o timeout do ambiente (RNF06, RNF11)."""
@@ -598,7 +652,8 @@ def _registrar_resposta_recusada(
     Args:
         demand: demanda em processamento, para correlacionar log e reprocessamento.
         prompt_id: prompt versionado usado na chamada, ex.: ``extract-requirements.v2``.
-        attempts: tentativas gastas ate a resposta recusada.
+        attempts: numero desta tentativa na sequencia de recusas (1a, 2a...),
+            para a sequencia completa aparecer entre chamadas que se repetem.
         erro: falha tipada levantada pela validacao de schema.
         bruto: texto devolvido pelo provedor, exatamente como chegou.
     """
