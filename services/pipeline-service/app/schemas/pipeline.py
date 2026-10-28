@@ -142,3 +142,15 @@ class StageTransitionTimeline(BaseModel):
 
     items: list[StageTransitionRead]
     total: int
+
+
+class AvailableTransitionsRead(BaseModel):
+    """Para onde a demanda pode ir a partir da etapa corrente (RF06.3).
+
+    ``available_stages`` vem de ``domain.rules.available_transitions``, a
+    mesma fonte que recusa uma transicao invalida - a interface consulta
+    aqui antes de tentar, em vez de descobrir so pelo erro 409.
+    """
+
+    current_stage: PipelineStage
+    available_stages: list[PipelineStage]
