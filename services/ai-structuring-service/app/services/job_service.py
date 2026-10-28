@@ -84,6 +84,10 @@ class StructuringJobService:
             outcome = await self.structuring_service.structure_course(
                 job.demand,
                 prompt_version=job.prompt_version,
+                # Mesmo identificador que o chamador ja usa para consultar o
+                # estado da execucao (RF17): nenhum id novo surge so para o
+                # registro de log recuperavel (RNF08.1).
+                execution_id=job.id,
             )
         except LLMProviderError as erro:
             self._registrar_falha(job, erro.code, str(erro))
