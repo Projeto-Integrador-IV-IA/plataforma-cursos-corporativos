@@ -54,6 +54,20 @@ jobs:
         working-directory: services/${{ matrix.service }}
         run: pytest -q
 
+      # RNF30: ai-structuring-service e o unico dos quatro com `--cov`
+      # habilitado no `addopts` (pyproject.toml); os outros nao escrevem
+      # `.coverage`, por isso o passo e so dele. `always()` para o numero
+      # aparecer tambem quando o piso reprova o build, nao so quando passa.
+      - name: Publicar cobertura (RNF30)
+        if: always() && matrix.service == 'ai-structuring-service'
+        working-directory: services/${{ matrix.service }}
+        run: |
+          total=$(coverage report --format=total)
+          {
+            echo "### Cobertura - ai-structuring-service"
+            echo "Total: ${total}% (piso: 85%, ver \`pyproject.toml\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

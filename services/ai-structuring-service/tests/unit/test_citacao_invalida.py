@@ -181,7 +181,7 @@ async def test_citacao_invalida_e_registrada_em_log(
 ) -> None:
     """Criterio de aceite: registrar no log a citacao invalida, para diagnostico."""
 
-    servico = montar_servico(RESPOSTA_COM_CITACAO_FORJADA)
+    servico = montar_servico(RESPOSTA_COM_CITACAO_FORJADA, llm_schema_max_retries=0)
 
     with caplog.at_level(logging.WARNING, logger=LOGGER_DO_CASO_DE_USO):
         await servico.structure_course(DEMANDA)
