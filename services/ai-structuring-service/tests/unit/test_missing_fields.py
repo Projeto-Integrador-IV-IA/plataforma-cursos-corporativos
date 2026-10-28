@@ -783,6 +783,7 @@ def test_procedencia_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido(
                 "ementa": [],
                 "campos_ausentes": [],
                 "procedencia": "isto-nao-e-um-mapeamento",
+                "evidencias": {},
                 "observacoes": [],
             }
         )
@@ -808,6 +809,7 @@ def test_evidencias_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido()
                 "objetivos_aprendizagem": [],
                 "ementa": [],
                 "campos_ausentes": [],
+                "procedencia": {},
                 "evidencias": "isto-nao-e-um-mapeamento",
                 "observacoes": [],
             }
