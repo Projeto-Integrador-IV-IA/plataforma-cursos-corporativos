@@ -369,6 +369,13 @@ components:
             $ref: '#/components/schemas/FieldOrigin'
           type: object
           title: Procedencia
+        evidencias:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+          title: Evidencias
         observacoes:
           items:
             type: string
@@ -384,6 +391,7 @@ components:
       - ementa
       - campos_ausentes
       - procedencia
+      - evidencias
       - observacoes
       title: StructuredCourse
       description: 'Curso estruturado: a saida canonica da estruturacao por IA (RNF03).
@@ -417,7 +425,18 @@ components:
 
         ``INFERIDO`` para o que esta preenchido. Campo preenchido sem procedencia
 
-        declarada e violacao de schema, tratada como qualquer outra (ADR-0006).'
+        declarada e violacao de schema, tratada como qualquer outra (ADR-0006).
+
+
+        ``evidencias`` e mais uma camada, ortogonal a ``procedencia`` (RF28): os
+
+        numeros dos trechos da fonte (numerada por ``numerar_trechos``) que
+
+        sustentam o valor de cada campo preenchido. Campo em ``campos_ausentes``
+
+        nunca tem entrada aqui; campo preenchido sem ao menos um numero citado e
+
+        violacao de schema, igual a procedencia ausente.'
     StructuringJobAccepted:
       properties:
         job_id:
@@ -546,7 +565,7 @@ components:
           title: Prompt Version
           description: Versao do prompt de extracao a usar, no formato 'v1'. Acompanha o resultado para
             que a execucao seja reproduzivel (RNF04).
-          default: v4
+          default: v5
       additionalProperties: false
       type: object
       required:
@@ -563,7 +582,7 @@ components:
         silencio (RNF02).'
       examples:
       - demand_id: dem-2026-0042
-        prompt_version: v4
+        prompt_version: v5
         text: Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
           da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias de 8 horas, no proprio site. Fico no
           aguardo da proposta.
@@ -576,11 +595,17 @@ components:
           $ref: '#/components/schemas/StructuredCourse'
         execution:
           $ref: '#/components/schemas/ExecutionMetadata'
+        trechos:
+          items:
+            type: string
+          type: array
+          title: Trechos
       type: object
       required:
       - demand_id
       - course
       - execution
+      - trechos
       title: StructuringResponse
       description: 'Curso estruturado devolvido pela estruturacao (RF11, RF12).
 
@@ -589,7 +614,18 @@ components:
 
         pipeline-service vai gravar como artefato da negociacao (RF13), sem que a
 
-        proveniencia da execucao se misture aos campos pedagogicos.'
+        proveniencia da execucao se misture aos campos pedagogicos.
+
+
+        ``trechos`` e o que resolve a citacao de ``course.evidencias`` sem uma
+
+        segunda chamada por campo (RF28): o numero que o modelo citou e a posicao
+
+        nesta lista, ``trechos[n - 1]``. Fica fora de ``course`` porque nao e
+
+        saida do modelo - e o que o caso de uso montou como entrada, devolvido
+
+        aqui so para a tela de revisao nao precisar remontar a numeracao.'
       examples:
       - course:
           campos_ausentes:
@@ -601,6 +637,17 @@ components:
             tipo: ausente
           carga_horaria: 16
           ementa: []
+          evidencias:
+            carga_horaria:
+            - 2
+            formato:
+            - 2
+            numero_participantes:
+            - 2
+            publico_alvo:
+            - 1
+            tema:
+            - 1
           formato: presencial
           numero_participantes: 25
           objetivos_aprendizagem: []
@@ -620,11 +667,15 @@ components:
           completion_tokens: 210
           elapsed_ms: 861.7
           model: mock
-          prompt: extract-requirements.v4
+          prompt: extract-requirements.v5
           prompt_tokens: 940
           provider: mock
           provider_latency_ms: 820.4
           total_tokens: 1150
+        trechos:
+        - Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
+          da planta 2, uns 25 tecnicos.
+        - A ideia e fazer em dois dias de 8 horas, no proprio site.
     SyllabusModule:
       properties:
         titulo:

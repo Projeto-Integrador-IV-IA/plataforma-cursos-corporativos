@@ -32,6 +32,36 @@ que o modelo nao tinha como saber, quanto ele preencheu de todo jeito. Essa
 leitura mantem a metrica comparavel entre casos com quantidade diferente de
 lacuna, e e o contrapeso direto do reconhecimento de ausencia, que tem o mesmo
 denominador.
+
+Cobertura de evidencia (RNF27, card #157)
+------------------------------------------
+``cobertura_de_evidencia`` mede, entre os campos preenchidos, quantos citam ao
+menos um trecho em ``evidencias``. Para uma execucao que passou pela validacao
+do dominio, o numero tende a 100%: o schema ja recusa campo preenchido sem
+citacao e citacao que nao corresponde a um trecho real (cards #153-#156), e
+``curso`` so chega aqui depois de aprovado. O numero continua sendo o que vale
+reportar - ele confirma que a barreira funciona -, mas quem le o relatorio
+precisa saber que **nao e** uma medida de qualidade da citacao em si, so da
+sua presenca apos o gate. ``taxa_de_citacao_invalida`` e o complemento: conta,
+entre todas as execucoes do modelo (inclusive as recusadas), quantas falharam
+especificamente por citar um trecho inexistente - identificada por um trecho
+fixo da mensagem de erro (``_MARCA_DE_CITACAO_INVALIDA``), unico jeito
+disponivel de distinguir essa causa das demais depois que ``runner.py``
+converte a excecao em texto.
+
+Comparacao entre modelos (RNF29, card #218)
+--------------------------------------------
+``comparar_modelos`` e a resposta tecnica a critica de falta de teste de
+modelo: uma ``Medicao`` por modelo (completude, acuracia e cobertura de
+evidencia, reaproveitando ``medir()`` e os cards #19/#157) mais a
+estabilidade entre repeticoes, agregada por modelo.
+
+``estabilidade()`` compara repeticoes do **mesmo caso** - passar todas as
+execucoes de um modelo de uma vez, sem separar por caso, compararia casos
+diferentes entre si e mediria variacao de conteudo, nao de reprodutibilidade.
+``comparar_modelos`` agrupa por ``(modelo, caso)`` antes de chamar
+``estabilidade()``, e agrega os casos que tiveram mais de uma repeticao pela
+media - caso sem repeticao nao entra, porque nao ha o que comparar.
 """
 
 from __future__ import annotations
@@ -95,7 +125,20 @@ METAS: Final[Mapping[str, float]] = {
     "estabilidade": 0.90,
     "conformidade_de_schema": 0.95,
     "taxa_de_falha": 0.05,
+    "cobertura_de_evidencia": 0.95,
+    "taxa_de_citacao_invalida": 0.05,
 }
+
+#: Metricas em que o menor valor e o melhor - usado por ``Medicao.atende()``
+#: e por ``ComparacaoDeModelos.ranking()``, para os dois lerem a mesma regra.
+_METRICAS_EM_QUE_MENOR_E_MELHOR: Final[frozenset[str]] = frozenset(
+    {"taxa_de_alucinacao", "taxa_de_falha", "taxa_de_citacao_invalida"}
+)
+
+#: Trecho da mensagem de ``LLMInvalidResponseError`` que distingue citacao
+#: forjada (card #156) de resposta fora do schema - as duas chegam aqui como
+#: o mesmo ``erro`` de texto, e e so pelo conteudo da mensagem que se separam.
+_MARCA_DE_CITACAO_INVALIDA: Final[str] = "cita trecho que nao foi enviado"
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +197,9 @@ class Medicao:
     reconhecimento_de_ausencia: float | None = None
     conformidade_de_schema: float | None = None
     taxa_de_falha: float | None = None
+    cobertura_de_evidencia_por_campo: Mapping[str, float | None] = field(default_factory=dict)
+    cobertura_de_evidencia: float | None = None
+    taxa_de_citacao_invalida: float | None = None
     latencia_p50_ms: float | None = None
     latencia_p95_ms: float | None = None
     tokens_por_demanda: float | None = None
@@ -163,15 +209,16 @@ class Medicao:
         """Compara a metrica com a meta do documento.
 
         Returns:
-            ``None`` quando a metrica nao foi medida. Para a taxa de alucinacao
-            e a taxa de falha, menor e melhor; nas demais, maior.
+            ``None`` quando a metrica nao foi medida. Para as taxas (de
+            alucinacao, de falha, de citacao invalida), menor e melhor; nas
+            demais, maior.
         """
 
         valor = getattr(self, metrica, None)
         meta = METAS.get(metrica)
         if valor is None or meta is None:
             return None
-        if metrica in ("taxa_de_alucinacao", "taxa_de_falha"):
+        if metrica in _METRICAS_EM_QUE_MENOR_E_MELHOR:
             return valor <= meta
         return valor >= meta
 
@@ -242,6 +289,7 @@ def medir(
         return Medicao(modelo=modelo, casos=0, pendentes_de_julgamento=CAMPOS_DE_JULGAMENTO)
 
     acertos: dict[str, list[bool]] = {c: [] for c in CAMPOS_AUTOMATICOS}
+    com_evidencia: dict[str, list[bool]] = {c: [] for c in CAMPOS_INFERIVEIS}
     com_base_total = com_base_preenchido = 0
     sem_base_total = sem_base_preenchido = sem_base_declarado = 0
 
@@ -266,6 +314,10 @@ def medir(
             sem_base_preenchido += int(_preenchido(campo, curso))
             sem_base_declarado += int(_declarado_ausente(campo, curso))
 
+        for campo in CAMPOS_INFERIVEIS:
+            if _preenchido(campo, curso):
+                com_evidencia[campo].append(bool(curso.evidencias.get(campo)))
+
     por_campo = {c: (_media(v) if v else None) for c, v in acertos.items()}
     automaticos = [v for v in por_campo.values() if v is not None]
     essenciais = [por_campo[c] for c in CAMPOS_ESSENCIAIS if por_campo.get(c) is not None]
@@ -275,6 +327,11 @@ def medir(
         for e in minhas
         if e.tokens_entrada is not None or e.tokens_saida is not None
     ]
+    cobertura_por_campo = {c: (_media(v) if v else None) for c, v in com_evidencia.items()}
+    todas_as_citacoes = [v for valores in com_evidencia.values() for v in valores]
+    citacoes_invalidas = sum(
+        1 for e in minhas if e.erro is not None and _MARCA_DE_CITACAO_INVALIDA in e.erro
+    )
 
     return Medicao(
         modelo=modelo,
@@ -287,6 +344,9 @@ def medir(
         reconhecimento_de_ausencia=_razao(sem_base_declarado, sem_base_total),
         conformidade_de_schema=_razao(sum(e.valida_de_primeira for e in minhas), len(minhas)),
         taxa_de_falha=_razao(sum(e.falhou for e in minhas), len(minhas)),
+        cobertura_de_evidencia_por_campo=cobertura_por_campo,
+        cobertura_de_evidencia=_media(todas_as_citacoes) if todas_as_citacoes else None,
+        taxa_de_citacao_invalida=_razao(citacoes_invalidas, len(minhas)),
         latencia_p50_ms=_percentil(latencias, 50),
         latencia_p95_ms=_percentil(latencias, 95),
         tokens_por_demanda=_media(tokens) if tokens else None,
@@ -310,6 +370,116 @@ def estabilidade(execucoes: Sequence[Execucao]) -> float | None:
         valores = {_chave_comparavel(getattr(e.curso, campo, None)) for e in validas}
         estaveis += int(len(valores) == 1)
     return _razao(estaveis, len(CAMPOS_EXTRAIDOS))
+
+
+def _estabilidade_do_modelo(modelo: str, execucoes: Sequence[Execucao]) -> float | None:
+    """Agrega ``estabilidade()`` pelos casos de um modelo (RNF03).
+
+    ``estabilidade()`` compara repeticoes do mesmo caso; aqui agrupamos as
+    execucoes do modelo por caso antes de chamar, e tiramos a media dos casos
+    que tiveram mais de uma repeticao. Caso com uma repeticao so fica fora da
+    media - nao ha o que comparar, e entrar como ``None`` puxaria a media para
+    baixo por falta de dado, nao por instabilidade real.
+    """
+
+    por_caso: dict[str, list[Execucao]] = {}
+    for execucao in execucoes:
+        if execucao.modelo == modelo:
+            por_caso.setdefault(execucao.caso, []).append(execucao)
+
+    valores = [v for v in (estabilidade(e) for e in por_caso.values()) if v is not None]
+    return _media(valores) if valores else None
+
+
+@dataclass(frozen=True, slots=True)
+class ComparacaoDeModelos:
+    """Comparacao lado a lado de varios modelos sobre o mesmo conjunto (RNF29).
+
+    E a resposta tecnica a critica de falta de teste de modelo (card #218):
+    qual modelo preenche mais campos corretamente, sustenta mais deles com
+    evidencia valida e se mantem estavel entre repeticoes.
+
+    Attributes:
+        medicoes: uma ``Medicao`` por modelo, na ordem em que foram pedidos -
+            completude, acuracia e cobertura de evidencia (cards #19/#157) ja
+            vem calculadas aqui, uma por modelo.
+        estabilidade_por_modelo: media de ``estabilidade()`` entre os casos
+            que tiveram mais de uma repeticao, por modelo. ``None`` para
+            modelo sem nenhum caso repetido.
+    """
+
+    medicoes: Sequence[Medicao]
+    estabilidade_por_modelo: Mapping[str, float | None]
+
+    def por_campo(self, campo: str) -> Mapping[str, float | None]:
+        """Acuracia de um campo automatico, por modelo - comparacao lado a lado.
+
+        Args:
+            campo: nome do campo, um de ``CAMPOS_AUTOMATICOS``.
+
+        Returns:
+            Dicionario do slug do modelo para a acuracia naquele campo, na
+            mesma ordem de ``medicoes``.
+        """
+
+        return {m.modelo: m.acuracia_por_campo.get(campo) for m in self.medicoes}
+
+    def ranking(self, metrica: str) -> list[tuple[str, float | None]]:
+        """Modelos ordenados pela metrica, do melhor para o pior.
+
+        Respeita a mesma direcao que ``Medicao.atende()`` usa: menor e melhor
+        para as taxas (``_METRICAS_EM_QUE_MENOR_E_MELHOR``), maior para as
+        demais. Modelo sem a metrica medida (``None``) vai para o final, sem
+        posicao definida entre eles - nao ha base para ordenar o que nao foi
+        medido.
+
+        Args:
+            metrica: nome de um atributo numerico de ``Medicao``, ex.:
+                ``"acuracia_global"`` ou ``"cobertura_de_evidencia"``.
+
+        Returns:
+            Pares ``(modelo, valor)``, melhor primeiro.
+        """
+
+        menor_e_melhor = metrica in _METRICAS_EM_QUE_MENOR_E_MELHOR
+
+        def chave(par: tuple[str, float | None]) -> tuple[int, float]:
+            valor = par[1]
+            if valor is None:
+                return (1, 0.0)
+            return (0, valor if menor_e_melhor else -valor)
+
+        pares = [(m.modelo, getattr(m, metrica, None)) for m in self.medicoes]
+        return sorted(pares, key=chave)
+
+
+def comparar_modelos(
+    modelos: Sequence[str],
+    casos: Mapping[str, CasoDeAvaliacao],
+    execucoes: Sequence[Execucao],
+) -> ComparacaoDeModelos:
+    """Mede e compara varios modelos lado a lado, sobre o mesmo conjunto (RNF29).
+
+    Reaproveita ``medir()`` (card #19) - uma ``Medicao`` por modelo, com a
+    cobertura de evidencia que ela ja calcula (card #157) - e agrega
+    ``estabilidade()`` (RNF03) por modelo.
+
+    Args:
+        modelos: slugs do catalogo, na ordem em que devem aparecer na
+            comparacao.
+        casos: conjunto de avaliacao, indexado por identificador.
+        execucoes: execucoes de todos os modelos pedidos, de todos os casos.
+
+    Returns:
+        ``ComparacaoDeModelos`` com uma ``Medicao`` e uma estabilidade por
+        modelo.
+    """
+
+    medicoes = tuple(medir(modelo, casos, execucoes) for modelo in modelos)
+    estabilidade_por_modelo = {
+        modelo: _estabilidade_do_modelo(modelo, execucoes) for modelo in modelos
+    }
+    return ComparacaoDeModelos(medicoes=medicoes, estabilidade_por_modelo=estabilidade_por_modelo)
 
 
 def _chave_comparavel(valor: Any) -> Any:

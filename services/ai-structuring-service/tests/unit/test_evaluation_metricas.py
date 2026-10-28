@@ -22,6 +22,7 @@ from app.evaluation.metrics import (
     Criterio,
     Execucao,
     comparar,
+    comparar_modelos,
     estabilidade,
     medir,
 )
@@ -52,6 +53,16 @@ def curso(**sobrescreve: Any) -> StructuredCourse:
             "formato": "extraido",
             "objetivos_aprendizagem": "extraido",
             "ementa": "inferido",
+        },
+        "evidencias": {
+            "tema": [1],
+            "nicho": [1],
+            "publico_alvo": [1],
+            "numero_participantes": [1],
+            "carga_horaria": [1],
+            "formato": [1],
+            "objetivos_aprendizagem": [1],
+            "ementa": [1],
         },
         "observacoes": [],
     }
@@ -218,6 +229,61 @@ class TestMedicao:
 
         assert d.tokens_por_demanda == pytest.approx(1000.0)
 
+    def test_cobertura_de_evidencia_e_cem_por_cento_para_curso_validado(self) -> None:
+        """A barreira dos cards #153-#156 so deixa passar campo preenchido com
+        citacao - por isso o numero tende a 100% para execucao que nao falhou."""
+
+        d = medir(MODELO, {"c1": caso()}, [execucao()])
+
+        assert d.cobertura_de_evidencia == pytest.approx(1.0)
+        assert d.cobertura_de_evidencia_por_campo["carga_horaria"] == pytest.approx(1.0)
+
+    def test_cobertura_de_evidencia_despreza_campo_que_nao_foi_preenchido(self) -> None:
+        """Campo ausente nunca tem evidencia (e nao deveria ter) - fica fora da conta."""
+
+        sem_ementa = curso(
+            ementa=[],
+            campos_ausentes=[{"campo": "ementa", "tipo": "ausente", "motivo": "nao descrito"}],
+        )
+
+        d = medir(MODELO, {"c1": caso()}, [execucao(curso=sem_ementa)])
+
+        assert d.cobertura_de_evidencia_por_campo["ementa"] is None
+        assert d.cobertura_de_evidencia == pytest.approx(1.0)
+
+    def test_sem_execucao_do_modelo_nao_tem_cobertura_de_evidencia(self) -> None:
+        d = medir(MODELO, {"c1": caso()}, [])
+
+        assert d.cobertura_de_evidencia is None
+        assert d.taxa_de_citacao_invalida is None
+
+    def test_taxa_de_citacao_invalida_conta_so_a_recusa_por_essa_causa(self) -> None:
+        """Falha de outra origem (schema, timeout) nao e citacao invalida."""
+
+        d = medir(
+            MODELO,
+            {"c1": caso(), "c2": caso("c2"), "c3": caso("c3")},
+            [
+                execucao(),
+                execucao(
+                    caso="c2",
+                    curso=None,
+                    valida_de_primeira=False,
+                    erro="LLMInvalidResponseError: Resposta cita trecho que nao foi enviado "
+                    "nesta chamada.",
+                ),
+                execucao(
+                    caso="c3",
+                    curso=None,
+                    valida_de_primeira=False,
+                    erro="LLMInvalidResponseError: Resposta do modelo nao corresponde ao "
+                    "schema do curso estruturado.",
+                ),
+            ],
+        )
+
+        assert d.taxa_de_citacao_invalida == pytest.approx(1 / 3)
+
     @pytest.mark.parametrize(
         ("metrica", "valor", "esperado"),
         [
@@ -225,6 +291,10 @@ class TestMedicao:
             ("cobertura", 0.50, False),
             ("taxa_de_alucinacao", 0.01, True),
             ("taxa_de_alucinacao", 0.40, False),
+            ("cobertura_de_evidencia", 0.99, True),
+            ("cobertura_de_evidencia", 0.50, False),
+            ("taxa_de_citacao_invalida", 0.01, True),
+            ("taxa_de_citacao_invalida", 0.40, False),
         ],
     )
     def test_atende_compara_com_a_meta_do_documento(
@@ -259,6 +329,96 @@ class TestEstabilidade:
 
     def test_ignora_execucao_que_falhou(self) -> None:
         assert estabilidade([execucao(), execucao(curso=None)]) is None
+
+
+class TestComparacaoDeModelos:
+    """Card #218: comparar completude, acuracia e cobertura de evidencia."""
+
+    def test_compara_por_modelo_reaproveitando_medir(self) -> None:
+        execucoes = [
+            execucao(modelo="vendor/a"),
+            execucao(modelo="vendor/b", curso=curso(carga_horaria=40)),
+        ]
+
+        c = comparar_modelos(["vendor/a", "vendor/b"], {"c1": caso()}, execucoes)
+
+        assert [m.modelo for m in c.medicoes] == ["vendor/a", "vendor/b"]
+        assert c.medicoes[0].acuracia_por_campo["carga_horaria"] == pytest.approx(1.0)
+        assert c.medicoes[1].acuracia_por_campo["carga_horaria"] == pytest.approx(0.0)
+
+    def test_modelo_sem_execucao_entra_com_medicao_vazia(self) -> None:
+        c = comparar_modelos(
+            ["vendor/a", "vendor/sem-execucao"], {"c1": caso()}, [execucao(modelo="vendor/a")]
+        )
+
+        assert c.medicoes[1].casos == 0
+
+    def test_por_campo_pareia_modelo_e_acuracia_naquele_campo(self) -> None:
+        execucoes = [
+            execucao(modelo="vendor/a"),
+            execucao(modelo="vendor/b", curso=curso(carga_horaria=40)),
+        ]
+
+        c = comparar_modelos(["vendor/a", "vendor/b"], {"c1": caso()}, execucoes)
+
+        assert c.por_campo("carga_horaria") == {
+            "vendor/a": pytest.approx(1.0),
+            "vendor/b": pytest.approx(0.0),
+        }
+
+    def test_ranking_poe_o_melhor_primeiro_quando_maior_e_melhor(self) -> None:
+        execucoes = [
+            execucao(modelo="vendor/pior", curso=curso(carga_horaria=40)),
+            execucao(modelo="vendor/melhor"),
+        ]
+
+        c = comparar_modelos(["vendor/pior", "vendor/melhor"], {"c1": caso()}, execucoes)
+
+        ranking = c.ranking("acuracia_global")
+        assert [modelo for modelo, _ in ranking] == ["vendor/melhor", "vendor/pior"]
+
+    def test_ranking_poe_o_melhor_primeiro_quando_menor_e_melhor(self) -> None:
+        """taxa_de_falha: menor e melhor, igual a atende()."""
+
+        execucoes = [
+            execucao(modelo="vendor/falha", curso=None),
+            execucao(modelo="vendor/sucesso"),
+        ]
+
+        c = comparar_modelos(["vendor/falha", "vendor/sucesso"], {"c1": caso()}, execucoes)
+
+        ranking = c.ranking("taxa_de_falha")
+        assert [modelo for modelo, _ in ranking] == ["vendor/sucesso", "vendor/falha"]
+
+    def test_ranking_manda_metrica_nao_medida_para_o_final(self) -> None:
+        c = comparar_modelos(
+            ["vendor/a", "vendor/sem-execucao"], {"c1": caso()}, [execucao(modelo="vendor/a")]
+        )
+
+        ranking = c.ranking("acuracia_global")
+        assert ranking[-1] == ("vendor/sem-execucao", None)
+
+    def test_estabilidade_agrega_por_caso_nao_por_execucao_do_modelo_inteiro(self) -> None:
+        """Casos diferentes tem campos diferentes por natureza - comparar entre
+        eles mediria variacao de conteudo, nao reprodutibilidade (RNF03)."""
+
+        caso_2 = caso("c2", esperado={"carga_horaria": 40})
+        execucoes = [
+            # c1: duas repeticoes identicas - estavel.
+            execucao(caso="c1"),
+            execucao(caso="c1"),
+            # c2: uma repeticao so - nao entra na media.
+            execucao(caso="c2", curso=curso(carga_horaria=40)),
+        ]
+
+        c = comparar_modelos([MODELO], {"c1": caso(), "c2": caso_2}, execucoes)
+
+        assert c.estabilidade_por_modelo[MODELO] == pytest.approx(1.0)
+
+    def test_estabilidade_none_quando_nenhum_caso_tem_repeticao(self) -> None:
+        c = comparar_modelos([MODELO], {"c1": caso()}, [execucao()])
+
+        assert c.estabilidade_por_modelo[MODELO] is None
 
 
 class TestPersistenciaDaRodada:

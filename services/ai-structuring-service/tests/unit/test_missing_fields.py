@@ -43,6 +43,13 @@ RESPOSTA_COMPLETA: dict[str, Any] = {
         "objetivos_aprendizagem": "extraido",
         "ementa": "inferido",
     },
+    "evidencias": {
+        "tema": [1],
+        "publico_alvo": [1],
+        "carga_horaria": [2],
+        "objetivos_aprendizagem": [3],
+        "ementa": [3],
+    },
     "observacoes": [],
 }
 
@@ -626,6 +633,33 @@ def test_resposta_sem_procedencia_alguma_e_recusada() -> None:
         validar_curso_estruturado(resposta(procedencia={}))
 
 
+def test_campo_preenchido_com_procedencia_mas_sem_evidencia_e_recusado() -> None:
+    """Criterio de aceite (RF28): campo preenchido sem evidencia e falha de schema."""
+
+    sem_tema = {k: v for k, v in RESPOSTA_COMPLETA["evidencias"].items() if k != "tema"}
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(resposta(evidencias=sem_tema))
+
+    assert "tema" in str(excinfo.value.__cause__)
+
+
+def test_campo_preenchido_com_lista_de_evidencia_vazia_e_recusado() -> None:
+    """Lista vazia nao conta como citacao - precisa de ao menos um numero."""
+
+    with pytest.raises(LLMInvalidResponseError):
+        validar_curso_estruturado(
+            resposta(evidencias={**RESPOSTA_COMPLETA["evidencias"], "tema": []})
+        )
+
+
+def test_resposta_sem_evidencia_alguma_e_recusada() -> None:
+    """A chave toda pode faltar, nao so uma entrada dela."""
+
+    with pytest.raises(LLMInvalidResponseError):
+        validar_curso_estruturado(resposta(evidencias={}))
+
+
 def test_campo_ausente_ganha_procedencia_ausente_mesmo_sem_o_modelo_declarar() -> None:
     """Toda lacuna reconciliada tem procedencia ``ausente`` - a validacao completa, nao o modelo."""
 
@@ -634,20 +668,23 @@ def test_campo_ausente_ganha_procedencia_ausente_mesmo_sem_o_modelo_declarar() -
     )
 
     assert curso.procedencia["carga_horaria"] is FieldOrigin.AUSENTE
+    assert curso.evidencias["carga_horaria"] == []
 
 
 def test_procedencia_e_sobrescrita_quando_o_valor_e_descartado_por_lacuna_declarada() -> None:
-    """Procedencia de campo descartado nao pode sobreviver - mesma regra do valor."""
+    """Procedencia e evidencia de campo descartado nao podem sobreviver - mesma regra do valor."""
 
     curso = validar_curso_estruturado(
         resposta(
             campos_ausentes=[{"campo": "tema", "tipo": "ambigua", "motivo": "duas leituras"}],
             procedencia={**RESPOSTA_COMPLETA["procedencia"], "tema": "extraido"},
+            evidencias={**RESPOSTA_COMPLETA["evidencias"], "tema": [1]},
         )
     )
 
     assert curso.tema is None
     assert curso.procedencia["tema"] is FieldOrigin.AUSENTE
+    assert curso.evidencias["tema"] == []
 
 
 def test_procedencia_vazia_quando_nenhum_campo_e_preenchido() -> None:
@@ -660,6 +697,7 @@ def test_procedencia_vazia_quando_nenhum_campo_e_preenchido() -> None:
             ementa=[],
             campos_ausentes=["tema", "publico_alvo", "carga_horaria"],
             procedencia={},
+            evidencias={},
         )
     )
 
@@ -671,6 +709,7 @@ def test_procedencia_vazia_quando_nenhum_campo_e_preenchido() -> None:
         "ementa",
     )
     assert curso.procedencia == dict.fromkeys(campos_da_resposta, FieldOrigin.AUSENTE)
+    assert curso.evidencias == {campo: [] for campo in campos_da_resposta}
 
 
 @pytest.mark.parametrize(
@@ -713,6 +752,17 @@ def test_procedencia_com_valor_que_nem_e_texto_e_recusada() -> None:
     assert any(v["campo"] == "procedencia.tema" for v in excinfo.value.details["violacoes"])
 
 
+def test_evidencia_com_numero_de_trecho_que_nao_e_inteiro_e_recusada() -> None:
+    """Criterio de aceite (RF28): numero de trecho fora do tipo e falha de schema."""
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            resposta(evidencias={**RESPOSTA_COMPLETA["evidencias"], "tema": ["um"]})
+        )
+
+    assert any(v["campo"].startswith("evidencias.tema") for v in excinfo.value.details["violacoes"])
+
+
 def test_procedencia_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido() -> None:
     """``procedencia`` fora do tipo nao pode passar batido so porque nao ha nada a exigir.
 
@@ -733,8 +783,36 @@ def test_procedencia_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido(
                 "ementa": [],
                 "campos_ausentes": [],
                 "procedencia": "isto-nao-e-um-mapeamento",
+                "evidencias": {},
                 "observacoes": [],
             }
         )
 
     assert [v["campo"] for v in excinfo.value.details["violacoes"]] == ["procedencia"]
+
+
+def test_evidencias_que_nem_e_mapeamento_e_recusada_mesmo_sem_campo_preenchido() -> None:
+    """Mesma lacuna do teste acima (RF28), agora para ``evidencias``.
+
+    Mesmo com todo campo inferivel vazio - nenhuma entrada de evidencia
+    chegaria a ser exigida pela reconciliacao -, um valor de ``evidencias``
+    que nem e mapeamento tem que ser recusado pela validacao normal do campo,
+    e nao descartado em silencio.
+    """
+
+    with pytest.raises(LLMInvalidResponseError) as excinfo:
+        validar_curso_estruturado(
+            {
+                "tema": None,
+                "publico_alvo": None,
+                "carga_horaria": None,
+                "objetivos_aprendizagem": [],
+                "ementa": [],
+                "campos_ausentes": [],
+                "procedencia": {},
+                "evidencias": "isto-nao-e-um-mapeamento",
+                "observacoes": [],
+            }
+        )
+
+    assert [v["campo"] for v in excinfo.value.details["violacoes"]] == ["evidencias"]
