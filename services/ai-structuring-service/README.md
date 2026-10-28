@@ -1,12 +1,22 @@
 # ai-structuring-service
 
-Estruturacao do curso por LLM: extracao de requisitos, geracao de ementa e metricas de qualidade.
+Estruturacao do curso por LLM: extracao de requisitos, geracao de ementa e metricas de qualidade. Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `8003`
-- **Requisitos atendidos:** RF11, RF12, RNF03, RNF04, RNF05, RNF06
+- **Requisitos atendidos:** RF11, RF12, RNF03, RNF04, RNF05, RNF06, RNF25
 - **Contrato de API:** [`packages/contracts/openapi/ai-structuring-service.yaml`](../../packages/contracts/openapi/ai-structuring-service.yaml)
 
-## Estrutura
+---
+
+## 1. Responsabilidade e Fronteira
+
+O **AI Structuring Service** atua no núcleo de inteligência artificial do sistema.
+- **O que ele faz:** Transforma o conteúdo normalizado bruto em estruturas de dados padronizadas utilizando modelos de linguagem, aplicando validações rígidas de schema.
+- **O que ele NÃO faz:** Não realiza a captação bruta de dados multicanal (`ingestion-service`) e não gerencia o estado global do fluxo (`pipeline-service`).
+
+---
+
+## 2. Estrutura
 
 ```
 app/
@@ -18,7 +28,20 @@ app/
 └── services/      Casos de uso / regras de aplicacao
 ```
 
-## Executar
+---
+
+## 3. Endpoints Expostos
+
+O serviço expõe sua API REST documentada via OpenAPI/Swagger:
+
+| Método | Endpoint | Descrição | Parâmetros / Headers |
+|---|---|---|---|
+| `POST` | `/api/v1/structure` | Processa e estrutura o texto normalizado usando IA | **Body:** `json` contendo dados normalizados |
+| `GET` | `/health` | Verifica a saúde e status operacional do microsserviço | *Nenhum* |
+
+---
+
+## 4. Como Executar
 
 ```bash
 # Exporte no shell as variaveis de .env.example e preencha os campos vazios.
@@ -32,7 +55,7 @@ uvicorn app.main:app --reload --port "$AI_STRUCTURING_PORT"
 > resiliente ao provedor (`services/structuring_service.py`) e a traducao das falhas em resposta
 > HTTP (`main.py`).
 
-## Provedor de LLM (RNF03)
+## 5. Provedor de LLM (RNF03)
 
 O servico conversa com um **contrato**, nao com um fornecedor. `providers/base.py` define
 `LLMProvider.complete(prompt, params)`, que devolve o texto bruto do modelo mais os metadados de
@@ -69,7 +92,7 @@ LLM_API_KEY=...
 Nome nao registrado em `LLM_PROVIDER` falha na criacao do provedor, listando os disponiveis - erro
 de configuracao aparece na subida, nao no meio de uma demanda.
 
-## Curso estruturado (RNF03)
+## 6. Curso estruturado (RNF03)
 
 A saida da estruturacao tem forma fixa entre execucoes. `domain/course.py` define o modelo
 canonico `StructuredCourse` (Pydantic) e `validar_curso_estruturado()`, que transforma o texto
@@ -88,7 +111,7 @@ bruto do provedor em objeto validado:
 `schema_do_curso_estruturado()` devolve o JSON Schema derivado do modelo - e o que se passa em
 `CompletionParams.response_schema` para fornecedores com saida estruturada.
 
-## Falha e timeout do LLM (RNF05)
+## 7. Falha e timeout do LLM (RNF05)
 
 O provedor pode falhar; a demanda bruta, nao. Quem persiste o texto colado e o `ingestion-service`,
 **antes** de qualquer chamada ao modelo - este servico nao abre transacao nem escreve no banco de
@@ -110,7 +133,7 @@ tentativas houve e se vale repetir - sem expor credencial (RNF11) nem dado do cl
 Cobertura em [`tests/unit/test_structuring_service.py`](tests/unit/test_structuring_service.py) e
 [`tests/unit/test_error_responses.py`](tests/unit/test_error_responses.py).
 
-## Testes
+## 8. Testes
 
 ```bash
 pytest
