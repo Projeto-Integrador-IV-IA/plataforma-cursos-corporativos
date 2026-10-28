@@ -81,6 +81,15 @@ RESPOSTA_FIXA: Final[dict[str, object]] = {
         "objetivos_aprendizagem": "inferido",
         "ementa": "inferido",
     },
+    "evidencias": {
+        "tema": [1],
+        "nicho": [1],
+        "publico_alvo": [1],
+        "carga_horaria": [2],
+        "formato": [2],
+        "objetivos_aprendizagem": [3],
+        "ementa": [3],
+    },
     "observacoes": [
         "Resposta gerada pelo provedor mock - nao houve chamada a nenhum modelo de linguagem.",
     ],

@@ -134,6 +134,10 @@ async def test_resposta_sem_carga_horaria_chega_ao_dominio_como_ausencia() -> No
                 "tema": "extraido",
                 "publico_alvo": "extraido",
             },
+            "evidencias": {
+                "tema": [1],
+                "publico_alvo": [1],
+            },
             "observacoes": [],
         }
     )
@@ -179,6 +183,10 @@ async def test_fonte_contraditoria_chega_ao_dominio_como_apontamento_classificad
             "procedencia": {
                 "tema": "extraido",
                 "publico_alvo": "extraido",
+            },
+            "evidencias": {
+                "tema": [1],
+                "publico_alvo": [1],
             },
             "observacoes": [],
         }
