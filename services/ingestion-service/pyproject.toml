@@ -20,6 +20,8 @@ dev = [
   "ruff>=0.7",
   # Le o contrato OpenAPI no teste que o compara com o openapi.json do servico.
   "pyyaml>=6.0",
+  # Valida o corpo produzido para a IA contra o schema OpenAPI publicado.
+  "jsonschema>=4.23",
 ]
 
 [build-system]

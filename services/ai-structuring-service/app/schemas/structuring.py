@@ -38,7 +38,8 @@ EXEMPLO_DE_REQUISICAO: Final[dict[str, Any]] = {
     "demand_id": "dem-2026-0042",
     "text": (
         "Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o "
-        "pessoal da manutencao da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias "
+        "pessoal da manutencao da planta 2, uns 25 tecnicos.\n\n"
+        "A ideia e fazer em dois dias "
         "de 8 horas, no proprio site. Fico no aguardo da proposta."
     ),
     "prompt_version": "v5",
@@ -108,6 +109,11 @@ EXEMPLO_DE_RESPOSTA: Final[dict[str, Any]] = {
 class StructuringRequest(BaseModel):
     """Texto normalizado que entra na estruturacao (RF11).
 
+    O formato interno comum e JSON com ``demand_id``, ``text`` e
+    ``prompt_version`` opcional. Quando a demanda possui mais de uma fonte, o
+    ingestion-service concatena as copias sanitizadas em ``text`` na ordem de
+    recebimento, separadas por uma linha em branco (``\\n\\n``).
+
     ``extra="forbid"`` recusa campo desconhecido na entrada: chamador fora de
     sincronia com o contrato recebe 422 em vez de ter o campo ignorado em
     silencio (RNF02).
@@ -128,7 +134,10 @@ class StructuringRequest(BaseModel):
     text: str = Field(
         min_length=1,
         max_length=TEXTO_MAXIMO,
-        description="Texto da demanda ja normalizado pelo ingestion-service (RF10).",
+        description=(
+            "Fontes sanitizadas da demanda, concatenadas na ordem de recebimento e "
+            "separadas por uma linha em branco (\\n\\n)."
+        ),
     )
     prompt_version: str = Field(
         default=DEFAULT_PROMPT_VERSION,
