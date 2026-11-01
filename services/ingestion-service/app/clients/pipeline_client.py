@@ -63,9 +63,7 @@ class PipelineClient:
             source_type=SourceKind(body["source"]),
             created_at=datetime.fromisoformat(body["created_at"]),
             previous_attempt_id=(
-                UUID(body["previous_attempt_id"])
-                if body.get("previous_attempt_id")
-                else None
+                UUID(body["previous_attempt_id"]) if body.get("previous_attempt_id") else None
             ),
         )
 
