@@ -35,9 +35,6 @@ entre 1 e a quantidade de trechos enviados nesta chamada. Citacao fora dessa
 faixa vira ``LLMInvalidResponseError`` no desfecho - mesma regra de RNF05.1,
 agora aplicada a evidencia -, registrada em log para diagnostico sem repetir
 o texto do cliente.
-ordem - ``trechos[n - 1]`` e o conteudo do numero ``n`` citado. A validacao de
-que todo numero citado corresponde a um trecho que de fato foi enviado (RNF27)
-e passo seguinte, ainda nao implementado aqui.
 
 Tratamento de falha (RNF05)
 ---------------------------
@@ -574,6 +571,40 @@ def formatar_trechos_numerados(trechos: Sequence[str]) -> str:
     """
 
     return "\n".join(f"[{numero}] {trecho}" for numero, trecho in enumerate(trechos, start=1))
+
+
+def _citacoes_fora_do_intervalo(
+    curso: StructuredCourse, total_trechos: int
+) -> tuple[dict[str, Any], ...]:
+    """Devolve citacoes que nao correspondem a um trecho enviado (RNF27)."""
+
+    return tuple(
+        {"campo": campo, "numero": numero}
+        for campo, numeros in curso.evidencias.items()
+        for numero in numeros
+        if not 1 <= numero <= total_trechos
+    )
+
+
+def _registrar_citacao_invalida(
+    *,
+    demand: RawDemand,
+    prompt_id: str,
+    attempts: int,
+    invalidas: tuple[dict[str, Any], ...],
+    total_trechos: int,
+) -> None:
+    """Registra a recusa sem expor o conteudo do cliente (RNF10, RNF11)."""
+
+    _logger.warning(
+        "Resposta cita trecho inexistente (demand_id=%s, prompt=%s, tentativas=%d, "
+        "trechos_enviados=%d, citacoes=%s).",
+        demand.demand_id,
+        prompt_id,
+        attempts,
+        total_trechos,
+        ", ".join(f"{item['campo']}:{item['numero']}" for item in invalidas),
+    )
 
 
 def _registrar_resposta_recusada(
