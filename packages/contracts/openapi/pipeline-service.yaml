@@ -858,7 +858,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/StageChangeRead'
         '404':
-          description: Demanda, operador ou tentativa anterior inexistente.
+          description: Demanda ou operador inexistente.
           content:
             application/json:
               schema:
@@ -1040,7 +1040,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/RawInputRead'
         '404':
-          description: Demanda ou operador inexistente.
+          description: Demanda, operador ou tentativa anterior inexistente.
           content:
             application/json:
               schema:
