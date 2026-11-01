@@ -1,7 +1,8 @@
 # =============================================================================
 # Contrato do ingestion-service (RNF02).
-# Captacao (RF09), inferencia da origem (RF10, #31) e sanitizacao (RF11) estao
-# implementadas. Ordenacao (#32) e reprocessamento seguem como entregas futuras.
+# Captacao (RF09), inferencia da origem (RF10, #31), sanitizacao (RF11) e
+# validacao das fontes (RF12) estao implementadas. Ordenacao (#32) e
+# reprocessamento seguem como entregas futuras.
 # Operacoes e schemas sao verificados contra o openapi.json do servico.
 # Mudanca aqui exige PR revisado antes de qualquer implementacao.
 # =============================================================================
@@ -155,9 +156,10 @@ components:
       properties:
         text:
           type: string
-          minLength: 1
+          maxLength: 50000
+          minLength: 10
           title: Text
-          description: Texto bruto preservado sem alteracoes.
+          description: Texto bruto preservado sem alteracoes. Deve conter pelo menos 10 caracteres nao brancos e no maximo 50.000 caracteres no total.
         source_type:
           anyOf:
           - $ref: '#/components/schemas/SourceKind'
