@@ -18,7 +18,15 @@
         },
         "details": {
           "type": "object",
-          "description": "Contexto adicional, opcional. Ex.: campo invalido, etapa de origem e destino.",
+          "description": "Contexto adicional, opcional. Erros de validacao usam issues para identificar cada campo e regra recusada.",
+          "properties": {
+            "issues": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/validationIssue"
+              }
+            }
+          },
           "additionalProperties": true
         },
         "request_id": {
@@ -27,6 +35,32 @@
         }
       },
       "required": ["code", "message"]
+    }
+  },
+  "$defs": {
+    "validationIssue": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "array",
+          "items": {
+            "type": ["string", "integer"]
+          },
+          "description": "Caminho do campo invalido no corpo, cabecalho, query ou rota."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Explicacao exibivel ao operador sobre o problema encontrado."
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identificador estavel da regra de validacao violada."
+        }
+      },
+      "required": ["location", "message", "type"],
+      "additionalProperties": false
     }
   },
   "required": ["error"]
