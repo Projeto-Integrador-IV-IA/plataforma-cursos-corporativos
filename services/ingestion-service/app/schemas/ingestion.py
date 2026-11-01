@@ -37,7 +37,9 @@ class IngestionCreate(BaseModel):
     demand_id: UUID = Field(description="Demanda existente no pipeline-service.")
     previous_attempt_id: UUID | None = Field(
         default=None,
-        description="Tentativa anterior da mesma demanda, quando esta captacao for reprocessamento.",
+        description=(
+            "Tentativa anterior da mesma demanda, quando esta captacao for reprocessamento."
+        ),
     )
 
     @field_validator("text", mode="before")
