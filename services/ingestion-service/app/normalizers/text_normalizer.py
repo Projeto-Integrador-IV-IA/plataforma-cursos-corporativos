@@ -3,6 +3,7 @@
 import html
 import re
 import unicodedata
+from collections.abc import Iterable
 from html.parser import HTMLParser
 from typing import ClassVar
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -41,6 +42,7 @@ _LINE_MARKER = re.compile(r"^\s*(?:>{1,3}\s*|#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)")
 _ZERO_WIDTH = re.compile("[\u200b-\u200f\u2060\ufeff]")
 _HORIZONTAL_SPACE = re.compile(r"[^\S\n]+")
 _BLANK_LINES = re.compile(r"\n{3,}")
+_SOURCE_SEPARATOR = "\n\n"
 
 
 class _TextExtractor(HTMLParser):
@@ -106,6 +108,29 @@ def normalize_text(text: str, source_type: SourceKind) -> str:
     normalized = _HORIZONTAL_SPACE.sub(" ", normalized)
     normalized = _BLANK_LINES.sub("\n\n", normalized)
     return normalized.strip()
+
+
+def concatenate_normalized_sources(sources: Iterable[str]) -> str:
+    """Monta o texto comum da estruturacao sem reordenar as fontes.
+
+    Cada item deve ser a copia ja sanitizada de uma fonte. Uma linha em branco
+    separa fontes consecutivas: o separador conserva os limites para leitura
+    humana e vira apenas uma quebra ignorada pela numeracao de trechos do
+    ``ai-structuring-service``. A ordem do iteravel e, portanto, a ordem de
+    recebimento que chega a IA (RF11).
+    """
+
+    ordered_sources = tuple(sources)
+    if not ordered_sources:
+        raise ValueError("at least one normalized source is required")
+
+    for position, source in enumerate(ordered_sources, start=1):
+        if not source.strip():
+            raise ValueError(f"normalized source at position {position} must not be blank")
+        if source != source.strip() or "\r" in source:
+            raise ValueError(f"source at position {position} is not in the normalized text format")
+
+    return _SOURCE_SEPARATOR.join(ordered_sources)
 
 
 def segment_text(
