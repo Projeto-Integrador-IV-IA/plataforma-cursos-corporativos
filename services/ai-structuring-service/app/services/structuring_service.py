@@ -167,10 +167,13 @@ class RawDemand:
         demand_id: identificador da demanda na negociacao, usado para
             correlacionar log, metrica e reprocessamento.
         text: texto recebido, ja normalizado pelo ingestion-service (RF10).
+        source_ids: identificadores das fontes concatenadas em ``text``, na
+            mesma ordem, para o registro auditavel da chamada (RNF08.1).
     """
 
     demand_id: str
     text: str
+    source_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -371,6 +374,7 @@ class StructuringService:
                 extra=_contexto_da_chamada(
                     execution_id=execution_id,
                     demand_id=demand.demand_id,
+                    source_ids=demand.source_ids,
                     prompt_version=prompt_version,
                     parametros=parametros,
                     tentativas=tentativas,
@@ -406,6 +410,7 @@ class StructuringService:
             extra=_contexto_da_chamada(
                 execution_id=execution_id,
                 demand_id=demand.demand_id,
+                source_ids=demand.source_ids,
                 prompt_version=prompt_version,
                 parametros=parametros,
                 tentativas=tentativas,
@@ -675,6 +680,7 @@ def _contexto_da_chamada(
     *,
     execution_id: UUID,
     demand_id: str,
+    source_ids: tuple[str, ...],
     prompt_version: str | None,
     parametros: CompletionParams,
     tentativas: int,
@@ -698,6 +704,7 @@ def _contexto_da_chamada(
     extra: dict[str, Any] = {
         "execution_id": str(execution_id),
         "demand_id": demand_id,
+        "source_ids": list(source_ids),
         "tentativas": tentativas,
         "duration_ms": duration_ms,
         "parametros_modelo": parametros.model,

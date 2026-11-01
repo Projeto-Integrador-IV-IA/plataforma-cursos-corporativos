@@ -32,7 +32,11 @@ TEXTO_COLADO = (
     "planta 2 da Metalurgica Aurora, em dois dias de 8 horas."
 )
 
-DEMANDA = RawDemand(demand_id="dem-2026-0099", text=TEXTO_COLADO)
+DEMANDA = RawDemand(
+    demand_id="dem-2026-0099",
+    text=TEXTO_COLADO,
+    source_ids=("fonte-email-001", "fonte-reuniao-002"),
+)
 
 #: Termos do texto do cliente que nunca podem aparecer no registro recuperavel.
 TERMOS_DO_CLIENTE = ("NR-12", "Metalurgica Aurora", "planta 2")
@@ -97,6 +101,7 @@ async def test_chamada_bem_sucedida_fica_recuperavel_pelo_execution_id(
     assert registro["nivel"] == "INFO"
     assert registro["execution_id"] == str(outcome.execution_id)
     assert registro["demand_id"] == "dem-2026-0099"
+    assert registro["source_ids"] == ["fonte-email-001", "fonte-reuniao-002"]
     assert registro["provider"] == "mock"
     assert registro["model"] == "vendor/modelo:free"
     assert registro["prompt_version"] == outcome.prompt_id

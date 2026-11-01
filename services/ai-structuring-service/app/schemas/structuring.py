@@ -36,6 +36,7 @@ TEXTO_MAXIMO: Final[int] = 50_000
 #: Demanda de exemplo exibida no Swagger. Dado ficticio - nenhum cliente real (RNF10).
 EXEMPLO_DE_REQUISICAO: Final[dict[str, Any]] = {
     "demand_id": "dem-2026-0042",
+    "source_ids": ["fonte-email-001", "fonte-reuniao-002"],
     "text": (
         "Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o "
         "pessoal da manutencao da planta 2, uns 25 tecnicos.\n\n"
@@ -109,10 +110,11 @@ EXEMPLO_DE_RESPOSTA: Final[dict[str, Any]] = {
 class StructuringRequest(BaseModel):
     """Texto normalizado que entra na estruturacao (RF11).
 
-    O formato interno comum e JSON com ``demand_id``, ``text`` e
-    ``prompt_version`` opcional. Quando a demanda possui mais de uma fonte, o
-    ingestion-service concatena as copias sanitizadas em ``text`` na ordem de
-    recebimento, separadas por uma linha em branco (``\\n\\n``).
+    O formato interno comum e JSON com ``demand_id``, ``text``, identificadores
+    opcionais em ``source_ids`` e ``prompt_version`` opcional. Quando a demanda
+    possui mais de uma fonte, o ingestion-service concatena as copias sanitizadas
+    em ``text`` na ordem de recebimento, separadas por uma linha em branco
+    (``\\n\\n``).
 
     ``extra="forbid"`` recusa campo desconhecido na entrada: chamador fora de
     sincronia com o contrato recebe 422 em vez de ter o campo ignorado em
@@ -137,6 +139,14 @@ class StructuringRequest(BaseModel):
         description=(
             "Fontes sanitizadas da demanda, concatenadas na ordem de recebimento e "
             "separadas por uma linha em branco (\\n\\n)."
+        ),
+    )
+    source_ids: tuple[str, ...] = Field(
+        default_factory=tuple,
+        max_length=100,
+        description=(
+            "Identificadores das fontes concatenadas em text, na mesma ordem. "
+            "Permitem recuperar quais fontes foram usadas sem registrar o conteudo do cliente."
         ),
     )
     prompt_version: str = Field(
