@@ -24,6 +24,10 @@ class IngestionCreate(BaseModel):
         ),
     )
     demand_id: UUID = Field(description="Demanda existente no pipeline-service.")
+    previous_attempt_id: UUID | None = Field(
+        default=None,
+        description="Tentativa anterior da mesma demanda, quando esta captacao for reprocessamento.",
+    )
 
     @field_validator("text")
     @classmethod
@@ -39,6 +43,7 @@ class IngestionCreate(BaseModel):
             source_type=self.source_type
             if self.source_type is not None
             else detect_source_type(self.text),
+            previous_attempt_id=self.previous_attempt_id,
         )
 
 
@@ -48,6 +53,7 @@ class IngestionRead(BaseModel):
     raw_input_id: UUID
     demand_id: UUID
     source_type: SourceKind
+    previous_attempt_id: UUID | None
     status: Literal["RECEBIDA"] = "RECEBIDA"
     created_at: datetime
 
@@ -57,6 +63,7 @@ class IngestionRead(BaseModel):
             raw_input_id=persisted.raw_input_id,
             demand_id=persisted.demand_id,
             source_type=persisted.source_type,
+            previous_attempt_id=persisted.previous_attempt_id,
             created_at=persisted.created_at,
         )
 

@@ -32,6 +32,11 @@ class PipelineClient:
                 json={
                     "original_content": raw_demand.text,
                     "source": raw_demand.source_type.value,
+                    **(
+                        {"previous_attempt_id": str(raw_demand.previous_attempt_id)}
+                        if raw_demand.previous_attempt_id is not None
+                        else {}
+                    ),
                 },
                 headers=headers,
             )
@@ -57,6 +62,11 @@ class PipelineClient:
             demand_id=UUID(body["demand_id"]),
             source_type=SourceKind(body["source"]),
             created_at=datetime.fromisoformat(body["created_at"]),
+            previous_attempt_id=(
+                UUID(body["previous_attempt_id"])
+                if body.get("previous_attempt_id")
+                else None
+            ),
         )
 
     def persist_normalization(
