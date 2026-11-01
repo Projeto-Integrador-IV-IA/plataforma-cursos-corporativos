@@ -49,11 +49,27 @@ class RawInputService:
                 details={"author_id": str(author_id)},
             )
 
+        if data.previous_attempt_id is not None:
+            previous = self.session.get(RawInput, data.previous_attempt_id)
+            if previous is None:
+                raise NotFoundError(
+                    code="RAW_INPUT_NOT_FOUND",
+                    message="Tentativa anterior nao encontrada.",
+                    details={"previous_attempt_id": str(data.previous_attempt_id)},
+                )
+            if previous.demand_id != demand_id:
+                raise ConflictError(
+                    code="RAW_INPUT_ATTEMPT_DEMAND_MISMATCH",
+                    message="A tentativa anterior pertence a outra demanda.",
+                    details={"previous_attempt_id": str(data.previous_attempt_id)},
+                )
+
         raw_input = RawInput(
             demand_id=demand_id,
             author_id=author_id,
             original_content=data.original_content,
             source=data.source.value,
+            previous_attempt_id=data.previous_attempt_id,
             received_order=self.repository.next_received_order(demand_id),
         )
         try:
@@ -78,3 +94,16 @@ class RawInputService:
 
         raw_input = self.get(raw_input_id)
         return self.repository.update_normalization(raw_input, data.normalized_content)
+
+    def list_attempts(self, raw_input_id: UUID) -> list[RawInput]:
+        current = self.get(raw_input_id)
+        while current.previous_attempt_id is not None:
+            current = self.get(current.previous_attempt_id)
+
+        attempts = [current]
+        frontier = [current.id]
+        while frontier:
+            children = self.repository.list_reprocessed_from(frontier)
+            attempts.extend(children)
+            frontier = [attempt.id for attempt in children]
+        return sorted(attempts, key=lambda attempt: attempt.received_order)

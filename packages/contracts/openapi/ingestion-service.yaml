@@ -82,13 +82,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/IngestionRead'
         '404':
-          description: Demanda ou operador inexistente.
+          description: Demanda, operador ou tentativa anterior inexistente.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Referencia removida durante a persistencia.
+          description: Referencia removida ou tentativa anterior de outra demanda.
           content:
             application/json:
               schema:
@@ -170,6 +170,13 @@ components:
           format: uuid
           title: Demand Id
           description: Demanda existente no pipeline-service.
+        previous_attempt_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previous Attempt Id
+          description: Tentativa anterior da mesma demanda, quando esta captacao for reprocessamento.
       additionalProperties: false
       type: object
       required:
@@ -189,6 +196,12 @@ components:
           title: Demand Id
         source_type:
           $ref: '#/components/schemas/SourceKind'
+        previous_attempt_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previous Attempt Id
         status:
           type: string
           const: RECEBIDA
@@ -203,6 +216,7 @@ components:
       - raw_input_id
       - demand_id
       - source_type
+      - previous_attempt_id
       - created_at
       title: IngestionRead
       description: Resposta emitida somente depois da confirmacao do pipeline-service.
