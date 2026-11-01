@@ -1109,13 +1109,14 @@ paths:
           title: Raw Input Id
       responses:
         '200':
-          description: Tentativas da fonte ordenadas pelo recebimento.
+          description: Successful Response
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/RawInputRead'
+                title: Response Get Raw Input Attempts Api V1 Raw Inputs  Raw Input Id  Attempts Get
         '404':
           description: Fonte bruta inexistente.
           content:
@@ -2468,7 +2469,6 @@ components:
           - type: string
             format: uuid
           - type: 'null'
-          default: null
           title: Previous Attempt Id
       additionalProperties: false
       type: object

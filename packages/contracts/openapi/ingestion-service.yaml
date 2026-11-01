@@ -175,7 +175,6 @@ components:
           - type: string
             format: uuid
           - type: 'null'
-          default: null
           title: Previous Attempt Id
           description: Tentativa anterior da mesma demanda, quando esta captacao for reprocessamento.
       additionalProperties: false
@@ -217,8 +216,8 @@ components:
       - raw_input_id
       - demand_id
       - source_type
-      - created_at
       - previous_attempt_id
+      - created_at
       title: IngestionRead
       description: Resposta emitida somente depois da confirmacao do pipeline-service.
     SourceKind:
