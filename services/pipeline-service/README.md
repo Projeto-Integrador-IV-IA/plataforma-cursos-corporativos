@@ -69,7 +69,7 @@ Crie um arquivo `.env` na raiz de `services/pipeline-service/` com base no `.env
 
 | Variável | Descrição | Padrão / Exemplo |
 | :--- | :--- | :--- |
-| **DATABASE_URL** | String de conexão com o PostgreSQL | `postgresql://user:pass@localhost:5432/db_name` |
+| **DATABASE_URL** | String de conexão com o PostgreSQL | `postgresql://<user>:<password>@localhost:5432/db_name` |
 | **PIPELINE_PORT** | Porta em que o Uvicorn irá escutar | `8001` |
 | **AUTH_SERVICE_KEY** | Chave de comunicação interna entre serviços | `chave-secreta-interna` |
 
