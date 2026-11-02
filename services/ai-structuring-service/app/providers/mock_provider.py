@@ -81,14 +81,19 @@ RESPOSTA_FIXA: Final[dict[str, object]] = {
         "objetivos_aprendizagem": "inferido",
         "ementa": "inferido",
     },
+    # Trecho 1: e o unico numero garantido em qualquer texto de entrada nao
+    # vazio, independente de quantas linhas o teste que usa este provedor
+    # mandar - resposta fixa nao sabe quantos trechos a chamada real teve.
     "evidencias": {
         "tema": [1],
         "nicho": [1],
         "publico_alvo": [1],
-        "carga_horaria": [2],
-        "formato": [2],
-        "objetivos_aprendizagem": [3],
-        "ementa": [3],
+        # A resposta fixa nao conhece a quantidade de trechos da entrada. O
+        # primeiro e o unico identificador garantido para todo texto nao vazio.
+        "carga_horaria": [1],
+        "formato": [1],
+        "objetivos_aprendizagem": [1],
+        "ementa": [1],
     },
     "observacoes": [
         "Resposta gerada pelo provedor mock - nao houve chamada a nenhum modelo de linguagem.",

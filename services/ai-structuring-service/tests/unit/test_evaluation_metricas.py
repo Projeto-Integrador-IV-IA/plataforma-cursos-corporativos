@@ -228,6 +228,61 @@ class TestMedicao:
 
         assert d.tokens_por_demanda == pytest.approx(1000.0)
 
+    def test_cobertura_de_evidencia_e_cem_por_cento_para_curso_validado(self) -> None:
+        """A barreira dos cards #153-#156 so deixa passar campo preenchido com
+        citacao - por isso o numero tende a 100% para execucao que nao falhou."""
+
+        d = medir(MODELO, {"c1": caso()}, [execucao()])
+
+        assert d.cobertura_de_evidencia == pytest.approx(1.0)
+        assert d.cobertura_de_evidencia_por_campo["carga_horaria"] == pytest.approx(1.0)
+
+    def test_cobertura_de_evidencia_despreza_campo_que_nao_foi_preenchido(self) -> None:
+        """Campo ausente nunca tem evidencia (e nao deveria ter) - fica fora da conta."""
+
+        sem_ementa = curso(
+            ementa=[],
+            campos_ausentes=[{"campo": "ementa", "tipo": "ausente", "motivo": "nao descrito"}],
+        )
+
+        d = medir(MODELO, {"c1": caso()}, [execucao(curso=sem_ementa)])
+
+        assert d.cobertura_de_evidencia_por_campo["ementa"] is None
+        assert d.cobertura_de_evidencia == pytest.approx(1.0)
+
+    def test_sem_execucao_do_modelo_nao_tem_cobertura_de_evidencia(self) -> None:
+        d = medir(MODELO, {"c1": caso()}, [])
+
+        assert d.cobertura_de_evidencia is None
+        assert d.taxa_de_citacao_invalida is None
+
+    def test_taxa_de_citacao_invalida_conta_so_a_recusa_por_essa_causa(self) -> None:
+        """Falha de outra origem (schema, timeout) nao e citacao invalida."""
+
+        d = medir(
+            MODELO,
+            {"c1": caso(), "c2": caso("c2"), "c3": caso("c3")},
+            [
+                execucao(),
+                execucao(
+                    caso="c2",
+                    curso=None,
+                    valida_de_primeira=False,
+                    erro="LLMInvalidResponseError: Resposta cita trecho que nao foi enviado "
+                    "nesta chamada.",
+                ),
+                execucao(
+                    caso="c3",
+                    curso=None,
+                    valida_de_primeira=False,
+                    erro="LLMInvalidResponseError: Resposta do modelo nao corresponde ao "
+                    "schema do curso estruturado.",
+                ),
+            ],
+        )
+
+        assert d.taxa_de_citacao_invalida == pytest.approx(1 / 3)
+
     @pytest.mark.parametrize(
         ("metrica", "valor", "esperado"),
         [
@@ -235,6 +290,10 @@ class TestMedicao:
             ("cobertura", 0.50, False),
             ("taxa_de_alucinacao", 0.01, True),
             ("taxa_de_alucinacao", 0.40, False),
+            ("cobertura_de_evidencia", 0.99, True),
+            ("cobertura_de_evidencia", 0.50, False),
+            ("taxa_de_citacao_invalida", 0.01, True),
+            ("taxa_de_citacao_invalida", 0.40, False),
         ],
     )
     def test_atende_compara_com_a_meta_do_documento(

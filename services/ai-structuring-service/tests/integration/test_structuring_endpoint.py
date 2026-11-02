@@ -141,6 +141,35 @@ def test_resposta_carrega_a_proveniencia_da_execucao(montar_cliente: MontarClien
     assert execucao["elapsed_ms"] >= 0
 
 
+def test_resposta_traz_evidencia_resolvivel_para_todo_campo_preenchido(
+    montar_cliente: MontarCliente,
+) -> None:
+    """Criterio de aceite (card #155): response traz ID e conteudo do trecho citado.
+
+    Sem ``trechos`` na resposta, a tela de revisao precisaria de uma segunda
+    chamada so para saber o que cada numero citado em ``evidencias``
+    significa. Aqui a resolucao e local: ``trechos[n - 1]``.
+    """
+
+    with montar_cliente() as client:
+        corpo = client.post(ROTA, json=DEMANDA).json()
+
+    curso = corpo["course"]
+    trechos = corpo["trechos"]
+    assert trechos, "resposta sem nenhum trecho - nao haveria o que citar"
+    assert all(isinstance(trecho, str) and trecho for trecho in trechos)
+
+    # Lista nao vazia e exatamente o que distingue campo preenchido (que cita
+    # evidencia) de campo ausente (que a validacao forca para []).
+    citacoes = {campo: numeros for campo, numeros in curso["evidencias"].items() if numeros}
+    assert citacoes, "fixture sem nenhum campo preenchido nao provaria nada"
+    for campo, numeros in citacoes.items():
+        for numero in numeros:
+            assert 1 <= numero <= len(trechos), (
+                f"evidencia do campo {campo} cita trecho {numero}, fora do intervalo enviado"
+            )
+
+
 def test_texto_da_demanda_chega_integro_dentro_do_prompt_versionado(
     montar_cliente: MontarCliente,
 ) -> None:

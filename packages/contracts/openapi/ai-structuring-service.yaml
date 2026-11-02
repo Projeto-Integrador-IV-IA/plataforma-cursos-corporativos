@@ -559,7 +559,8 @@ components:
           maxLength: 50000
           minLength: 1
           title: Text
-          description: Texto da demanda ja normalizado pelo ingestion-service (RF10).
+          description: Fontes sanitizadas da demanda, concatenadas na ordem de recebimento e separadas
+            por uma linha em branco (\n\n).
         prompt_version:
           type: string
           title: Prompt Version
@@ -575,6 +576,15 @@ components:
       description: 'Texto normalizado que entra na estruturacao (RF11).
 
 
+        O formato interno comum e JSON com ``demand_id``, ``text`` e
+
+        ``prompt_version`` opcional. Quando a demanda possui mais de uma fonte, o
+
+        ingestion-service concatena as copias sanitizadas em ``text`` na ordem de
+
+        recebimento, separadas por uma linha em branco (``\n\n``).
+
+
         ``extra="forbid"`` recusa campo desconhecido na entrada: chamador fora de
 
         sincronia com o contrato recebe 422 em vez de ter o campo ignorado em
@@ -584,7 +594,10 @@ components:
       - demand_id: dem-2026-0042
         prompt_version: v6
         text: Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
-          da planta 2, uns 25 tecnicos. A ideia e fazer em dois dias de 8 horas, no proprio site. Fico no
+          da planta 2, uns 25 tecnicos.
+
+
+          A ideia e fazer em dois dias de 8 horas, no proprio site. Fico no
           aguardo da proposta.
     StructuringResponse:
       properties:
@@ -595,11 +608,17 @@ components:
           $ref: '#/components/schemas/StructuredCourse'
         execution:
           $ref: '#/components/schemas/ExecutionMetadata'
+        trechos:
+          items:
+            type: string
+          type: array
+          title: Trechos
       type: object
       required:
       - demand_id
       - course
       - execution
+      - trechos
       title: StructuringResponse
       description: 'Curso estruturado devolvido pela estruturacao (RF11, RF12).
 
@@ -608,7 +627,18 @@ components:
 
         pipeline-service vai gravar como artefato da negociacao (RF13), sem que a
 
-        proveniencia da execucao se misture aos campos pedagogicos.'
+        proveniencia da execucao se misture aos campos pedagogicos.
+
+
+        ``trechos`` e o que resolve a citacao de ``course.evidencias`` sem uma
+
+        segunda chamada por campo (RF28): o numero que o modelo citou e a posicao
+
+        nesta lista, ``trechos[n - 1]``. Fica fora de ``course`` porque nao e
+
+        saida do modelo - e o que o caso de uso montou como entrada, devolvido
+
+        aqui so para a tela de revisao nao precisar remontar a numeracao.'
       examples:
       - course:
           campos_ausentes:
@@ -655,6 +685,10 @@ components:
           provider: mock
           provider_latency_ms: 820.4
           total_tokens: 1150
+        trechos:
+        - Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
+          da planta 2, uns 25 tecnicos.
+        - A ideia e fazer em dois dias de 8 horas, no proprio site.
     SyllabusModule:
       properties:
         titulo:
