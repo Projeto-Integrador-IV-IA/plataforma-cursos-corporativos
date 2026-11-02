@@ -47,6 +47,7 @@ def test_multiple_sources_reach_ai_in_received_order() -> None:
     response = client_with(handler).structure_course(
         demand_id,
         ("Primeira fonte", "Segunda fonte", "Terceira fonte"),
+        source_ids=("fonte-1", "fonte-2", "fonte-3"),
         request_id="req-34",
     )
 
@@ -54,6 +55,7 @@ def test_multiple_sources_reach_ai_in_received_order() -> None:
     assert captured["json"] == {
         "demand_id": str(demand_id),
         "text": "Primeira fonte\n\nSegunda fonte\n\nTerceira fonte",
+        "source_ids": ["fonte-1", "fonte-2", "fonte-3"],
     }
     assert captured["request_id"] == "req-34"
     assert response["demand_id"] == str(demand_id)
