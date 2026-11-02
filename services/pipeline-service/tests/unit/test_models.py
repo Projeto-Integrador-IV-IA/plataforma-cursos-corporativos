@@ -66,7 +66,14 @@ EXPECTED_COLUMNS = {
         "author_id",
         "created_at",
     },
-    "source_segments": {"id", "raw_input_id", "position", "content"},
+    "source_segments": {
+        "id",
+        "raw_input_id",
+        "position",
+        "content",
+        "original_start_offset",
+        "original_end_offset",
+    },
     "stage_transitions": {
         "id",
         "demand_id",

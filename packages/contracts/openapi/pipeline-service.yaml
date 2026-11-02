@@ -1216,7 +1216,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SourceSegmentErrorResponse'
         '422':
-          description: Lote ou identificador invalido.
+          description: Lote, identificador ou intervalo original invalido.
           content:
             application/json:
               schema:
@@ -2388,12 +2388,24 @@ components:
           type: string
           minLength: 1
           title: Content
+        original_start_offset:
+          type: integer
+          minimum: 0.0
+          title: Original Start Offset
+          description: Indice de caractere inicial, inclusivo, no conteudo original da fonte.
+        original_end_offset:
+          type: integer
+          minimum: 1.0
+          title: Original End Offset
+          description: Indice de caractere final, exclusivo, no conteudo original da fonte.
       additionalProperties: false
       type: object
       required:
       - id
       - position
       - content
+      - original_start_offset
+      - original_end_offset
       title: SourceSegmentCreate
       description: Trecho identificado de forma estavel pelo ingestion-service.
     SourceSegmentErrorDetails:
@@ -2447,6 +2459,24 @@ components:
         content:
           type: string
           title: Content
+        original_start_offset:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Original Start Offset
+          description: Indice inicial na fonte original; nulo em registros legados sem mapeamento.
+        original_end_offset:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Original End Offset
+          description: Indice final exclusivo na fonte original; nulo em registros legados sem mapeamento.
+        original_content:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Original Content
+          description: Fatia literal da fonte original indicada pelos offsets; nula sem mapeamento legado.
       type: object
       required:
       - id
@@ -2454,6 +2484,9 @@ components:
       - demand_id
       - position
       - content
+      - original_start_offset
+      - original_end_offset
+      - original_content
       title: SourceSegmentRead
       description: Trecho recuperavel com os vinculos de fonte e demanda.
     RawInputCreate:
