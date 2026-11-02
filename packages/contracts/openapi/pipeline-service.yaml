@@ -1040,13 +1040,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/RawInputRead'
         '404':
-          description: Demanda ou operador inexistente.
+          description: Demanda, operador ou tentativa anterior inexistente.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
         '409':
-          description: Referencia removida durante a persistencia.
+          description: Referencia removida ou tentativa anterior de outra demanda.
           content:
             application/json:
               schema:
@@ -1080,6 +1080,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputRead'
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}/attempts:
+    get:
+      tags:
+      - raw-inputs
+      summary: Consultar historico de reprocessamento
+      description: Retorna a tentativa inicial e seus reprocessamentos em ordem de recebimento.
+      operationId: get_raw_input_attempts_api_v1_raw_inputs__raw_input_id__attempts_get
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RawInputRead'
+                title: Response Get Raw Input Attempts Api V1 Raw Inputs  Raw Input Id  Attempts Get
         '404':
           description: Fonte bruta inexistente.
           content:
@@ -2427,6 +2464,12 @@ components:
           title: Original Content
         source:
           $ref: '#/components/schemas/RawInputSource'
+        previous_attempt_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previous Attempt Id
       additionalProperties: false
       type: object
       required:
@@ -2499,6 +2542,12 @@ components:
           - type: string
           - type: 'null'
           title: Normalized Content
+        previous_attempt_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previous Attempt Id
         source:
           $ref: '#/components/schemas/RawInputSource'
         author_id:
@@ -2519,6 +2568,7 @@ components:
       - received_order
       - original_content
       - normalized_content
+      - previous_attempt_id
       - source
       - author_id
       - truncated
