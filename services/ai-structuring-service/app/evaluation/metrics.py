@@ -165,7 +165,7 @@ METAS: Final[Mapping[str, float]] = {
     # com alucinacao) esvazia a vigilancia. Meta proposta: 0.02, metade do
     # piso de taxa_de_falha - no maximo 2 em cada 100 execucoes do modelo de
     # producao podem falhar especificamente por citar trecho que nao existe,
-    # deixando os 3 pontos restantes do orcamento geral de falha (ate 5%)
+    # deixando os 3 pontos restantes do limite geral de falha (ate 5%)
     # para ruido de schema que nao e causado por alucinacao.
     "taxa_de_citacao_invalida": 0.02,
 }
