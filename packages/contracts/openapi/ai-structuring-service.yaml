@@ -561,6 +561,14 @@ components:
           title: Text
           description: Fontes sanitizadas da demanda, concatenadas na ordem de recebimento e separadas
             por uma linha em branco (\n\n).
+        source_ids:
+          type: array
+          maxItems: 100
+          title: Source Ids
+          description: Identificadores das fontes concatenadas em text, na mesma ordem. Permitem recuperar
+            quais fontes foram usadas sem registrar o conteudo do cliente.
+          items:
+            type: string
         prompt_version:
           type: string
           title: Prompt Version
@@ -576,13 +584,15 @@ components:
       description: 'Texto normalizado que entra na estruturacao (RF11).
 
 
-        O formato interno comum e JSON com ``demand_id``, ``text`` e
+        O formato interno comum e JSON com ``demand_id``, ``text``, identificadores
 
-        ``prompt_version`` opcional. Quando a demanda possui mais de uma fonte, o
+        opcionais em ``source_ids`` e ``prompt_version`` opcional. Quando a demanda
 
-        ingestion-service concatena as copias sanitizadas em ``text`` na ordem de
+        possui mais de uma fonte, o ingestion-service concatena as copias sanitizadas
 
-        recebimento, separadas por uma linha em branco (``\n\n``).
+        em ``text`` na ordem de recebimento, separadas por uma linha em branco
+
+        (``\n\n``).
 
 
         ``extra="forbid"`` recusa campo desconhecido na entrada: chamador fora de
@@ -592,13 +602,16 @@ components:
         silencio (RNF02).'
       examples:
       - demand_id: dem-2026-0042
+        source_ids:
+        - fonte-email-001
+        - fonte-reuniao-002
         prompt_version: v6
-        text: Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da manutencao
-          da planta 2, uns 25 tecnicos.
+        text: 'Boa tarde! Conforme conversamos, precisamos de um treinamento de NR-12 para o pessoal da
+          manutencao da planta 2, uns 25 tecnicos.
 
 
           A ideia e fazer em dois dias de 8 horas, no proprio site. Fico no
-          aguardo da proposta.
+          aguardo da proposta.'
     StructuringResponse:
       properties:
         demand_id:

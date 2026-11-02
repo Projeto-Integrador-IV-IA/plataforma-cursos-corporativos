@@ -22,6 +22,7 @@ from app.evaluation.metrics import (
     Criterio,
     Execucao,
     comparar,
+    comparar_modelos,
     estabilidade,
     medir,
 )
@@ -283,6 +284,26 @@ class TestMedicao:
 
         assert d.taxa_de_citacao_invalida == pytest.approx(1 / 3)
 
+    def test_citacao_a_trecho_real_sem_suporte_semantico_nao_e_citacao_invalida(self) -> None:
+        """Limite documentado no modulo (RNF30, card #224): so existencia e
+        checada, nunca se o trecho citado realmente sustenta o campo.
+
+        ``nicho`` esta em ``sem_base`` - o gabarito diz que a informacao nao
+        esta no texto. O curso ainda assim preenche ``nicho`` citando o
+        trecho [1], que existe e passaria pela barreira dos cards #153-#156
+        sem ressalva. ``taxa_de_citacao_invalida`` fica em zero porque a
+        citacao existe; e ``taxa_de_alucinacao`` - metrica diferente, que usa
+        o gabarito, nao a existencia do trecho - e que capta o problema real.
+        """
+
+        sem_base = caso(sem_base=frozenset({"nicho"}), esperado={"carga_horaria": 16})
+        cita_trecho_real_mas_sem_relacao = curso(nicho="industrial pesado")
+
+        d = medir(MODELO, {"c1": sem_base}, [execucao(curso=cita_trecho_real_mas_sem_relacao)])
+
+        assert d.taxa_de_citacao_invalida == pytest.approx(0.0)
+        assert d.taxa_de_alucinacao == pytest.approx(1.0)
+
     @pytest.mark.parametrize(
         ("metrica", "valor", "esperado"),
         [
@@ -328,6 +349,136 @@ class TestEstabilidade:
 
     def test_ignora_execucao_que_falhou(self) -> None:
         assert estabilidade([execucao(), execucao(curso=None)]) is None
+
+
+class TestComparacaoDeModelos:
+    """Card #218: comparar completude, acuracia e cobertura de evidencia."""
+
+    def test_compara_por_modelo_reaproveitando_medir(self) -> None:
+        execucoes = [
+            execucao(modelo="vendor/a"),
+            execucao(modelo="vendor/b", curso=curso(carga_horaria=40)),
+        ]
+
+        c = comparar_modelos(["vendor/a", "vendor/b"], {"c1": caso()}, execucoes)
+
+        assert [m.modelo for m in c.medicoes] == ["vendor/a", "vendor/b"]
+        assert c.medicoes[0].acuracia_por_campo["carga_horaria"] == pytest.approx(1.0)
+        assert c.medicoes[1].acuracia_por_campo["carga_horaria"] == pytest.approx(0.0)
+
+    def test_modelo_sem_execucao_entra_com_medicao_vazia(self) -> None:
+        c = comparar_modelos(
+            ["vendor/a", "vendor/sem-execucao"], {"c1": caso()}, [execucao(modelo="vendor/a")]
+        )
+
+        assert c.medicoes[1].casos == 0
+
+    def test_por_campo_pareia_modelo_e_acuracia_naquele_campo(self) -> None:
+        execucoes = [
+            execucao(modelo="vendor/a"),
+            execucao(modelo="vendor/b", curso=curso(carga_horaria=40)),
+        ]
+
+        c = comparar_modelos(["vendor/a", "vendor/b"], {"c1": caso()}, execucoes)
+
+        assert c.por_campo("carga_horaria") == {
+            "vendor/a": pytest.approx(1.0),
+            "vendor/b": pytest.approx(0.0),
+        }
+
+    def test_ranking_poe_o_melhor_primeiro_quando_maior_e_melhor(self) -> None:
+        execucoes = [
+            execucao(modelo="vendor/pior", curso=curso(carga_horaria=40)),
+            execucao(modelo="vendor/melhor"),
+        ]
+
+        c = comparar_modelos(["vendor/pior", "vendor/melhor"], {"c1": caso()}, execucoes)
+
+        ranking = c.ranking("acuracia_global")
+        assert [modelo for modelo, _ in ranking] == ["vendor/melhor", "vendor/pior"]
+
+    def test_ranking_poe_o_melhor_primeiro_quando_menor_e_melhor(self) -> None:
+        """taxa_de_falha: menor e melhor, igual a atende()."""
+
+        execucoes = [
+            execucao(modelo="vendor/falha", curso=None),
+            execucao(modelo="vendor/sucesso"),
+        ]
+
+        c = comparar_modelos(["vendor/falha", "vendor/sucesso"], {"c1": caso()}, execucoes)
+
+        ranking = c.ranking("taxa_de_falha")
+        assert [modelo for modelo, _ in ranking] == ["vendor/sucesso", "vendor/falha"]
+
+    def test_ranking_manda_metrica_nao_medida_para_o_final(self) -> None:
+        c = comparar_modelos(
+            ["vendor/a", "vendor/sem-execucao"], {"c1": caso()}, [execucao(modelo="vendor/a")]
+        )
+
+        ranking = c.ranking("acuracia_global")
+        assert ranking[-1] == ("vendor/sem-execucao", None)
+
+    def test_estabilidade_agrega_por_caso_nao_por_execucao_do_modelo_inteiro(self) -> None:
+        """Casos diferentes tem campos diferentes por natureza - comparar entre
+        eles mediria variacao de conteudo, nao reprodutibilidade (RNF03)."""
+
+        caso_2 = caso("c2", esperado={"carga_horaria": 40})
+        execucoes = [
+            # c1: duas repeticoes identicas - estavel.
+            execucao(caso="c1"),
+            execucao(caso="c1"),
+            # c2: uma repeticao so - nao entra na media.
+            execucao(caso="c2", curso=curso(carga_horaria=40)),
+        ]
+
+        c = comparar_modelos([MODELO], {"c1": caso(), "c2": caso_2}, execucoes)
+
+        assert c.estabilidade_por_modelo[MODELO] == pytest.approx(1.0)
+
+    def test_estabilidade_none_quando_nenhum_caso_tem_repeticao(self) -> None:
+        c = comparar_modelos([MODELO], {"c1": caso()}, [execucao()])
+
+        assert c.estabilidade_por_modelo[MODELO] is None
+
+    def test_violam_meta_isola_quem_reprova_so_nessa_metrica(self) -> None:
+        """RNF30, card #224: "quais modelos nao servem para producao por este
+        numero" - sem misturar com as demais metricas de ``Medicao``."""
+
+        casos = {f"c{n}": caso(f"c{n}") for n in range(1, 11)}
+        execucoes_dentro_da_meta = [
+            execucao(modelo="vendor/dentro-da-meta", caso=ident) for ident in casos
+        ]
+        # 2 em 10 == 0.20, acima da meta de 0.02: viola.
+        execucoes_fora_da_meta = [
+            execucao(
+                modelo="vendor/fora-da-meta",
+                caso=ident,
+                curso=None,
+                valida_de_primeira=False,
+                erro="LLMInvalidResponseError: Resposta cita trecho que nao foi enviado "
+                "nesta chamada.",
+            )
+            if ident in ("c1", "c2")
+            else execucao(modelo="vendor/fora-da-meta", caso=ident)
+            for ident in casos
+        ]
+
+        c = comparar_modelos(
+            ["vendor/dentro-da-meta", "vendor/fora-da-meta"],
+            casos,
+            execucoes_dentro_da_meta + execucoes_fora_da_meta,
+        )
+
+        assert c.medicoes[0].taxa_de_citacao_invalida == pytest.approx(0.0)
+        assert c.medicoes[1].taxa_de_citacao_invalida == pytest.approx(0.2)
+        assert c.violam_meta("taxa_de_citacao_invalida") == ["vendor/fora-da-meta"]
+
+    def test_violam_meta_ignora_modelo_sem_a_metrica_medida(self) -> None:
+        c = comparar_modelos(
+            ["vendor/a", "vendor/sem-execucao"], {"c1": caso()}, [execucao(modelo="vendor/a")]
+        )
+
+        assert c.violam_meta("acuracia_global") == []
 
 
 class TestPersistenciaDaRodada:
