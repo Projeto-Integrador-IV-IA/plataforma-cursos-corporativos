@@ -33,12 +33,19 @@ class RawInput(Base):
             name="source",
         ),
         sa.UniqueConstraint("id", "demand_id", name="uq_raw_inputs_id_demand_id"),
+        sa.ForeignKeyConstraint(
+            ["previous_attempt_id", "demand_id"],
+            ["raw_inputs.id", "raw_inputs.demand_id"],
+            name="fk_raw_inputs_previous_attempt_same_demand",
+            ondelete="RESTRICT",
+        ),
         sa.UniqueConstraint(
             "demand_id", "received_order", name="uq_raw_inputs_demand_received_order"
         ),
         sa.CheckConstraint("received_order > 0", name="received_order_positive"),
         sa.Index("ix_raw_inputs_demand_created_at", "demand_id", "created_at"),
         sa.Index("ix_raw_inputs_author_id", "author_id"),
+        sa.Index("ix_raw_inputs_previous_attempt_id", "previous_attempt_id"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -59,6 +66,7 @@ class RawInput(Base):
     original_content: Mapped[str] = mapped_column(sa.Text, nullable=False)
     received_order: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     normalized_content: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    previous_attempt_id: Mapped[UUID | None] = mapped_column(UUID_TYPE, nullable=True)
     source: Mapped[str] = mapped_column(sa.Text, nullable=False)
     truncated: Mapped[bool] = mapped_column(
         sa.Boolean,
@@ -83,6 +91,20 @@ class RawInput(Base):
 
     demand: Mapped["Demand"] = relationship(back_populates="raw_inputs")
     author: Mapped["User"] = relationship(back_populates="raw_inputs")
+    previous_attempt: Mapped["RawInput | None"] = relationship(
+        "RawInput",
+        primaryjoin="RawInput.previous_attempt_id == RawInput.id",
+        foreign_keys=[previous_attempt_id],
+        remote_side="RawInput.id",
+        back_populates="reprocessed_attempts",
+    )
+    reprocessed_attempts: Mapped[list["RawInput"]] = relationship(
+        "RawInput",
+        primaryjoin="RawInput.id == RawInput.previous_attempt_id",
+        foreign_keys=[previous_attempt_id],
+        back_populates="previous_attempt",
+        order_by="RawInput.received_order",
+    )
     segments: Mapped[list["SourceSegment"]] = relationship(
         back_populates="raw_input",
         order_by="SourceSegment.position",
