@@ -217,4 +217,3 @@ pytest
 
 Os testes de criacao usam SQLite temporario com a cadeia Alembic aplicada e FKs
 habilitadas; nao criam registros no banco do projeto.
-
