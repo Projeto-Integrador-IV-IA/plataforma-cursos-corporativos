@@ -24,7 +24,7 @@ class PlatformError(Exception):
 
 
 class UpstreamError(PlatformError):
-    """Falha explicita do pipeline-service ou da comunicacao com ele."""
+    """Falha explicita de um servico a jusante ou da comunicacao com ele."""
 
 
 def _error_content(request: Request, exc: PlatformError) -> dict[str, Any]:

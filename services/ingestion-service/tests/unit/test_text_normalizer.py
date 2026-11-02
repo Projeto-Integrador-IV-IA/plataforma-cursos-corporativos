@@ -2,8 +2,14 @@
 
 from uuid import UUID, uuid4
 
+import pytest
+
 from app.domain.raw_demand import SourceKind
-from app.normalizers.text_normalizer import normalize_text, segment_text
+from app.normalizers.text_normalizer import (
+    concatenate_normalized_sources,
+    normalize_text,
+    segment_text,
+)
 
 
 def test_removes_email_headers_signature_html_and_redundant_spacing() -> None:
@@ -63,6 +69,31 @@ def test_keeps_plain_semantic_content_unchanged() -> None:
     original = "Tema: LGPD\nPúblico: gestores\nCarga horária: 4 horas"
 
     assert normalize_text(original, SourceKind.OUTRO) == original
+
+
+def test_concatenates_normalized_sources_in_received_order() -> None:
+    sources = (
+        normalize_text("[10:31] Ana: Tema: LGPD", SourceKind.MENSAGENS),
+        normalize_text("# Publico\n- Gestores", SourceKind.ANOTACAO),
+        normalize_text("Carga horaria: 4 horas", SourceKind.OUTRO),
+    )
+
+    assert concatenate_normalized_sources(sources) == (
+        "Tema: LGPD\n\nPublico\nGestores\n\nCarga horaria: 4 horas"
+    )
+
+
+def test_common_text_requires_at_least_one_nonblank_normalized_source() -> None:
+    with pytest.raises(ValueError, match="at least one"):
+        concatenate_normalized_sources(())
+
+    with pytest.raises(ValueError, match="position 2"):
+        concatenate_normalized_sources(("Tema: LGPD", "  \n"))
+
+
+def test_common_text_rejects_source_outside_normalized_boundary_format() -> None:
+    with pytest.raises(ValueError, match="position 1"):
+        concatenate_normalized_sources((" Tema: LGPD ",))
 
 
 def test_segments_each_nonblank_logical_line_in_original_order() -> None:

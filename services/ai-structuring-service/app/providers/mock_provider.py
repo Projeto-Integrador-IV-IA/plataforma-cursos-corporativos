@@ -88,6 +88,8 @@ RESPOSTA_FIXA: Final[dict[str, object]] = {
         "tema": [1],
         "nicho": [1],
         "publico_alvo": [1],
+        # A resposta fixa nao conhece a quantidade de trechos da entrada. O
+        # primeiro e o unico identificador garantido para todo texto nao vazio.
         "carga_horaria": [1],
         "formato": [1],
         "objetivos_aprendizagem": [1],
