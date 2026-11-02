@@ -113,6 +113,17 @@ def test_segments_each_nonblank_logical_line_in_original_order() -> None:
     assert all(segment.source_id == source_id for segment in segments)
 
 
+def test_noisy_message_segment_points_to_the_untouched_original_text() -> None:
+    source_id = uuid4()
+    original = "[20/09/2026 10:31] Ana: Precisamos treinar 25 pessoas."
+
+    (segment,) = segment_text(original, SourceKind.MENSAGENS, source_id=source_id)
+
+    assert segment.text == "Precisamos treinar 25 pessoas."
+    assert original[segment.original_start_offset : segment.original_end_offset] == segment.text
+    assert segment.original_start_offset == original.index(segment.text)
+
+
 def test_reprocessing_the_same_source_produces_the_same_segment_ids() -> None:
     source_id = UUID("57754d48-b635-45d3-8449-a531ec02268f")
     original = "Tema: LGPD\r\n\r\nPublico: gestores\r\nCarga horaria: 4 horas"
