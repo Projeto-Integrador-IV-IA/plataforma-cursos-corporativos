@@ -18,18 +18,24 @@ class SourceKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class SourceSegment:
-    """Trecho citavel, ordenado e ligado de forma inequivoca a uma fonte."""
+    """Trecho citavel com faixa recuperavel no texto bruto original."""
 
     id: UUID
     source_id: UUID
     position: int
     text: str
+    original_start_offset: int
+    original_end_offset: int
 
     def __post_init__(self) -> None:
         if self.position < 1:
             raise ValueError("position must start at 1")
         if not self.text.strip():
             raise ValueError("text must not be blank")
+        if self.original_start_offset < 0:
+            raise ValueError("original_start_offset must not be negative")
+        if self.original_end_offset <= self.original_start_offset:
+            raise ValueError("original_end_offset must be after original_start_offset")
 
 
 @dataclass(frozen=True, slots=True)

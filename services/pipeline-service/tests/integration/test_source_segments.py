@@ -63,8 +63,20 @@ def raw_input(engine: Engine, demand: UUID, operator: UUID) -> UUID:
 def segment_batch() -> dict[str, list[dict[str, str | int]]]:
     return {
         "segments": [
-            {"id": str(SEGMENT_IDS[1]), "position": 2, "content": "Segundo trecho"},
-            {"id": str(SEGMENT_IDS[0]), "position": 1, "content": "Primeiro trecho"},
+            {
+                "id": str(SEGMENT_IDS[1]),
+                "position": 2,
+                "content": "Segundo trecho",
+                "original_start_offset": 16,
+                "original_end_offset": 30,
+            },
+            {
+                "id": str(SEGMENT_IDS[0]),
+                "position": 1,
+                "content": "Primeiro trecho",
+                "original_start_offset": 0,
+                "original_end_offset": 15,
+            },
         ]
     }
 
@@ -81,6 +93,12 @@ def test_segments_are_persisted_and_returned_in_source_order(
     body = response.json()
     assert [item["position"] for item in body] == [1, 2]
     assert [item["content"] for item in body] == ["Primeiro trecho", "Segundo trecho"]
+    assert [item["original_content"] for item in body] == [
+        "Primeiro trecho",
+        "Segundo trecho",
+    ]
+    assert [item["original_start_offset"] for item in body] == [0, 16]
+    assert [item["original_end_offset"] for item in body] == [15, 30]
     assert {item["raw_input_id"] for item in body} == {str(raw_input)}
     assert {item["demand_id"] for item in body} == {str(demand)}
 
@@ -121,7 +139,7 @@ def test_replaying_the_same_stable_segments_is_idempotent(
 
 @pytest.mark.parametrize(
     ("field", "value"),
-    (("position", 0), ("content", "   ")),
+    (("position", 0), ("content", "   "), ("original_end_offset", 100)),
 )
 def test_invalid_segment_is_rejected_without_partial_persistence(
     api: TestClient,
@@ -147,7 +165,13 @@ def test_position_or_id_cannot_be_reused_for_different_evidence(
     api.post(f"/api/v1/raw-inputs/{raw_input}/segments", json=segment_batch())
     payload = {
         "segments": [
-            {"id": str(uuid4()), "position": 1, "content": "Trecho substituto"},
+            {
+                "id": str(uuid4()),
+                "position": 1,
+                "content": "Trecho substituto",
+                "original_start_offset": 0,
+                "original_end_offset": 15,
+            },
         ]
     }
 
@@ -165,7 +189,13 @@ def test_unknown_source_and_demand_are_reported(api: TestClient) -> None:
         f"/api/v1/raw-inputs/{missing_source}/segments",
         json={
             "segments": [
-                {"id": str(uuid4()), "position": 1, "content": "Trecho"},
+                {
+                    "id": str(uuid4()),
+                    "position": 1,
+                    "content": "Trecho",
+                    "original_start_offset": 0,
+                    "original_end_offset": 7,
+                },
             ]
         },
     )

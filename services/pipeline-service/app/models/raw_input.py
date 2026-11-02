@@ -131,6 +131,11 @@ class SourceSegment(Base):
     __table_args__ = (
         sa.CheckConstraint("position > 0", name="position_positive"),
         sa.CheckConstraint("length(trim(content)) > 0", name="content_not_blank"),
+        sa.CheckConstraint(
+            "(original_start_offset IS NULL AND original_end_offset IS NULL) OR "
+            "(original_start_offset >= 0 AND original_end_offset > original_start_offset)",
+            name="original_offsets_valid",
+        ),
         sa.UniqueConstraint(
             "raw_input_id",
             "position",
@@ -150,8 +155,20 @@ class SourceSegment(Base):
     )
     position: Mapped[int] = mapped_column(sa.Integer, nullable=False)
     content: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    original_start_offset: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    original_end_offset: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
 
     raw_input: Mapped["RawInput"] = relationship(back_populates="segments")
+
+    @property
+    def original_content(self) -> str | None:
+        """Recupera a fatia literal da fonte a partir dos offsets persistidos."""
+
+        if self.original_start_offset is None or self.original_end_offset is None:
+            return None
+        return self.raw_input.original_content[
+            self.original_start_offset : self.original_end_offset
+        ]
 
     @property
     def demand_id(self) -> UUID:

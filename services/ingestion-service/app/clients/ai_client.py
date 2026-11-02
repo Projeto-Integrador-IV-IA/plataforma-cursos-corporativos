@@ -24,6 +24,7 @@ class StructuringRequest(BaseModel):
 
     demand_id: str = Field(min_length=1, max_length=64)
     text: str = Field(min_length=1, max_length=50_000)
+    source_ids: tuple[str, ...] = Field(default_factory=tuple, max_length=100)
 
 
 class AIClient:
@@ -36,12 +37,15 @@ class AIClient:
     def build_request(
         demand_id: UUID | str,
         normalized_sources: Iterable[str],
+        *,
+        source_ids: Iterable[UUID | str] = (),
     ) -> StructuringRequest:
         """Concatena fontes em ordem e valida o corpo canonico da requisicao."""
 
         return StructuringRequest(
             demand_id=str(demand_id),
             text=concatenate_normalized_sources(normalized_sources),
+            source_ids=tuple(str(source_id) for source_id in source_ids),
         )
 
     def structure_course(
@@ -49,11 +53,12 @@ class AIClient:
         demand_id: UUID | str,
         normalized_sources: Iterable[str],
         *,
+        source_ids: Iterable[UUID | str] = (),
         request_id: str | None = None,
     ) -> dict[str, Any]:
         """Executa a estruturacao sincrona e devolve a resposta JSON do servico."""
 
-        payload = self.build_request(demand_id, normalized_sources)
+        payload = self.build_request(demand_id, normalized_sources, source_ids=source_ids)
         headers = {"X-Request-ID": request_id} if request_id else None
 
         try:
