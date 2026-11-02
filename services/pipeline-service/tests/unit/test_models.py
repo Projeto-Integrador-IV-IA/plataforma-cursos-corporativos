@@ -60,6 +60,7 @@ EXPECTED_COLUMNS = {
         "demand_id",
         "original_content",
         "normalized_content",
+        "previous_attempt_id",
         "source",
         "truncated",
         "author_id",
