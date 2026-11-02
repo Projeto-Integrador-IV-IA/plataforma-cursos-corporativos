@@ -39,6 +39,7 @@ class RawDemand:
     demand_id: UUID
     text: str
     source_type: SourceKind
+    previous_attempt_id: UUID | None = None
 
     def __post_init__(self) -> None:
         if not self.text.strip():
@@ -53,3 +54,4 @@ class PersistedRawDemand:
     demand_id: UUID
     source_type: SourceKind
     created_at: datetime
+    previous_attempt_id: UUID | None = None
