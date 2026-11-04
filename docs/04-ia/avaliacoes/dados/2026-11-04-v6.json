@@ -1,0 +1,590 @@
+{
+  "iniciada_em": "2026-11-04T20:21:00.933406+00:00",
+  "prompt_version": "v6",
+  "schema_version": "v1",
+  "modelos": [
+    "deepseek/deepseek-r1-0528",
+    "deepseek/deepseek-chat-v3.1",
+    "deepseek/deepseek-v4.1-flash"
+  ],
+  "casos": [
+    "sint-001",
+    "sint-002",
+    "sint-003"
+  ],
+  "execucoes": [
+    {
+      "caso": "sint-001",
+      "modelo": "deepseek/deepseek-r1-0528",
+      "modelo_reportado": "deepseek/deepseek-r1-0528",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 158610.87670000005,
+      "tokens_entrada": 7045,
+      "tokens_saida": 4041,
+      "erro": null,
+      "curso": {
+        "tema": "NR-12 (segurança em máquinas e equipamentos)",
+        "nicho": null,
+        "publico_alvo": "Técnicos de manutenção da planta 2",
+        "numero_participantes": null,
+        "carga_horaria": 16,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [],
+        "campos_ausentes": [
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": null
+          },
+          {
+            "campo": "ementa",
+            "tipo": "ausente",
+            "motivo": null
+          }
+        ],
+        "procedencia": {
+          "carga_horaria": "inferido",
+          "publico_alvo": "extraido",
+          "tema": "inferido",
+          "objetivos_aprendizagem": "ausente",
+          "ementa": "ausente"
+        },
+        "evidencias": {
+          "carga_horaria": [
+            5
+          ],
+          "publico_alvo": [
+            4,
+            5
+          ],
+          "tema": [
+            4
+          ],
+          "objetivos_aprendizagem": [],
+          "ementa": []
+        },
+        "observacoes": []
+      }
+    },
+    {
+      "caso": "sint-002",
+      "modelo": "deepseek/deepseek-r1-0528",
+      "modelo_reportado": "deepseek/deepseek-r1-0528",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 45541.54870000002,
+      "tokens_entrada": 7039,
+      "tokens_saida": 1760,
+      "erro": null,
+      "curso": {
+        "tema": "lideranca",
+        "nicho": null,
+        "publico_alvo": "coordenadores novos promovidos este ano (12 pessoas)",
+        "numero_participantes": null,
+        "carga_horaria": null,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [
+          {
+            "titulo": "feedback",
+            "topicos": [
+              "feedback"
+            ],
+            "carga_horaria": null
+          },
+          {
+            "titulo": "gestao de conflito",
+            "topicos": [
+              "gestao de conflito"
+            ],
+            "carga_horaria": null
+          },
+          {
+            "titulo": "como conduzir reuniao de equipe",
+            "topicos": [
+              "como conduzir reuniao de equipe"
+            ],
+            "carga_horaria": null
+          }
+        ],
+        "campos_ausentes": [
+          {
+            "campo": "carga_horaria",
+            "tipo": "ausente",
+            "motivo": null
+          },
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": null
+          }
+        ],
+        "procedencia": {
+          "ementa": "inferido",
+          "publico_alvo": "inferido",
+          "tema": "extraido",
+          "carga_horaria": "ausente",
+          "objetivos_aprendizagem": "ausente"
+        },
+        "evidencias": {
+          "ementa": [
+            3
+          ],
+          "publico_alvo": [
+            1,
+            2
+          ],
+          "tema": [
+            1
+          ],
+          "carga_horaria": [],
+          "objetivos_aprendizagem": []
+        },
+        "observacoes": []
+      }
+    },
+    {
+      "caso": "sint-003",
+      "modelo": "deepseek/deepseek-r1-0528",
+      "modelo_reportado": "deepseek/deepseek-r1-0528",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 19355.58579999997,
+      "tokens_entrada": 7107,
+      "tokens_saida": 280,
+      "erro": null,
+      "curso": {
+        "tema": "Python voltado pra analise, bem pratico, mexendo em planilha de verdade",
+        "nicho": null,
+        "publico_alvo": "analistas da area de dados, oito pessoas, nenhuma com base de programacao",
+        "numero_participantes": null,
+        "carga_horaria": 40,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [],
+        "campos_ausentes": [
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": "o cliente nao declarou o que o participante deve ser capaz de fazer ao final."
+          },
+          {
+            "campo": "ementa",
+            "tipo": "ausente",
+            "motivo": "o texto nao descreve conteudo nem modulos."
+          }
+        ],
+        "procedencia": {
+          "tema": "extraido",
+          "publico_alvo": "inferido",
+          "carga_horaria": "extraido",
+          "objetivos_aprendizagem": "ausente",
+          "ementa": "ausente"
+        },
+        "evidencias": {
+          "tema": [
+            3
+          ],
+          "publico_alvo": [
+            1,
+            2
+          ],
+          "carga_horaria": [
+            4
+          ],
+          "objetivos_aprendizagem": [],
+          "ementa": []
+        },
+        "observacoes": []
+      }
+    },
+    {
+      "caso": "sint-001",
+      "modelo": "deepseek/deepseek-chat-v3.1",
+      "modelo_reportado": "deepseek/deepseek-chat-v3.1",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 8121.508499999891,
+      "tokens_entrada": 7044,
+      "tokens_saida": 258,
+      "erro": null,
+      "curso": {
+        "tema": "NR-12",
+        "nicho": null,
+        "publico_alvo": "técnicos da manutenção da planta 2",
+        "numero_participantes": null,
+        "carga_horaria": 16,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [],
+        "campos_ausentes": [
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": "o texto não declara o que o participante deve ser capaz de fazer ao final"
+          },
+          {
+            "campo": "ementa",
+            "tipo": "ausente",
+            "motivo": "o texto não descreve conteúdo nem módulos do treinamento"
+          }
+        ],
+        "procedencia": {
+          "tema": "extraido",
+          "publico_alvo": "extraido",
+          "carga_horaria": "inferido",
+          "objetivos_aprendizagem": "ausente",
+          "ementa": "ausente"
+        },
+        "evidencias": {
+          "tema": [
+            4
+          ],
+          "publico_alvo": [
+            4,
+            5
+          ],
+          "carga_horaria": [
+            5
+          ],
+          "objetivos_aprendizagem": [],
+          "ementa": []
+        },
+        "observacoes": []
+      }
+    },
+    {
+      "caso": "sint-002",
+      "modelo": "deepseek/deepseek-chat-v3.1",
+      "modelo_reportado": "deepseek/deepseek-chat-v3.1",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 11616.37860000019,
+      "tokens_entrada": 7038,
+      "tokens_saida": 286,
+      "erro": null,
+      "curso": {
+        "tema": "Liderança",
+        "nicho": null,
+        "publico_alvo": "Coordenadores novos (12 pessoas promovidas este ano)",
+        "numero_participantes": null,
+        "carga_horaria": null,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [
+          {
+            "titulo": "Feedback",
+            "topicos": [
+              "Feedback"
+            ],
+            "carga_horaria": null
+          },
+          {
+            "titulo": "Gestão de conflito",
+            "topicos": [
+              "Gestão de conflito"
+            ],
+            "carga_horaria": null
+          },
+          {
+            "titulo": "Condução de reunião de equipe",
+            "topicos": [
+              "Condução de reunião de equipe"
+            ],
+            "carga_horaria": null
+          }
+        ],
+        "campos_ausentes": [
+          {
+            "campo": "carga_horaria",
+            "tipo": "ausente",
+            "motivo": "o cliente informou que 'ainda não fechou quantas horas, depende do orçamento'"
+          },
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": "o texto não declara o que os participantes devem ser capazes de fazer ao final do treinamento"
+          }
+        ],
+        "procedencia": {
+          "tema": "extraido",
+          "publico_alvo": "inferido",
+          "ementa": "extraido",
+          "carga_horaria": "ausente",
+          "objetivos_aprendizagem": "ausente"
+        },
+        "evidencias": {
+          "tema": [
+            1
+          ],
+          "publico_alvo": [
+            1,
+            2
+          ],
+          "ementa": [
+            3
+          ],
+          "carga_horaria": [],
+          "objetivos_aprendizagem": []
+        },
+        "observacoes": []
+      }
+    },
+    {
+      "caso": "sint-003",
+      "modelo": "deepseek/deepseek-chat-v3.1",
+      "modelo_reportado": "deepseek/deepseek-chat-v3.1",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 12985.108299999865,
+      "tokens_entrada": 7108,
+      "tokens_saida": 324,
+      "erro": null,
+      "curso": {
+        "tema": "Python voltado pra analise",
+        "nicho": null,
+        "publico_alvo": "Analistas da area de dados (8 pessoas sem base de programacao)",
+        "numero_participantes": null,
+        "carga_horaria": 40,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [],
+        "campos_ausentes": [
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": "o cliente nao declarou o que o participante deve ser capaz de fazer ao final do treinamento."
+          },
+          {
+            "campo": "ementa",
+            "tipo": "ausente",
+            "motivo": "o texto nao descreve conteudo nem modulos do treinamento."
+          }
+        ],
+        "procedencia": {
+          "tema": "extraido",
+          "publico_alvo": "inferido",
+          "carga_horaria": "extraido",
+          "objetivos_aprendizagem": "ausente",
+          "ementa": "ausente"
+        },
+        "evidencias": {
+          "tema": [
+            3
+          ],
+          "publico_alvo": [
+            1,
+            2
+          ],
+          "carga_horaria": [
+            4
+          ],
+          "objetivos_aprendizagem": [],
+          "ementa": []
+        },
+        "observacoes": [
+          "O treinamento deve ser remoto conforme solicitado no trecho 5",
+          "O cliente corrigiu informacao anterior sobre tamanho do time: eram 12 pessoas, hoje sao 8 (trecho 6)"
+        ]
+      }
+    },
+    {
+      "caso": "sint-001",
+      "modelo": "deepseek/deepseek-v4.1-flash",
+      "modelo_reportado": "deepseek/deepseek-v4.1-flash",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 8600.272099999984,
+      "tokens_entrada": 7070,
+      "tokens_saida": 3021,
+      "erro": null,
+      "curso": {
+        "tema": "NR-12 (segurança em máquinas e equipamentos)",
+        "nicho": null,
+        "publico_alvo": "Técnicos de manutenção da planta 2",
+        "numero_participantes": null,
+        "carga_horaria": 16,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [],
+        "campos_ausentes": [
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": null
+          },
+          {
+            "campo": "ementa",
+            "tipo": "ausente",
+            "motivo": null
+          }
+        ],
+        "procedencia": {
+          "carga_horaria": "inferido",
+          "publico_alvo": "extraido",
+          "tema": "inferido",
+          "objetivos_aprendizagem": "ausente",
+          "ementa": "ausente"
+        },
+        "evidencias": {
+          "carga_horaria": [
+            5
+          ],
+          "publico_alvo": [
+            4,
+            5
+          ],
+          "tema": [
+            4
+          ],
+          "objetivos_aprendizagem": [],
+          "ementa": []
+        },
+        "observacoes": []
+      }
+    },
+    {
+      "caso": "sint-002",
+      "modelo": "deepseek/deepseek-v4.1-flash",
+      "modelo_reportado": "deepseek/deepseek-v4.1-flash",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 4988.066500000059,
+      "tokens_entrada": 7064,
+      "tokens_saida": 1051,
+      "erro": null,
+      "curso": {
+        "tema": "Liderança para coordenadores recém-promovidos",
+        "nicho": null,
+        "publico_alvo": "Coordenadores promovidos no ano corrente (12 pessoas)",
+        "numero_participantes": null,
+        "carga_horaria": null,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [
+          {
+            "titulo": "Feedback",
+            "topicos": [
+              "Feedback"
+            ],
+            "carga_horaria": null
+          },
+          {
+            "titulo": "Gestão de conflito",
+            "topicos": [
+              "Gestão de conflito"
+            ],
+            "carga_horaria": null
+          },
+          {
+            "titulo": "Condução de reunião de equipe",
+            "topicos": [
+              "Condução de reunião de equipe"
+            ],
+            "carga_horaria": null
+          }
+        ],
+        "campos_ausentes": [
+          {
+            "campo": "carga_horaria",
+            "tipo": "ausente",
+            "motivo": null
+          },
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": null
+          }
+        ],
+        "procedencia": {
+          "ementa": "inferido",
+          "publico_alvo": "inferido",
+          "tema": "inferido",
+          "carga_horaria": "ausente",
+          "objetivos_aprendizagem": "ausente"
+        },
+        "evidencias": {
+          "ementa": [
+            3
+          ],
+          "publico_alvo": [
+            1,
+            2
+          ],
+          "tema": [
+            1,
+            2
+          ],
+          "carga_horaria": [],
+          "objetivos_aprendizagem": []
+        },
+        "observacoes": [
+          "Os três temas citados foram registrados como módulos da ementa, sem detalhamento nem carga por módulo - o cliente não os forneceu."
+        ]
+      }
+    },
+    {
+      "caso": "sint-003",
+      "modelo": "deepseek/deepseek-v4.1-flash",
+      "modelo_reportado": "deepseek/deepseek-v4.1-flash",
+      "valida_de_primeira": true,
+      "tentativas": 1,
+      "latencia_ms": 26828.52610000009,
+      "tokens_entrada": 7134,
+      "tokens_saida": 5403,
+      "erro": null,
+      "curso": {
+        "tema": "Python voltado para análise",
+        "nicho": null,
+        "publico_alvo": "Analistas da área de dados (8 pessoas), sem base de programação",
+        "numero_participantes": null,
+        "carga_horaria": 40,
+        "formato": null,
+        "objetivos_aprendizagem": [],
+        "ementa": [],
+        "campos_ausentes": [
+          {
+            "campo": "objetivos_aprendizagem",
+            "tipo": "ausente",
+            "motivo": null
+          },
+          {
+            "campo": "ementa",
+            "tipo": "ausente",
+            "motivo": null
+          }
+        ],
+        "procedencia": {
+          "carga_horaria": "extraido",
+          "publico_alvo": "inferido",
+          "tema": "extraido",
+          "objetivos_aprendizagem": "ausente",
+          "ementa": "ausente"
+        },
+        "evidencias": {
+          "carga_horaria": [
+            4
+          ],
+          "publico_alvo": [
+            1,
+            2,
+            6
+          ],
+          "tema": [
+            3
+          ],
+          "objetivos_aprendizagem": [],
+          "ementa": []
+        },
+        "observacoes": [
+          "O cliente exige que o treinamento seja remoto, porque metade do time está em outra cidade ([5]).",
+          "O cliente menciona que em outro momento foi falado que o time tinha 12 pessoas, mas afirma que hoje são 8 ([6]).",
+          "O cliente indica que as 40 horas podem ser quebradas em módulos ([4]).",
+          "O cliente pede abordagem prática, mexendo em planilha de verdade ([3])."
+        ]
+      }
+    }
+  ]
+}

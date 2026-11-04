@@ -63,7 +63,33 @@ Aplicando o cenário base (55 demandas mensais $\times$ 2.000 tokens de entrada 
 | **Custo estimado de STT (10h)** | US$ 3,60 / mês | OpenAI Whisper API (US$ 0,006/min) |
 | **Custo mensal total projetado** | **Aprox. US$ 3,60 a US$ 4,75** | Soma consolidada para o cenário operacional (55 demandas/mês) |
 
-*Nota: O número real e medido substituirá esta estimativa na 3ª parcial, através da instrumentação do card **#22** (`artifact_versions.metadados_ia`).*
+*Nota: a estimativa acima é anterior à medição real abaixo; mantida para registro histórico da premissa inicial.*
+
+---
+
+## Custo real medido (3ª parcial) {#planilha-preenchida-na-3-parcial}
+
+Medição real contra o OpenRouter em 04/11/2026, três modelos da família DeepSeek, três casos
+sintéticos, uma chamada por demanda (só a extração — `generate-syllabus.v1` ainda é rascunho, então
+o custo de produção final será maior que o medido aqui, quando a geração de ementa virar uma segunda
+chamada). Condições completas de execução, dados brutos e justificativa da escolha em
+[`relatorio-comparativo-modelos.md`](avaliacoes/relatorio-comparativo-modelos.md).
+
+| Grandeza | DeepSeek R1 | DeepSeek Chat V3.1 | DeepSeek V4.1 Flash | Fonte |
+|---|--:|--:|--:|---|
+| Tokens de entrada por demanda (média) | 7 064 | 7 063 | 7 089 | Medição real, 3 casos |
+| Tokens de saída por demanda (média) | 2 027 | 289 | 3 158 | Medição real, 3 casos |
+| Custo por demanda (USD) | $0,007890 | $0,002041 | $0,001898 | Medição real × preço do catálogo (`modelos.toml`) |
+| Latência p50 / p95 | 45,5 s / 147,3 s | 11,6 s / 12,8 s | 8,6 s / 25,0 s | Medição real |
+| **Custo mensal projetado** (2–3 demandas/dia, 22 dias úteis = 44–66 demandas) | $0,35 a $0,52 | $0,09 a $0,13 | $0,08 a $0,13 | Cálculo sobre o custo/demanda medido |
+
+**Modelo escolhido para a disputa interna DeepSeek:** `deepseek/deepseek-chat-v3.1` — justificativa
+completa na seção 4 do [relatório comparativo](avaliacoes/relatorio-comparativo-modelos.md#4-recomendação-e-justificativa-do-trade-off).
+A diferença de custo mensal entre os três candidatos é irrelevante no volume do cliente (centavos de
+dólar); a decisão pesa latência previsível (RNF06) e tamanho de saída estável, não o menor preço.
+
+Este número **não inclui** a segunda chamada (geração de ementa, RF12) nem STT, e vem de um conjunto
+de 3 casos sintéticos — ver limitações declaradas no relatório comparativo, seção 2.
 
 ---
 
