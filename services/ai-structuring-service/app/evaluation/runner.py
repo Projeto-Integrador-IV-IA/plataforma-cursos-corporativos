@@ -166,8 +166,15 @@ async def executar(
     execucoes: list[Execucao] = []
 
     for modelo in modelos:
-        provedor = fabrica_de_provedor(modelo.slug, config)
-        servico = StructuringService(provedor, config)
+        # ``config`` e compartilhada entre todos os modelos da rodada; sem o
+        # ``model_copy`` abaixo, ``StructuringService`` leria sempre o
+        # ``llm_model`` original (o do ambiente), e toda chamada pediria o
+        # mesmo modelo ao provedor HTTP, nao importa de qual candidato veio -
+        # o mock nunca pegou isso porque ignora ``params.model`` e usa o
+        # ``model=`` passado direto no construtor (RNF29).
+        config_do_modelo = config.model_copy(update={"llm_model": modelo.slug})
+        provedor = fabrica_de_provedor(modelo.slug, config_do_modelo)
+        servico = StructuringService(provedor, config_do_modelo)
         for caso in casos:
             if (modelo.slug, caso.identificador) in feitas:
                 continue
