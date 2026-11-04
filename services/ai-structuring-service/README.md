@@ -110,6 +110,18 @@ tentativas houve e se vale repetir - sem expor credencial (RNF11) nem dado do cl
 Cobertura em [`tests/unit/test_structuring_service.py`](tests/unit/test_structuring_service.py) e
 [`tests/unit/test_error_responses.py`](tests/unit/test_error_responses.py).
 
+## Estratégia de Testes do Modelo (RNF30)
+
+O `ai-structuring-service` possui uma suíte de testes em camadas para garantir a integridade das saídas do LLM:
+
+1. **Testes Unitários e Parsers:** Validação do schema JSON e sanitização de campos.
+2. **Integração Mockada (`LLM_PROVIDER=mock`):** Execução da suíte local e no GitHub Actions (CI) com custo zero.
+3. **Avaliação por Gabarito:** Validação de precisão semântica comparando o payload retornado com os gabaritos em `tests/fixtures/gabaritos/`.
+
+Para rodar os testes da suíte de IA:
+```bash
+pytest services/ai-structuring-service/tests/
+
 ## Testes
 
 ```bash

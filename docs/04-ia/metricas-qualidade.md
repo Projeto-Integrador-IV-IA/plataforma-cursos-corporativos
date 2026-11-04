@@ -1,7 +1,7 @@
-# Métricas de qualidade da estruturação
+# Métricas de qualidade e Estratégia de Testes da Estruturação (RNF04 / RNF30)
 
 Atende **RNF04**: métricas de acurácia e consistência mensuráveis e reportáveis — **entregável da
-3ª parcial (20/10)**.
+3ª parcial (20/10)**, e **RNF30**: documentação da estratégia de testes do modelo — **Card #226**.
 
 > ⚠️ **Sem definição explícita do que se mede e de como se coleta, a 3ª parcial não tem entregável
 > verificável.** É a questão mais crítica em aberto do projeto — ver
@@ -54,7 +54,7 @@ escala de 1 a 5:
 | **Coerência com os requisitos** | A ementa corresponde ao tema, público e carga extraídos? |
 | **Adequação ao público** | O nível corresponde ao perfil declarado dos participantes? |
 | **Consistência de carga** | A soma da carga dos módulos fecha com a carga total? |
-| **Qualidade dos objetivos** | Os objetivos são verificáveis, com verbo de ação? |
+| **Qualidade dos objetivos** | O objetivos são verificáveis, com verbo de ação? |
 | **Utilidade prática** | O operador usaria isso como ponto de partida real? |
 
 Meta inicial: média ≥ 3,5 em cada critério; **nenhum** critério abaixo de 3,0.
@@ -84,13 +84,33 @@ a proporção de campos alterados pelo operador entre a versão gerada e a vers�
 laboratório. Não substitui as anteriores — complementa, e só existe depois que a plataforma estiver
 em uso.
 
+---
+
+## Estratégia de Testes e Validação do Modelo (RNF30 — Card #226)
+
+Para garantir que a suíte de IA seja defensável perante a banca avaliadora, formaliza-se a estratégia de testes estruturada em quatro camadas:
+
+### 1. Camadas de Teste e Critérios de Aprovação
+
+| Camada de Teste | Descrição e Escopo | Massa de Dados / Insumos | Critério de Aprovação |
+|---|---|---|---|
+| **Unidade** | Testes isolados de funções utilitárias, normalizadores de texto e parsers de JSON. | Stubs em memória e payloads sintéticos unitários. | **100% de aprovação** na suíte unitária. |
+| **Integração com Mock** | Teste de comunicação do pipeline utilizando o provedor falso (`LLM_PROVIDER=mock`), simulando respostas do LLM sem consumo de API. | Fixtures sintéticas em `tests/fixtures/`. | Execução com sucesso dos fluxos de chamada sem consumo de cota e tempo de resposta $< 100\text{ms}$. |
+| **Avaliação com Gabarito** | Comparação das saídas geradas pelo LLM em ambiente de teste contra o gabarito de referência especialista. | Dataset de gabaritos em `tests/fixtures/gabaritos/`. | Aderência aos 5 campos essenciais $\ge 95\%$ e precisão semântica frente ao gabarito $\ge 90\%$. |
+| **Robustez e Resiliência** | Simulação de falhas de rede, timeouts, JSONs corrompidos e textos brutos truncados. | Payloads malformados e injeções de ruído. | Captura de exceção tratada, sem queda do serviço, preservando a demanda bruta (RNF05/RNF09). |
+
+### 2. Papel do OpenRouter na Comparação de Modelos
+O **OpenRouter** atua como o *gateway/hub* unificado de roteamento de inferência de LLM durante os benchmarks do projeto:
+- **Desacoplamento de Provedor:** Permite alternar dinamicamente entre múltiplos provedores e famílias de modelos (ex.: Llama 3 70B, Claude 3.5 Sonnet) alterando apenas a variável de ambiente `LLM_MODEL`.
+- **Padronização da Avaliação:** Garante que todas as chamadas comparativas de latência, custo e qualidade sigam exatamente os mesmos contratos de API e parâmetros (`temperature=0.2`), eliminando vieses metodológicos.
+
+---
+
 ## Como reportar
 
 Relatório por rodada de avaliação, versionado neste diretório:
 
-```
-docs/04-ia/avaliacoes/YYYY-MM-DD-<versao-do-prompt>.md
-```
+docs/04-ia/avaliacoes/YYYY-MM-DD-.md
 
 Cada relatório traz: versão de prompt, modelo, tamanho do conjunto, tabela de métricas, comparação
 com a rodada anterior e conclusão sobre o que mudar.
