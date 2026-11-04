@@ -1,6 +1,6 @@
 # Custos de operação
 
-Atende **RNF23** (correspondente ao **RNF12** do Documento Consolidado v1.0): levantamento de custos operacionais e viabilidade de operação em camada gratuita/estudantil, com o consumo de API de linguagem como **única despesa recorrente controlada**. Entregável da 3ª parcial (20/10) — card **#121**.
+Atende **RNF23** (correspondente ao **RNF12** do Documento Consolidado v1.0): levantamento de custos operacionais e viabilidade de operação em camada gratuita/estudantil, com o consumo de API de linguagem como **única despesa recorrente controlada**. Entregável da 3ª parcial (20/10) — card **#121**, com aditivo de integração e custos de STT (**RF30**) — card **#175**.
 
 > ⚠️ **Premissa de Data e Valores:** Consulta realizada em **09/10/2026**. Os preços de APIs de terceiros estão sujeitos a alterações e as estimativas baseiam-se em premissas de volume declaradas.
 
@@ -27,6 +27,11 @@ Para dimensionar o custo mensal, adota-se o **cenário base operacional de 2 a 3
 - **Consumo de tokens por chamada individual:** ~1.000 tokens de entrada e ~500 de saída por chamada (totalizando o agregado por demanda de ~2.000 tokens de entrada e ~1.000 tokens de saída).
 - **Volume de Áudio STT:** 10 horas/mês de conversão de áudio de reuniões.
 
+### Limite de Consumo Adotado para STT (RF30)
+Para proteger o orçamento da camada gratuita/estudantil (RNF22), estabelece-se um **limite rígido de consumo de STT por tenant/usuário de 2 horas de áudio por mês** no plano base, com alertas preventivos ao atingir 80% da cota, escalando para o teto global operacional de 10 horas/mês projetadas para o conjunto do MVP.
+
+---
+
 ## Como estimar o custo da API de LLM (Reproduzível)
 
 O custo é proporcional aos tokens consumidos. A fórmula de cálculo por demanda é:
@@ -34,17 +39,16 @@ O custo é proporcional aos tokens consumidos. A fórmula de cálculo por demand
 ```text
 custo_por_demanda = (tokens_entrada  × preço_entrada_por_token)
                   + (tokens_saída    × preço_saída_por_token)
-```
 
 ### Preços Unitários de Referência por Modelo (OpenRouter / APIs)
 
-- **Llama 3.3 70B (Promocional / Free Tier):** US$ 0.00 / MTokens (Entrada e Saída).
-- **Claude 3.5 Sonnet:** US$ 3.00 por 1M tokens de entrada (US$ 0.003 / 1k) e US$ 15.00 por 1M tokens de saída (US$ 0.015 / 1k).
+- Llama 3.3 70B (Promocional / Free Tier): US$ 0.00 / MTokens (Entrada e Saída).
+- Claude 3.5 Sonnet: US$ 3.00 por 1M tokens de entrada (US$ 0.003 / 1k) e US$ 15.00 por 1M tokens de saída (US$ 0.015 / 1k).
 
 Aplicando o cenário base (55 demandas mensais $\times$ 2.000 tokens de entrada e 1.000 de saída) sobre o modelo pago de referência (Claude 3.5 Sonnet):
 
 - **Entrada:** 55 $\times$ 2.000 = 110.000 tokens $\rightarrow$ $\approx$ US$ 0,33
-- **Saída:** 55 $\times$ 1.000 = 55.000 tokens $\rightarrow$ $\approx$US$ 0,82
+- **Saída:** 55 $\times$ 1.000 = 55.000 tokens $\rightarrow$ $\approx$ US$ 0,82
 - **Total estimado LLM (cenário base, 55 demandas/mês):** US$ 0,00 (Llama 3.3 70B, camada promocional) a $\approx$ US$ 1,15 (Claude 3.5 Sonnet, modelo pago de referência) / mês.
 
 ### Custo de STT (Speech-to-Text / OpenAI Whisper API)
@@ -55,7 +59,7 @@ Aplicando o cenário base (55 demandas mensais $\times$ 2.000 tokens de entrada 
 
 ---
 
-## Estimativa Consolidada (A confirmação por medição)
+### Estimativa Consolidada (A confirmação por medição)
 
 | Grandeza / Serviço | Valor | Fonte / Base de Dados |
 |---|---|---|
@@ -63,9 +67,7 @@ Aplicando o cenário base (55 demandas mensais $\times$ 2.000 tokens de entrada 
 | **Custo estimado de STT (10h)** | US$ 3,60 / mês | OpenAI Whisper API (US$ 0,006/min) |
 | **Custo mensal total projetado** | **Aprox. US$ 3,60 a US$ 4,75** | Soma consolidada para o cenário operacional (55 demandas/mês) |
 
-*Nota: O número real e medido substituirá esta estimativa na 3ª parcial, através da instrumentação do card **#22** (`artifact_versions.metadados_ia`).*
-
----
+> *Nota: O número real e medido substituirá esta estimativa na 3ª parcial, através da instrumentação do card **#22** (`artifact_versions.metadados_ia`).*
 
 ## Controles de custo já embutidos no projeto
 
