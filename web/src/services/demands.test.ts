@@ -98,6 +98,26 @@ describe('createDemand', () => {
 });
 
 describe('listDemands', () => {
+  it('envia etapa e situacao combinadas com cliente e responsavel para a API', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
+    stubFetch({ items: [DEMANDA], total: 1, page: 1, size: 20 });
+
+    await listDemands({
+      stage: 'PROPOSTA',
+      status: 'GANHA',
+      client_id: DEMANDA.client_id,
+      owner_id: '33333333-3333-4333-8333-333333333333',
+    });
+
+    const query = new URL(lastCall().url).searchParams;
+    expect(Object.fromEntries(query)).toEqual({
+      stage: 'PROPOSTA',
+      status: 'GANHA',
+      client_id: DEMANDA.client_id,
+      owner_id: '33333333-3333-4333-8333-333333333333',
+    });
+  });
+
   it('traduz os filtros de RF03 em query string, omitindo o que nao foi informado', async () => {
     vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
     stubFetch({ items: [DEMANDA], total: 1, page: 1, size: 20 });
