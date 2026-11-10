@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_session
 from app.schemas.artifact import (
+    ArtifactEditCreate,
     ArtifactErrorResponse,
     ArtifactRead,
     ArtifactResultCreate,
@@ -16,6 +17,41 @@ from app.schemas.artifact import (
 from app.services.artifact_service import ArtifactService
 
 router = APIRouter(tags=["artifacts"])
+
+
+@router.post(
+    "/artifacts/{artifact_id}/versions",
+    response_model=ArtifactVersionRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Salvar edicao humana como nova versao",
+    description=(
+        "Cada edicao salva cria uma nova versao HUMANO, preservando o historico. "
+        "base_version_number deve ser a vigente; uma edicao desatualizada recebe 409. "
+        "ai_origin_number aponta para a versao IA de origem do mesmo artefato. "
+        "O autor e obtido do cabecalho X-User-ID. Salvar nao aprova a estrutura."
+    ),
+    responses={
+        404: {
+            "model": ArtifactErrorResponse,
+            "description": "Artefato, versao ou autor inexistente.",
+        },
+        409: {
+            "model": ArtifactErrorResponse,
+            "description": "Versao desatualizada ou sem origem IA.",
+        },
+        422: {
+            "model": ArtifactErrorResponse,
+            "description": "Edicao ou identificadores invalidos.",
+        },
+    },
+)
+def save_artifact_edit(
+    artifact_id: UUID,
+    data: ArtifactEditCreate,
+    author_id: Annotated[UUID, Header(alias="X-User-ID")],
+    session: Annotated[Session, Depends(get_session)],
+) -> ArtifactVersionRead:
+    return ArtifactService(session).save_edit(artifact_id, data, author_id)
 
 
 @router.post(

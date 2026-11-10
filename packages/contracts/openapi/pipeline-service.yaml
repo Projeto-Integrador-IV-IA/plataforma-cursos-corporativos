@@ -94,6 +94,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArtifactErrorResponse'
+    post:
+      tags:
+      - artifacts
+      summary: Salvar edicao humana como nova versao
+      description: Cada edicao salva cria uma nova versao HUMANO, preservando o historico.
+        base_version_number deve ser a vigente; uma edicao desatualizada recebe 409.
+        ai_origin_number aponta para a versao IA de origem do mesmo artefato. O autor
+        e obtido do cabecalho X-User-ID. Salvar nao aprova a estrutura.
+      operationId: save_artifact_edit_api_v1_artifacts__artifact_id__versions_post
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtifactEditCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactVersionRead'
+        '404':
+          description: Artefato, versao ou autor inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '409':
+          description: Versao desatualizada ou sem origem IA.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Edicao ou identificadores invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
   /api/v1/artifacts/{artifact_id}/versions/{number}/restore:
     post:
       tags:
@@ -1304,6 +1359,25 @@ components:
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
   schemas:
+    ArtifactEditCreate:
+      properties:
+        base_version_number:
+          type: integer
+          minimum: 1.0
+          title: Base Version Number
+          description: Versao vigente lida antes da edicao.
+        structured_content:
+          additionalProperties: true
+          type: object
+          minProperties: 1
+          title: Structured Content
+      additionalProperties: false
+      type: object
+      required:
+      - base_version_number
+      - structured_content
+      title: ArtifactEditCreate
+      description: Edicao completa baseada na versao que o operador leu.
     ArtifactErrorDetails:
       properties:
         code:
@@ -1470,6 +1544,11 @@ components:
           - type: integer
           - type: 'null'
           title: Previous Number
+        ai_origin_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Ai Origin Number
         raw_output:
           anyOf:
           - type: string
@@ -1519,6 +1598,10 @@ components:
 
 
         ``previous_number`` liga a versao a sua antecessora e e nulo so na primeira.
+
+        ``ai_origin_number`` registra a versao IA que originou uma edicao humana;
+
+        versoes legadas e criadas por outros casos de uso podem nao ter esse campo.
 
         ``raw_output`` e ``ai_metadata`` sao nulos nas versoes humanas (edicao ou
 

@@ -26,13 +26,20 @@ revisão. Decidir depois de implementar significa migração de dados.
 | Nova versão apenas ao concluir a revisão | Histórico limpo; exige um estado de rascunho na interface. |
 | Sobrescrever | Contraria RF08 e RNF09 — descartada. |
 
-**Recomendação da equipe técnica.** Segunda opção: rascunho editável + versão consolidada ao concluir.
-Preserva a distinção entre "o que a IA gerou" e "o que o humano aprovou", que é justamente o insumo
-das métricas de RNF04.
+**Decisão (09/11/2026, card #57).** Cada edição salva cria uma nova versão do artefato,
+com origem `HUMANO`, autor e data/hora. Confirmada pelo responsável pela task nesta data.
+A versão da IA e todas as versões intermediárias permanecem imutáveis e recuperáveis.
+`previous_number` aponta para a versão imediatamente anterior; `ai_origin_number` aponta
+diretamente para a versão da IA que originou a estrutura, inclusive após sucessivas edições.
+Salvar uma edição não aprova a estrutura: a decisão de revisão pertence ao RF19.2/RF20.
+
+O salvamento recebe `base_version_number`; se outra versão já foi criada, a edição é
+recusada com conflito para o operador recarregar antes de salvar. A recomendação anterior
+de consolidar somente ao concluir a revisão foi substituída por esta decisão.
 
 - **Responsável:** Backend + IA
 - **Prazo:** antes do início da Fase 3 (16/09)
-- **Status:** ⬜ em aberto
+- **Status:** ✅ encerrada — nova versão a cada edição salva (#57)
 
 ---
 
