@@ -47,10 +47,31 @@ class ArtifactSourceRead(BaseModel):
     created_at: datetime
 
 
+class ArtifactVersionCreate(BaseModel):
+    """Edicao humana da saida da IA: o conteudo novo e a versao em que ela se baseou.
+
+    O autor nao entra aqui: vem do cabecalho ``X-User-ID``. O pipeline-service
+    guarda o conteudo como veio; a validacao contra o schema canonico e do
+    ``ai-structuring-service``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    structured_content: dict[str, Any] = Field(
+        min_length=1,
+        description="Conteudo editado, no mesmo formato do resultado estruturado.",
+    )
+    base_number: int = Field(
+        ge=1,
+        description="Numero da versao vigente em que a edicao se baseou.",
+    )
+
+
 class ArtifactVersionRead(BaseModel):
     """Versao de um artefato; a vigente e a de maior numero.
 
-    ``previous_number`` liga a versao a sua antecessora e e nulo so na primeira.
+    ``previous_number`` liga a versao a sua antecessora e e nulo so na primeira;
+    ``ai_origin_number`` liga a versao humana a versao da IA que originou a cadeia.
     ``raw_output`` e ``ai_metadata`` sao nulos nas versoes humanas (edicao ou
     restauracao): nao ha saida bruta de modelo. ``restored_from_number`` so vem
     preenchido na versao criada por restauracao, e ela e o registro do evento -
@@ -62,6 +83,7 @@ class ArtifactVersionRead(BaseModel):
     id: UUID
     number: int
     previous_number: int | None
+    ai_origin_number: int | None
     raw_output: str | None = Field(validation_alias="raw_content")
     structured_content: dict[str, Any] = Field(validation_alias="content")
     origin: ArtifactOrigin

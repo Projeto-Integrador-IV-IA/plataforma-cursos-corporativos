@@ -8,6 +8,7 @@ API (RNF01).
 
 """
 
+from enum import StrEnum
 from uuid import UUID
 
 import httpx
@@ -22,6 +23,60 @@ from app.schemas.auth import LoginRequest, OperatorInfo, TokenResponse
 # Verificacao dummy reduz a diferenca de tempo entre e-mail inexistente e senha
 # incorreta. E apenas um hash bcrypt de teste, nao uma credencial utilizavel.
 _DUMMY_HASH = "$2b$12$heIORp2ABS9dP2B1M.hxTeb768cxVdQy7eUOAdLNbdkGWdI/VbfSW"
+
+
+class Role(StrEnum):
+    """Perfis reconhecidos pelo gateway.
+
+    Valores desconhecidos nunca recebem privilegios por acidente: a camada de
+    autenticacao os reduz a ``OPERADOR`` antes de criar o token.
+    """
+
+    OPERADOR = "OPERADOR"
+    REVISOR = "REVISOR"
+    ADMINISTRADOR = "ADMINISTRADOR"
+
+
+class Permission(StrEnum):
+    """Operacoes que podem ser protegidas por uma rota do gateway."""
+
+    READ = "read"
+    CREATE = "create"
+    UPDATE = "update"
+    REVIEW = "review"
+    APPROVE = "approve"
+    MANAGE_USERS = "manage_users"
+
+
+ALL_PERMISSIONS = frozenset(Permission)
+
+# Matriz central de autorizacao. A ausencia de uma permissao significa
+# negacao; nao existe fallback permissivo.
+PERMISSION_MATRIX: dict[Role, frozenset[Permission]] = {
+    Role.OPERADOR: frozenset({Permission.READ, Permission.CREATE, Permission.UPDATE}),
+    Role.REVISOR: frozenset({Permission.READ, Permission.REVIEW, Permission.APPROVE}),
+    Role.ADMINISTRADOR: ALL_PERMISSIONS,
+}
+
+
+def normalize_role(role: str | Role) -> Role:
+    """Converte o perfil persistido para um perfil conhecido e seguro."""
+
+    try:
+        return Role(str(role).strip().upper())
+    except ValueError:
+        return Role.OPERADOR
+
+
+def role_has_permission(role: str | Role, permission: str | Permission) -> bool:
+    """Retorna se o perfil possui a operacao, aplicando menor privilegio."""
+
+    normalized_role = normalize_role(role)
+    try:
+        normalized_permission = Permission(str(permission).strip().lower())
+    except ValueError:
+        return False
+    return normalized_permission in PERMISSION_MATRIX[normalized_role]
 
 
 class UserCredentials(BaseModel):
@@ -50,7 +105,10 @@ class AuthService:
             )
 
         authenticated = AuthenticatedUser(
-            id=user.id, name=user.name, email=str(user.email), role=user.role
+            id=user.id,
+            name=user.name,
+            email=str(user.email),
+            role=normalize_role(user.role).value,
         )
         token, expires_in = create_access_token(authenticated, self.settings)
         return TokenResponse(

@@ -12,6 +12,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
+from app.domain.enums import ArtifactOrigin
 from app.models.artifact import Artifact, ArtifactVersion
 
 
@@ -56,6 +57,14 @@ class ArtifactVersionRepository:
         )
         return self.session.scalar(statement) or 0
 
+    @staticmethod
+    def ai_origin_of(version: ArtifactVersion) -> int | None:
+        """Versao da IA de que ``version`` descende: ela mesma, se for da IA."""
+
+        if version.origin == ArtifactOrigin.IA.value:
+            return version.number
+        return version.ai_origin_number
+
     def append(
         self,
         artifact_id: UUID,
@@ -66,6 +75,7 @@ class ArtifactVersionRepository:
         raw_content: str | None = None,
         ai_metadata: dict[str, Any] | None = None,
         restored_from_number: int | None = None,
+        ai_origin_number: int | None = None,
     ) -> ArtifactVersion:
         """Insere a proxima versao, ligada a anterior; nunca toca nas existentes.
 
@@ -85,6 +95,7 @@ class ArtifactVersionRepository:
             raw_content=raw_content,
             ai_metadata=ai_metadata,
             restored_from_number=restored_from_number,
+            ai_origin_number=ai_origin_number,
         )
         self.session.add(version)
         self.session.flush()

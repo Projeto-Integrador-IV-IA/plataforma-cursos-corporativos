@@ -17,6 +17,7 @@ from app.schemas.artifact import (
     ArtifactRead,
     ArtifactResultCreate,
     ArtifactSourceRead,
+    ArtifactVersionCreate,
     ArtifactVersionRead,
 )
 
@@ -155,8 +156,73 @@ class ArtifactService:
             origin=ArtifactOrigin.HUMANO.value,
             author_id=author_id,
             restored_from_number=number,
+            ai_origin_number=self.versions.ai_origin_of(chosen),
         )
         return ArtifactVersionRead.model_validate(restored)
+
+    def edit_version(
+        self,
+        artifact_id: UUID,
+        data: ArtifactVersionCreate,
+        author_id: UUID,
+    ) -> ArtifactVersionRead:
+        """Salva a edicao humana como versao nova, vigente, e nunca sobrescreve (Q1, RF14).
+
+        A versao nova tem origem humana, aponta para a versao de que partiu
+        (``previous_number``) e para a versao da IA que originou a cadeia
+        (``ai_origin_number``). A edicao so e aceita sobre a vigente: se alguem
+        salvou no meio, devolve conflito em vez de apagar a edicao dele. So faz
+        ``flush``: o commit e da sessao da requisicao.
+        """
+
+        artifact = self.versions.get_artifact_for_update(artifact_id)
+        if artifact is None:
+            raise NotFoundError(
+                code="ARTIFACT_NOT_FOUND",
+                message="Artefato nao encontrado.",
+                details={"artifact_id": str(artifact_id)},
+            )
+        if self.session.get(User, author_id) is None:
+            raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
+
+        base = self.versions.get(artifact_id, data.base_number)
+        if base is None:
+            raise NotFoundError(
+                code="ARTIFACT_VERSION_NOT_FOUND",
+                message=f"O artefato nao tem a versao {data.base_number}.",
+                details={"artifact_id": str(artifact_id), "number": str(data.base_number)},
+            )
+
+        current = self.versions.latest_number(artifact_id)
+        if data.base_number != current:
+            raise ConflictError(
+                code="ARTIFACT_VERSION_NOT_CURRENT",
+                message=(
+                    f"A edicao partiu da versao {data.base_number}, mas a vigente e a "
+                    f"{current}. Recarregue o artefato e refaca a edicao."
+                ),
+                details={
+                    "artifact_id": str(artifact_id),
+                    "base_number": str(data.base_number),
+                    "current_number": str(current),
+                },
+            )
+
+        if data.structured_content == base.content:
+            raise ConflictError(
+                code="ARTIFACT_CONTENT_UNCHANGED",
+                message="O conteudo editado e igual ao da versao vigente; nada a salvar.",
+                details={"artifact_id": str(artifact_id), "number": str(current)},
+            )
+
+        edited = self.versions.append(
+            artifact_id,
+            content=data.structured_content,
+            origin=ArtifactOrigin.HUMANO.value,
+            author_id=author_id,
+            ai_origin_number=self.versions.ai_origin_of(base),
+        )
+        return ArtifactVersionRead.model_validate(edited)
 
     def list_versions(self, artifact_id: UUID) -> list[ArtifactVersionRead]:
         """Todas as versoes do artefato, da primeira a vigente (RF08)."""

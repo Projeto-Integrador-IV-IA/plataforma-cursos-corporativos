@@ -10,7 +10,9 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, Depends, status
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import require_permission
+from app.auth.jwt import AuthenticatedUser
+from app.services.auth_service import Permission
 from app.core.config import Settings, get_settings
 from app.schemas.auth import (
     ErrorResponse,
@@ -48,7 +50,9 @@ def login(
     response_model=SessionResponse,
     responses={status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse}},
 )
-def verify_session(user: CurrentUser) -> SessionResponse:
+def verify_session(
+    user: Annotated[AuthenticatedUser, Depends(require_permission(Permission.READ))],
+) -> SessionResponse:
     return SessionResponse(
         operator=OperatorInfo(id=user.id, name=user.name, email=user.email, role=user.role)
     )
