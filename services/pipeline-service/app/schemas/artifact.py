@@ -37,6 +37,15 @@ class ArtifactResultCreate(BaseModel):
         return value
 
 
+class ArtifactEditCreate(BaseModel):
+    """Edicao completa baseada na versao que o operador leu."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    base_version_number: int = Field(ge=1, description="Versao vigente lida antes da edicao.")
+    structured_content: dict[str, Any] = Field(min_length=1)
+
+
 class ArtifactSourceRead(BaseModel):
     """Referencia suficiente para recuperar e auditar uma fonte usada."""
 
@@ -51,6 +60,8 @@ class ArtifactVersionRead(BaseModel):
     """Versao de um artefato; a vigente e a de maior numero.
 
     ``previous_number`` liga a versao a sua antecessora e e nulo so na primeira.
+    ``ai_origin_number`` registra a versao IA que originou uma edicao humana;
+    versoes legadas e criadas por outros casos de uso podem nao ter esse campo.
     ``raw_output`` e ``ai_metadata`` sao nulos nas versoes humanas (edicao ou
     restauracao): nao ha saida bruta de modelo. ``restored_from_number`` so vem
     preenchido na versao criada por restauracao, e ela e o registro do evento -
@@ -62,6 +73,7 @@ class ArtifactVersionRead(BaseModel):
     id: UUID
     number: int
     previous_number: int | None
+    ai_origin_number: int | None = None
     raw_output: str | None = Field(validation_alias="raw_content")
     structured_content: dict[str, Any] = Field(validation_alias="content")
     origin: ArtifactOrigin

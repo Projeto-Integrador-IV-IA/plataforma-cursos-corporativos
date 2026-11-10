@@ -209,7 +209,30 @@ puro nao faz parte do modelo nem da resposta.
 
 ---
 
-## 13. Testes
+## 13. Salvar edicoes da estrutura (RF19.1 consolidado, #57)
+
+`POST /api/v1/artifacts/{artifact_id}/versions`, com `X-User-ID` do operador,
+recebe a estrutura completa e o numero da versao lida:
+
+```json
+{
+  "base_version_number": 1,
+  "structured_content": {"tema": "Lideranca revisada", "carga_horaria": 40}
+}
+```
+
+Cada salvamento cria uma versao `HUMANO` (201), inclusive se o conteudo enviado
+for igual ao anterior. `previous_number` registra a antecessora e `ai_origin_number`
+aponta diretamente para a versao IA que originou o conteudo. O bruto e os metadados
+de IA ficam na versao original; a edicao registra autor e data, sem aprovar a estrutura.
+
+A estrutura e um objeto JSON completo, nao um patch. Sua forma segue o mesmo contrato
+flexivel usado na persistencia de resultados; este endpoint nao reexecuta a IA.
+Versao base desatualizada retorna 409 (`ARTIFACT_VERSION_STALE`), sem criar registro.
+Artefato, versao ou autor inexistente retorna 404; entrada invalida retorna 422.
+A Q1 foi encerrada em `docs/01-requisitos/questoes-em-aberto.md`.
+
+## 14. Testes
 
 ```bash
 pytest

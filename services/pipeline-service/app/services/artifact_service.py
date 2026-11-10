@@ -14,6 +14,7 @@ from app.models.user import User
 from app.repositories.artifact_repository import ArtifactRepository
 from app.repositories.artifact_version_repository import ArtifactVersionRepository
 from app.schemas.artifact import (
+    ArtifactEditCreate,
     ArtifactRead,
     ArtifactResultCreate,
     ArtifactSourceRead,
@@ -104,6 +105,46 @@ class ArtifactService:
                 details={"demand_id": str(demand_id)},
             )
         return [self._to_read(artifact) for artifact in self.repository.list_by_demand(demand_id)]
+
+    def save_edit(
+        self, artifact_id: UUID, data: ArtifactEditCreate, author_id: UUID
+    ) -> ArtifactVersionRead:
+        """Cada salvamento cria uma versao humana, ligada a sua origem IA (RF19.1)."""
+        if self.versions.get_artifact_for_update(artifact_id) is None:
+            raise NotFoundError(code="ARTIFACT_NOT_FOUND", message="Artefato nao encontrado.")
+        if self.session.get(User, author_id) is None:
+            raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
+        base = self.versions.get(artifact_id, data.base_version_number)
+        if base is None:
+            raise NotFoundError(
+                code="ARTIFACT_VERSION_NOT_FOUND", message="Versao de origem nao encontrada."
+            )
+        if base.number != self.versions.latest_number(artifact_id):
+            raise ConflictError(
+                code="ARTIFACT_VERSION_STALE",
+                message="O artefato foi alterado. Recarregue a versao vigente antes de salvar.",
+            )
+        # Segue restauracoes e edicoes antigas sem vinculo explicito; nunca assume
+        # que a primeira versao e a IA que originou o conteudo atual.
+        source = base
+        while source.origin != ArtifactOrigin.IA.value:
+            number = (
+                source.ai_origin_number or source.restored_from_number or source.previous_number
+            )
+            source = self.versions.get(artifact_id, number) if number else None
+            if source is None:
+                raise ConflictError(
+                    code="ARTIFACT_AI_ORIGIN_NOT_FOUND",
+                    message="A estrutura nao possui uma versao de origem IA recuperavel.",
+                )
+        edited = self.versions.append(
+            artifact_id,
+            content=deepcopy(data.structured_content),
+            origin=ArtifactOrigin.HUMANO.value,
+            author_id=author_id,
+            ai_origin_number=source.number,
+        )
+        return ArtifactVersionRead.model_validate(edited)
 
     def restore_version(
         self,

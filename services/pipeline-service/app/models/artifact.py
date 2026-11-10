@@ -96,6 +96,16 @@ class ArtifactVersion(Base):
     __table_args__ = (
         sa.CheckConstraint("number > 0", name="number_positive"),
         sa.CheckConstraint(
+            "ai_origin_number IS NULL OR (ai_origin_number > 0 AND ai_origin_number < number)",
+            name="ai_origin_before_self",
+        ),
+        sa.ForeignKeyConstraint(
+            ["artifact_id", "ai_origin_number"],
+            ["artifact_versions.artifact_id", "artifact_versions.number"],
+            name="fk_artifact_versions_ai_origin",
+            ondelete="RESTRICT",
+        ),
+        sa.CheckConstraint(
             f"origin = '{ArtifactOrigin.IA.value}' OR author_id IS NOT NULL",
             name="human_requires_author",
         ),
@@ -137,6 +147,7 @@ class ArtifactVersion(Base):
         sa.Index("ix_artifact_versions_author_id", "author_id"),
         sa.Index("ix_artifact_versions_restored_from", "artifact_id", "restored_from_number"),
         sa.Index("ix_artifact_versions_previous", "artifact_id", "previous_number"),
+        sa.Index("ix_artifact_versions_ai_origin", "artifact_id", "ai_origin_number"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -173,6 +184,7 @@ class ArtifactVersion(Base):
     )
     # Versao imediatamente anterior do mesmo artefato; nula so na versao 1.
     previous_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    ai_origin_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     # Preenchido so na versao criada por restauracao: numero da versao restaurada,
     # do mesmo artefato e sempre anterior (FK composta e CHECK na migration).
     restored_from_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
