@@ -21,7 +21,9 @@
  */
 
 import { useId } from 'react';
+import { Link } from 'react-router-dom';
 
+import { PATHS } from '@/app/paths';
 import { STAGE_LABELS } from '@/features/demands/DemandListLabels';
 import { stageCount } from '@/features/pipeline/PipelineBoardLabels';
 import { PipelineCard } from '@/features/pipeline/PipelineCard';
@@ -37,10 +39,16 @@ export function PipelineStageColumn({ group }: PipelineStageColumnProps) {
   return (
     <li className="pipeline-board__column">
       <section className="pipeline-column" aria-labelledby={titleId}>
-        <h2 className="pipeline-column__title" id={titleId}>
-          {STAGE_LABELS[group.stage]}
-        </h2>
-        <p className="pipeline-column__count">{stageCount(group.items.length, group.total)}</p>
+        <Link
+          className="pipeline-column__link"
+          to={`${PATHS.demands}?etapa=${encodeURIComponent(group.stage)}`}
+          aria-label={`Ver demandas na etapa ${STAGE_LABELS[group.stage]}`}
+        >
+          <h2 className="pipeline-column__title" id={titleId}>
+            {STAGE_LABELS[group.stage]}
+          </h2>
+          <p className="pipeline-column__count">{stageCount(group.items.length, group.total)}</p>
+        </Link>
 
         {group.items.length === 0 ? (
           <p className="pipeline-column__empty">Nenhuma demanda nesta etapa.</p>

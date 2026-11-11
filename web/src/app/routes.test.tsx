@@ -31,10 +31,10 @@ describe('mapa de rotas', () => {
     expect(screen.getByRole('heading', { level: 1, name: titulo })).toBeDefined();
   });
 
-  it('redireciona a raiz para a lista de clientes', () => {
+  it('redireciona a raiz para o painel do pipeline', () => {
     renderRoute('/');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Clientes' })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: 'Pipeline' })).toBeDefined();
   });
 
   it('cai na tela de rota inexistente para caminho desconhecido', () => {
