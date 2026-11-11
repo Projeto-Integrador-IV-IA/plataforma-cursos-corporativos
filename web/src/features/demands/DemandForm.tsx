@@ -21,6 +21,7 @@ import { type FormEvent, useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
+import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { listClients } from '@/services/clients';
@@ -158,6 +159,7 @@ export function DemandForm() {
           {criacao.isPending ? 'Criando…' : 'Criar demanda'}
         </button>
       </div>
+      {criacao.isPending ? <ProcessingMessage operation="criacao da demanda" /> : null}
     </form>
   );
 }
