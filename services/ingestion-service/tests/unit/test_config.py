@@ -28,3 +28,20 @@ def test_service_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ValidationError):
         Settings()
+
+
+def test_source_limit_defaults_to_fifty_thousand_characters() -> None:
+    assert Settings().source_text_max_length == 50_000
+
+
+@pytest.mark.parametrize("limit", [10, 100, 60_000])
+def test_source_limit_is_configurable(monkeypatch: pytest.MonkeyPatch, limit: int) -> None:
+    monkeypatch.setenv("SOURCE_TEXT_MAX_LENGTH", str(limit))
+    assert Settings().source_text_max_length == limit
+
+
+@pytest.mark.parametrize("limit", ["0", "-1", "9", "1.5", "abc", ""])
+def test_invalid_source_limit_is_refused(monkeypatch: pytest.MonkeyPatch, limit: str) -> None:
+    monkeypatch.setenv("SOURCE_TEXT_MAX_LENGTH", limit)
+    with pytest.raises(ValidationError):
+        Settings()

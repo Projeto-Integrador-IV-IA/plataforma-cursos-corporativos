@@ -159,7 +159,7 @@ components:
           maxLength: 50000
           minLength: 10
           title: Text
-          description: Texto bruto preservado sem alteracoes. Deve conter pelo menos 10 caracteres nao brancos e no maximo 50.000 caracteres no total.
+          description: 'Texto bruto preservado sem alteracoes. Deve conter pelo menos 10 caracteres nao brancos. O tamanho total e limitado por SOURCE_TEXT_MAX_LENGTH (padrao: 50.000 caracteres), incluindo espacos e quebras de linha.'
         source_type:
           anyOf:
           - $ref: '#/components/schemas/SourceKind'
