@@ -134,4 +134,19 @@ linha do RNF13.
 | **RNF27** | Infraestrutura / IA | Desempenho assíncrono do STT | Atendido |
 | **RNF28** | Segurança / LGPD | Tratamento seguro de arquivos de áudio | Atendido |
 
+## RNF13 consolidado — limite de entrada (card #42)
+
+O RNF13 do Documento Consolidado de Requisitos v1.0 trata do limite
+configuravel das fontes; a linha RNF13 historica desta matriz trata de
+desacoplamento e corresponde ao RNF04 consolidado.
+
+O card #42 estende a validacao RF12 (#35) no `ingestion-service`:
+`core/config.py` define `SOURCE_TEXT_MAX_LENGTH` (padrao de 50.000 caracteres),
+`schemas/ingestion.py` recusa excesso com HTTP 422 antes da persistencia, e
+o OpenAPI da instancia informa o teto configurado. Os testes de configuracao
+e de captacao cobrem ausencia da variavel, valores invalidos, limites menores
+e maiores que o padrao, fronteira aceita e excesso recusado sem chamar o
+pipeline. Valor padrao, motivo e operacao estao no
+[README do servico](../../services/ingestion-service/README.md#9-limite-configuravel-da-fonte-rnf13-consolidado-card-42).
+
 

@@ -7,11 +7,17 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core import PydanticCustomError
 
+from app.core.config import get_settings
 from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
 from app.normalizers.source_detector import detect_source_type
 
 SOURCE_TEXT_MIN_CONTENT_LENGTH: Final[int] = 10
-SOURCE_TEXT_MAX_LENGTH: Final[int] = 50_000
+
+
+def source_text_schema(schema: dict[str, Any]) -> None:
+    """Publica o limite efetivo da instancia no OpenAPI."""
+
+    schema["maxLength"] = get_settings().source_text_max_length
 
 
 class IngestionCreate(BaseModel):
@@ -21,10 +27,11 @@ class IngestionCreate(BaseModel):
 
     text: str = Field(
         min_length=SOURCE_TEXT_MIN_CONTENT_LENGTH,
-        max_length=SOURCE_TEXT_MAX_LENGTH,
+        json_schema_extra=source_text_schema,
         description=(
             "Texto bruto preservado sem alteracoes. Deve conter pelo menos 10 caracteres "
-            "nao brancos e no maximo 50.000 caracteres no total."
+            "nao brancos. O tamanho total e limitado por SOURCE_TEXT_MAX_LENGTH "
+            "(padrao: 50.000 caracteres), incluindo espacos e quebras de linha."
         ),
     )
     source_type: SourceKind | None = Field(
@@ -51,18 +58,20 @@ class IngestionCreate(BaseModel):
                 "O conteudo da fonte deve ser enviado como texto.",
             )
 
+        maximum = get_settings().source_text_max_length
+        if len(value) > maximum:
+            raise PydanticCustomError(
+                "source_text_too_long",
+                "A fonte deve conter no maximo {maximum} caracteres.",
+                {"maximum": maximum},
+            )
+
         content_length = sum(not character.isspace() for character in value)
         if content_length < SOURCE_TEXT_MIN_CONTENT_LENGTH:
             raise PydanticCustomError(
                 "source_text_too_short",
                 "A fonte deve conter pelo menos {minimum} caracteres nao brancos.",
                 {"minimum": SOURCE_TEXT_MIN_CONTENT_LENGTH},
-            )
-        if len(value) > SOURCE_TEXT_MAX_LENGTH:
-            raise PydanticCustomError(
-                "source_text_too_long",
-                "A fonte deve conter no maximo {maximum} caracteres.",
-                {"maximum": SOURCE_TEXT_MAX_LENGTH},
             )
         return value
 
