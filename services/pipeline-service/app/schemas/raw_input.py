@@ -1,11 +1,20 @@
 """Contrato interno para persistir uma fonte bruta vinculada a uma demanda."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.enums import RawInputSource
+
+TextSourceKind = Literal[
+    RawInputSource.EMAIL,
+    RawInputSource.TRANSCRICAO,
+    RawInputSource.MENSAGENS,
+    RawInputSource.ANOTACAO,
+    RawInputSource.OUTRO,
+]
 
 
 class RawInputCreate(BaseModel):
@@ -14,7 +23,7 @@ class RawInputCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     original_content: str = Field(min_length=1)
-    source: RawInputSource
+    source: TextSourceKind
     previous_attempt_id: UUID | None = None
 
     @field_validator("source")

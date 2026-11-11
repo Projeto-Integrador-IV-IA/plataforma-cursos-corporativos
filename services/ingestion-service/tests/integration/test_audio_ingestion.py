@@ -169,6 +169,9 @@ def test_audio_cannot_be_declared_in_the_text_endpoint(api):
         headers={"X-User-ID": str(uuid4())},
     )
     assert response.status_code == 422
+    schema = api.get("/openapi.json").json()["components"]["schemas"]["IngestionCreate"]
+    source_options = schema["properties"]["source_type"]["anyOf"][0]["enum"]
+    assert "AUDIO" not in source_options
 
 
 @pytest.mark.parametrize("reply", [httpx.Response(201, json={}), httpx.Response(500)])

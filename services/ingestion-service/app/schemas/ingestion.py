@@ -10,6 +10,14 @@ from pydantic_core import PydanticCustomError
 from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
 from app.normalizers.source_detector import detect_source_type
 
+TextSourceKind = Literal[
+    SourceKind.EMAIL,
+    SourceKind.TRANSCRICAO,
+    SourceKind.MENSAGENS,
+    SourceKind.ANOTACAO,
+    SourceKind.OUTRO,
+]
+
 SOURCE_TEXT_MIN_CONTENT_LENGTH: Final[int] = 10
 SOURCE_TEXT_MAX_LENGTH: Final[int] = 50_000
 
@@ -27,7 +35,7 @@ class IngestionCreate(BaseModel):
             "nao brancos e no maximo 50.000 caracteres no total."
         ),
     )
-    source_type: SourceKind | None = Field(
+    source_type: TextSourceKind | None = Field(
         default=None,
         description=(
             "Canal declarado pelo operador; ausente ou nulo permite inferencia "

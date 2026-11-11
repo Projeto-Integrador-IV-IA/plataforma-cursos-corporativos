@@ -225,12 +225,21 @@ components:
           maxLength: 50000
           minLength: 10
           title: Text
-          description: Texto bruto preservado sem alteracoes. Deve conter pelo menos 10 caracteres nao brancos e no maximo 50.000 caracteres no total.
+          description: Texto bruto preservado sem alteracoes. Deve conter pelo menos 10
+            caracteres nao brancos e no maximo 50.000 caracteres no total.
         source_type:
           anyOf:
-          - $ref: '#/components/schemas/SourceKind'
+          - type: string
+            enum:
+            - EMAIL
+            - TRANSCRICAO
+            - MENSAGENS
+            - ANOTACAO
+            - OUTRO
           - type: 'null'
-          description: Canal declarado pelo operador; ausente ou nulo permite inferencia pelo formato do texto.
+          title: Source Type
+          description: Canal declarado pelo operador; ausente ou nulo permite inferencia
+            pelo formato do texto.
         demand_id:
           type: string
           format: uuid
@@ -249,7 +258,8 @@ components:
       - text
       - demand_id
       title: IngestionCreate
-      description: Texto, origem opcional e demanda de destino; a declaracao prevalece sobre a inferencia.
+      description: Texto, origem opcional e demanda de destino; a declaracao prevalece
+        sobre a inferencia.
     IngestionRead:
       properties:
         raw_input_id:
