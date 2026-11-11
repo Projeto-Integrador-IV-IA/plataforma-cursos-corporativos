@@ -68,7 +68,16 @@ class ArtifactVersionRead(BaseModel):
     ai_metadata: dict[str, Any] | None
     author_id: UUID | None
     restored_from_number: int | None
+    origin_number: int | None
     created_at: datetime
+
+
+class ArtifactVersionEdit(BaseModel):
+    """Conteudo corrigido pelo humano; salvar sempre cria uma nova versao."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    structured_content: dict[str, Any]
 
 
 class ArtifactRead(BaseModel):

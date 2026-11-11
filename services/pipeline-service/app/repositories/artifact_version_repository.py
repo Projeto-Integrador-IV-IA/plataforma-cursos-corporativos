@@ -66,6 +66,7 @@ class ArtifactVersionRepository:
         raw_content: str | None = None,
         ai_metadata: dict[str, Any] | None = None,
         restored_from_number: int | None = None,
+        origin_number: int | None = None,
     ) -> ArtifactVersion:
         """Insere a proxima versao, ligada a anterior; nunca toca nas existentes.
 
@@ -85,6 +86,7 @@ class ArtifactVersionRepository:
             raw_content=raw_content,
             ai_metadata=ai_metadata,
             restored_from_number=restored_from_number,
+            origin_number=origin_number,
         )
         self.session.add(version)
         self.session.flush()

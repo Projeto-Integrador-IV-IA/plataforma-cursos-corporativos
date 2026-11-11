@@ -134,9 +134,16 @@ class ArtifactVersion(Base):
             name="fk_artifact_versions_previous",
             ondelete="RESTRICT",
         ),
+        sa.ForeignKeyConstraint(
+            ["artifact_id", "origin_number"],
+            ["artifact_versions.artifact_id", "artifact_versions.number"],
+            name="fk_artifact_versions_origin",
+            ondelete="RESTRICT",
+        ),
         sa.Index("ix_artifact_versions_author_id", "author_id"),
         sa.Index("ix_artifact_versions_restored_from", "artifact_id", "restored_from_number"),
         sa.Index("ix_artifact_versions_previous", "artifact_id", "previous_number"),
+        sa.Index("ix_artifact_versions_origin", "artifact_id", "origin_number"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -176,6 +183,9 @@ class ArtifactVersion(Base):
     # Preenchido so na versao criada por restauracao: numero da versao restaurada,
     # do mesmo artefato e sempre anterior (FK composta e CHECK na migration).
     restored_from_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
+    # Versao da IA que originou a cadeia de revisao humana; todas as edicoes
+    # posteriores continuam apontando para ela.
+    origin_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True),
         nullable=False,

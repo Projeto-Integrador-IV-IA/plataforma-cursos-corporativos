@@ -32,7 +32,14 @@ das métricas de RNF04.
 
 - **Responsável:** Backend + IA
 - **Prazo:** antes do início da Fase 3 (16/09)
-- **Status:** ⬜ em aberto
+- **Status:** ✅ decidido
+
+**Decisão (10/11/2026).** Cada edição salva gera uma nova versão humana. A versão
+editada aponta para a versão gerada pela IA que originou a revisão, e nenhuma
+versão anterior é sobrescrita. A opção de rascunho fica para uma evolução futura;
+o endpoint atual persiste somente edições explicitamente salvas.
+
+- **Decisor:** Equipe do projeto
 
 ---
 

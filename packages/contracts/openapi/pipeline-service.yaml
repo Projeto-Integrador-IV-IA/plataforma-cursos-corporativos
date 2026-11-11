@@ -94,6 +94,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArtifactErrorResponse'
+  /api/v1/artifacts/{artifact_id}/versions/{number}:
+    patch:
+      tags:
+      - artifacts
+      summary: Salvar edicao humana como nova versao
+      description: Cria uma nova versao humana a partir da versao informada. A versao da IA que originou a revisao fica vinculada e nenhuma versao existente e sobrescrita.
+      operationId: edit_artifact_version_api_v1_artifacts__artifact_id__versions__number__patch
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      - name: number
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          description: Numero da versao revisada.
+          title: Number
+        description: Numero da versao revisada.
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtifactVersionEdit'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactVersionRead'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
   /api/v1/artifacts/{artifact_id}/versions/{number}/restore:
     post:
       tags:
@@ -1419,6 +1481,18 @@ components:
       - OUTRO
       title: ArtifactType
       description: Naturezas aceitas para um artefato consolidado (RF15).
+    ArtifactVersionEdit:
+      properties:
+        structured_content:
+          additionalProperties: true
+          type: object
+          title: Structured Content
+      additionalProperties: false
+      type: object
+      required:
+      - structured_content
+      title: ArtifactVersionEdit
+      description: Conteudo corrigido pelo humano; salvar sempre cria uma nova versao.
     ArtifactVersionRead:
       properties:
         id:
@@ -1461,6 +1535,11 @@ components:
           - type: integer
           - type: 'null'
           title: Restored From Number
+        origin_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Origin Number
         created_at:
           type: string
           format: date-time
@@ -1476,6 +1555,7 @@ components:
       - ai_metadata
       - author_id
       - restored_from_number
+      - origin_number
       - created_at
       title: ArtifactVersionRead
       description: 'Versao de um artefato; a vigente e a de maior numero.

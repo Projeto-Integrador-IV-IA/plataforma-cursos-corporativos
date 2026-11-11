@@ -17,6 +17,7 @@ from app.schemas.artifact import (
     ArtifactRead,
     ArtifactResultCreate,
     ArtifactSourceRead,
+    ArtifactVersionEdit,
     ArtifactVersionRead,
 )
 
@@ -155,8 +156,54 @@ class ArtifactService:
             origin=ArtifactOrigin.HUMANO.value,
             author_id=author_id,
             restored_from_number=number,
+            origin_number=chosen.origin_number or chosen.number,
         )
         return ArtifactVersionRead.model_validate(restored)
+
+    def edit_version(
+        self,
+        artifact_id: UUID,
+        number: int,
+        data: ArtifactVersionEdit,
+        author_id: UUID,
+    ) -> ArtifactVersionRead:
+        """Salva uma correcao humana como nova versao, sem sobrescrever a origem."""
+
+        artifact = self.versions.get_artifact_for_update(artifact_id)
+        if artifact is None:
+            raise NotFoundError(
+                code="ARTIFACT_NOT_FOUND",
+                message="Artefato nao encontrado.",
+                details={"artifact_id": str(artifact_id)},
+            )
+        if self.session.get(User, author_id) is None:
+            raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
+
+        selected = self.versions.get(artifact_id, number)
+        if selected is None:
+            raise NotFoundError(
+                code="ARTIFACT_VERSION_NOT_FOUND",
+                message=f"O artefato nao tem a versao {number}.",
+                details={"artifact_id": str(artifact_id), "number": str(number)},
+            )
+
+        origin_number = selected.origin_number or selected.number
+        origin = self.versions.get(artifact_id, origin_number)
+        if origin is None or origin.origin != ArtifactOrigin.IA.value:
+            raise ConflictError(
+                code="ARTIFACT_VERSION_ORIGIN_NOT_IA",
+                message="A edicao precisa partir de uma versao gerada pela IA.",
+                details={"artifact_id": str(artifact_id), "number": str(number)},
+            )
+
+        edited = self.versions.append(
+            artifact_id,
+            content=deepcopy(data.structured_content),
+            origin=ArtifactOrigin.HUMANO.value,
+            author_id=author_id,
+            origin_number=origin_number,
+        )
+        return ArtifactVersionRead.model_validate(edited)
 
     def list_versions(self, artifact_id: UUID) -> list[ArtifactVersionRead]:
         """Todas as versoes do artefato, da primeira a vigente (RF08)."""

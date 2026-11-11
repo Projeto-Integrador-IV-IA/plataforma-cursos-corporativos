@@ -11,11 +11,37 @@ from app.schemas.artifact import (
     ArtifactErrorResponse,
     ArtifactRead,
     ArtifactResultCreate,
+    ArtifactVersionEdit,
     ArtifactVersionRead,
 )
 from app.services.artifact_service import ArtifactService
 
 router = APIRouter(tags=["artifacts"])
+
+
+@router.patch(
+    "/artifacts/{artifact_id}/versions/{number}",
+    response_model=ArtifactVersionRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Salvar edicao humana como nova versao",
+    description=(
+        "Cria uma nova versao humana a partir da versao informada. A versao da IA que originou "
+        "a revisao fica vinculada e nenhuma versao existente e sobrescrita."
+    ),
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ArtifactErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ArtifactErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ArtifactErrorResponse},
+    },
+)
+def edit_artifact_version(
+    artifact_id: UUID,
+    number: Annotated[int, Path(ge=1, description="Numero da versao revisada.")],
+    data: ArtifactVersionEdit,
+    author_id: Annotated[UUID, Header(alias="X-User-ID")],
+    session: Annotated[Session, Depends(get_session)],
+) -> ArtifactVersionRead:
+    return ArtifactService(session).edit_version(artifact_id, number, data, author_id)
 
 
 @router.post(
