@@ -28,6 +28,15 @@ from app.models import (
 )
 
 EXPECTED_COLUMNS = {
+    "audio_inputs": {
+        "raw_input_id",
+        "filename",
+        "content_type",
+        "size_bytes",
+        "duration_seconds",
+        "sha256",
+        "content",
+    },
     "users": {"id", "name", "email", "password_hash", "role", "active", "created_at"},
     "clients": {
         "id",
@@ -167,7 +176,7 @@ def test_closed_vocabularies_match_initial_migration() -> None:
 
     assert enum_values(PipelineStage) == migration.PIPELINE_STAGES
     assert enum_values(DemandStatus) == migration.DEMAND_STATUSES
-    assert enum_values(RawInputSource) == migration.RAW_INPUT_SOURCES
+    assert enum_values(RawInputSource) == (*migration.RAW_INPUT_SOURCES, "AUDIO")
     assert enum_values(ArtifactType) == migration.ARTIFACT_TYPES
     assert enum_values(ArtifactOrigin) == migration.ARTIFACT_ORIGINS
 

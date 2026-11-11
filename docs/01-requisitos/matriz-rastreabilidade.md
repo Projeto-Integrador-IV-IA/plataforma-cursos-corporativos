@@ -95,6 +95,28 @@ continua no card #32, que complementa o RF10 consolidado.
 | `web` | RF03, RF04, RF05, RF06, RF09, RF14, RF17 |
 | Processo / repositório | RNF11, RNF13, RNF14, RNF15, RNF16 |
 
+## RF30 consolidado — captacao de audio (card #164)
+
+O card #164 define o RF30 como recebimento de audio; a linha RF30 da tabela
+historica acima trata de versionamento de transcricoes. Esta entrega registra
+a correspondencia sem substituir os IDs historicos.
+
+`POST /api/v1/ingestion/audio` valida arquivo e limites configuraveis de
+tamanho/duracao (RNF13), e o pipeline confirma binario e proveniencia `AUDIO`
+(RF10) antes de qualquer transcricao. A dependencia #30/RF09 esta integrada.
+Os limites iniciais sao 25.000.000 bytes e 3.600 segundos, seguindo a proposta
+de documentacao do card #175. Referencias: [captacao](../../services/ingestion-service/README.md#captacao-de-audio-rf30-card-164),
+[persistencia](../../services/pipeline-service/README.md#fontes-de-audio-rf30-card-164),
+contratos OpenAPI dos dois servicos, migration `20261110_1200`, testes
+`test_audio_ingestion.py` e `test_audio_inputs.py`.
+
+O arquivo `Requisitos_Consolidado.docx` fornecido confirma RF10 (proveniencia)
+e RNF13 (limite configuravel), mas nao contem uma entrada RF30. O escopo
+especifico de audio segue o card #164 e a expansao de escopo aprovada no #173.
+A integracao ElevenLabs (#165), retentativa/reprocessamento (#166),
+diarizacao e interface (#171) permanecem entregas separadas. `PENDENTE`
+na resposta indica arquivo recebido, sem job STT disparado nesta etapa.
+
 ## RF10 consolidado — ordem e preservação (card #32)
 
 O RF10 do Documento Consolidado v1.0 exige proveniência e ordem de recebimento;

@@ -10,6 +10,14 @@ from pydantic_core import PydanticCustomError
 from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
 from app.normalizers.source_detector import detect_source_type
 
+TextSourceKind = Literal[
+    SourceKind.EMAIL,
+    SourceKind.TRANSCRICAO,
+    SourceKind.MENSAGENS,
+    SourceKind.ANOTACAO,
+    SourceKind.OUTRO,
+]
+
 SOURCE_TEXT_MIN_CONTENT_LENGTH: Final[int] = 10
 SOURCE_TEXT_MAX_LENGTH: Final[int] = 50_000
 
@@ -27,7 +35,7 @@ class IngestionCreate(BaseModel):
             "nao brancos e no maximo 50.000 caracteres no total."
         ),
     )
-    source_type: SourceKind | None = Field(
+    source_type: TextSourceKind | None = Field(
         default=None,
         description=(
             "Canal declarado pelo operador; ausente ou nulo permite inferencia "
@@ -69,12 +77,16 @@ class IngestionCreate(BaseModel):
     @field_validator("source_type", mode="before")
     @classmethod
     def validate_source_type(cls, value: object) -> object:
+        if value == SourceKind.AUDIO:
+            raise PydanticCustomError(
+                "source_type_invalid", "Para audio, envie o arquivo em /api/v1/ingestion/audio."
+            )
         if value is None or isinstance(value, SourceKind):
             return value
         if isinstance(value, str) and value in {source.value for source in SourceKind}:
             return value
 
-        accepted = ", ".join(source.value for source in SourceKind)
+        accepted = ", ".join(source.value for source in SourceKind if source != SourceKind.AUDIO)
         raise PydanticCustomError(
             "source_type_invalid",
             "O formato da fonte e invalido. Use um de: {accepted}.",
@@ -111,6 +123,40 @@ class IngestionRead(BaseModel):
             previous_attempt_id=persisted.previous_attempt_id,
             created_at=persisted.created_at,
         )
+
+
+class AudioMetadata(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str
+    size_bytes: int = Field(gt=0)
+    duration_seconds: float = Field(gt=0, allow_inf_nan=False)
+    sha256: str = Field(pattern="^[a-f0-9]{64}$")
+
+
+class AudioPersistenceRead(BaseModel):
+    """Confirmacao do pipeline, incluindo integridade e proveniencia do arquivo."""
+
+    id: UUID
+    demand_id: UUID
+    source: Literal["AUDIO"]
+    author_id: UUID
+    received_order: int = Field(ge=1)
+    created_at: datetime
+    audio: AudioMetadata
+
+
+class AudioIngestionRead(BaseModel):
+    """Arquivo confirmado; a integracao STT pertence ao card #165."""
+
+    raw_input_id: UUID
+    demand_id: UUID
+    source_type: Literal["AUDIO"] = "AUDIO"
+    author_id: UUID
+    received_order: int = Field(ge=1)
+    created_at: datetime
+    status: Literal["RECEBIDA"] = "RECEBIDA"
+    transcription_status: Literal["PENDENTE"] = "PENDENTE"
+    audio: AudioMetadata
 
 
 class ErrorBody(BaseModel):

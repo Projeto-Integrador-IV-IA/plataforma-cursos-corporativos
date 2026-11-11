@@ -112,6 +112,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/ingestion/audio:
+    post:
+      tags:
+      - ingestion
+      summary: Captar arquivo de audio como fonte da demanda
+      description: 'Valida formato, tamanho e duracao e persiste o arquivo original
+        e a proveniencia antes de qualquer transcricao. STT permanece PENDENTE (card
+        #165).'
+      operationId: capture_audio_api_v1_ingestion_audio_post
+      parameters:
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_capture_audio_api_v1_ingestion_audio_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioIngestionRead'
+        '404':
+          description: Demanda ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflito de referencia durante a persistencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Audio excede o tamanho maximo configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Audio, duracao ou identificadores invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Pipeline indisponivel ou confirmacao invalida.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Timeout ao confirmar persistencia do audio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -162,8 +228,15 @@ components:
           description: Texto bruto preservado sem alteracoes. Deve conter pelo menos 10 caracteres nao brancos e no maximo 50.000 caracteres no total.
         source_type:
           anyOf:
-          - $ref: '#/components/schemas/SourceKind'
+          - type: string
+            enum:
+            - EMAIL
+            - TRANSCRICAO
+            - MENSAGENS
+            - ANOTACAO
+            - OUTRO
           - type: 'null'
+          title: Source Type
           description: Canal declarado pelo operador; ausente ou nulo permite inferencia pelo formato do texto.
         demand_id:
           type: string
@@ -228,5 +301,101 @@ components:
       - MENSAGENS
       - ANOTACAO
       - OUTRO
+      - AUDIO
       title: SourceKind
       description: Origens aceitas, alinhadas ao vocabulario persistido pelo pipeline.
+    AudioIngestionRead:
+      properties:
+        raw_input_id:
+          type: string
+          format: uuid
+          title: Raw Input Id
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+        source_type:
+          type: string
+          const: AUDIO
+          title: Source Type
+          default: AUDIO
+        author_id:
+          type: string
+          format: uuid
+          title: Author Id
+        received_order:
+          type: integer
+          minimum: 1.0
+          title: Received Order
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        status:
+          type: string
+          const: RECEBIDA
+          title: Status
+          default: RECEBIDA
+        transcription_status:
+          type: string
+          const: PENDENTE
+          title: Transcription Status
+          default: PENDENTE
+        audio:
+          $ref: '#/components/schemas/AudioMetadata'
+      type: object
+      required:
+      - raw_input_id
+      - demand_id
+      - author_id
+      - received_order
+      - created_at
+      - audio
+      title: AudioIngestionRead
+      description: 'Arquivo confirmado; a integracao STT pertence ao card #165.'
+    AudioMetadata:
+      properties:
+        filename:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Filename
+        content_type:
+          type: string
+          title: Content Type
+        size_bytes:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Size Bytes
+        duration_seconds:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Duration Seconds
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          title: Sha256
+      type: object
+      required:
+      - filename
+      - content_type
+      - size_bytes
+      - duration_seconds
+      - sha256
+      title: AudioMetadata
+    Body_capture_audio_api_v1_ingestion_audio_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+          description: Arquivo WAV, MP3, M4A, OGG ou FLAC.
+        demand_id:
+          type: string
+          format: uuid
+          title: Demand Id
+      type: object
+      required:
+      - file
+      - demand_id
+      title: Body_capture_audio_api_v1_ingestion_audio_post

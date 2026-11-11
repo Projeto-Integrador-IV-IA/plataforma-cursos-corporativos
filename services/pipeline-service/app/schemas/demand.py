@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.enums import DemandStatus, PipelineStage, RawInputSource
+from app.schemas.raw_input import AudioMetadata
 
 DemandClientId = Annotated[
     UUID,
@@ -124,6 +125,7 @@ class DemandRawInputRead(BaseModel):
     truncated: bool
     author_id: UUID
     created_at: datetime
+    audio: AudioMetadata | None = None
 
 
 class DemandDetail(DemandRead):
