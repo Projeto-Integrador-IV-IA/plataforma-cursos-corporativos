@@ -175,4 +175,3 @@ Testes: `python -m pytest tests/integration/test_audio_ingestion.py`.
 ```bash
 pytest
 ```
-
