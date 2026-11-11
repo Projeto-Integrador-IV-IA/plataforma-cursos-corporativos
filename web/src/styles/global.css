@@ -1240,6 +1240,12 @@ body {
   background: var(--cor-sucesso-fundo);
 }
 
+.structuring-status__state--aguardando-revisao {
+  border-left-style: solid;
+  border-left-color: var(--cor-destaque);
+  background: var(--cor-destaque-fundo);
+}
+
 .structuring-status__state--erro {
   border-left-style: dashed;
   border-left-color: var(--cor-erro);
@@ -1267,6 +1273,18 @@ body {
   color: var(--cor-texto-suave);
   font-size: 0.875rem;
   overflow-wrap: anywhere;
+}
+
+.structuring-status__failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.structuring-status__failure .demand-detail__failure {
+  flex: 1 1 18rem;
+  margin: 0;
 }
 
 /*
