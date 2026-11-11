@@ -8,9 +8,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
+from app.domain.enums import RawInputSource
 from app.models import Demand, RawInput, User
+from app.models.audio_input import AudioInput
 from app.repositories.raw_input_repository import RawInputRepository
-from app.schemas.raw_input import RawInputCreate, RawInputNormalization
+from app.schemas.raw_input import AudioMetadata, RawInputCreate, RawInputNormalization
 
 
 class RawInputService:
@@ -31,6 +33,28 @@ class RawInputService:
         return raw_input
 
     def create(self, demand_id: UUID, author_id: UUID, data: RawInputCreate) -> RawInput:
+        return self._create(
+            demand_id, author_id, data.original_content, data.source, data.previous_attempt_id
+        )
+
+    def create_audio(
+        self, demand_id: UUID, author_id: UUID, metadata: AudioMetadata, content: bytes
+    ) -> RawInput:
+        """Grava bytes e proveniencia em uma unica transacao, sem chamar STT."""
+
+        raw_input = self._create(demand_id, author_id, "", RawInputSource.AUDIO, None)
+        raw_input.audio = AudioInput(**metadata.model_dump(), content=content)
+        self.session.flush()
+        return raw_input
+
+    def _create(
+        self,
+        demand_id: UUID,
+        author_id: UUID,
+        original_content: str,
+        source: RawInputSource,
+        previous_attempt_id: UUID | None,
+    ) -> RawInput:
         # Serializa captacoes da mesma demanda ate o commit do original.
         # O bloqueio no pai tambem protege a primeira fonte, quando MAX e nulo.
         demand = self.session.scalar(
@@ -49,27 +73,27 @@ class RawInputService:
                 details={"author_id": str(author_id)},
             )
 
-        if data.previous_attempt_id is not None:
-            previous = self.session.get(RawInput, data.previous_attempt_id)
+        if previous_attempt_id is not None:
+            previous = self.session.get(RawInput, previous_attempt_id)
             if previous is None:
                 raise NotFoundError(
                     code="RAW_INPUT_NOT_FOUND",
                     message="Tentativa anterior nao encontrada.",
-                    details={"previous_attempt_id": str(data.previous_attempt_id)},
+                    details={"previous_attempt_id": str(previous_attempt_id)},
                 )
             if previous.demand_id != demand_id:
                 raise ConflictError(
                     code="RAW_INPUT_ATTEMPT_DEMAND_MISMATCH",
                     message="A tentativa anterior pertence a outra demanda.",
-                    details={"previous_attempt_id": str(data.previous_attempt_id)},
+                    details={"previous_attempt_id": str(previous_attempt_id)},
                 )
 
         raw_input = RawInput(
             demand_id=demand_id,
             author_id=author_id,
-            original_content=data.original_content,
-            source=data.source.value,
-            previous_attempt_id=data.previous_attempt_id,
+            original_content=original_content,
+            source=source.value,
+            previous_attempt_id=previous_attempt_id,
             received_order=self.repository.next_received_order(demand_id),
         )
         try:

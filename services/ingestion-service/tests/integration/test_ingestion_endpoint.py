@@ -125,7 +125,7 @@ def test_missing_or_null_source_is_inferred_before_persisting(
     assert pipeline.sanitizacoes[0][1] == "Precisamos de 20 vagas."
 
 
-@pytest.mark.parametrize("source", list(SourceKind))
+@pytest.mark.parametrize("source", [source for source in SourceKind if source != SourceKind.AUDIO])
 def test_operator_choice_overrides_inference(
     api: TestClient, pipeline: PipelineDublado, source: SourceKind
 ) -> None:

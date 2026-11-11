@@ -31,6 +31,8 @@ class RawInputSource(StrEnum):
     ANOTACAO = "ANOTACAO"
     OUTRO = "OUTRO"
 
+    AUDIO = "AUDIO"
+
 
 class ArtifactType(StrEnum):
     """Naturezas aceitas para um artefato consolidado (RF15)."""

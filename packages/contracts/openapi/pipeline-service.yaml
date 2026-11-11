@@ -1296,6 +1296,94 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SourceSegmentErrorResponse'
+  /api/v1/demands/{demand_id}/audio-inputs:
+    post:
+      tags:
+      - raw-inputs
+      summary: Persistir arquivo original de audio e proveniencia
+      description: 'Rota interna do ingestion-service: recebe arquivo ja validado e
+        duracao medida na captacao. Confirma commit do binario antes de devolver 201.'
+      operationId: create_audio_input_api_v1_demands__demand_id__audio_inputs_post
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_create_audio_input_api_v1_demands__demand_id__audio_inputs_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputRead'
+        '404':
+          description: Demanda ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '409':
+          description: Referencia removida durante a persistencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Arquivo ou metadados invalidos ou acima dos limites configurados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}/audio:
+    get:
+      tags:
+      - raw-inputs
+      summary: Recuperar arquivo original de audio
+      operationId: download_audio_api_v1_raw_inputs__raw_input_id__audio_get
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      responses:
+        '200':
+          description: Bytes originais do arquivo, sem transcodificacao.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Fonte ou arquivo inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   securitySchemes:
     bearerAuth:
@@ -2012,6 +2100,10 @@ components:
           type: string
           format: date-time
           title: Created At
+        audio:
+          anyOf:
+          - $ref: '#/components/schemas/AudioMetadata'
+          - type: 'null'
       type: object
       required:
       - id
@@ -2022,8 +2114,8 @@ components:
       - author_id
       - created_at
       title: DemandRawInputRead
-      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada
-        se perdeu.
+      description: 'Fonte bruta captada, devolvida no detalhe para provar que nada se
+        perdeu.
 
 
         O conteudo original entra por inteiro: preserva-lo e o proprio requisito
@@ -2594,6 +2686,10 @@ components:
           type: string
           format: date-time
           title: Created At
+        audio:
+          anyOf:
+          - $ref: '#/components/schemas/AudioMetadata'
+          - type: 'null'
       type: object
       required:
       - id
@@ -2616,6 +2712,7 @@ components:
       - MENSAGENS
       - ANOTACAO
       - OUTRO
+      - AUDIO
       title: RawInputSource
       description: Origens aceitas para uma fonte bruta.
     RollbackRequest:
@@ -2749,3 +2846,51 @@ components:
       - total
       title: StageTransitionTimeline
       description: Linha do tempo de uma demanda, do mais antigo ao mais recente.
+    AudioMetadata:
+      properties:
+        filename:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Filename
+        content_type:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Content Type
+        size_bytes:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Size Bytes
+        duration_seconds:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Duration Seconds
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+          title: Sha256
+      type: object
+      required:
+      - filename
+      - content_type
+      - size_bytes
+      - duration_seconds
+      - sha256
+      title: AudioMetadata
+      description: Metadados consultaveis sem carregar o binario nas listagens.
+    Body_create_audio_input_api_v1_demands__demand_id__audio_inputs_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+        duration_seconds:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Duration Seconds
+      type: object
+      required:
+      - file
+      - duration_seconds
+      title: Body_create_audio_input_api_v1_demands__demand_id__audio_inputs_post

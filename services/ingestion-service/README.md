@@ -111,8 +111,68 @@ O remetente citado no texto nao e confundido com o operador identificado pelo
 cabecalho `X-User-ID`. Nao ha novo campo nem migration: a proveniencia reutiliza as colunas
 introduzidas no RF09. A ordenacao de recebimento pertence ao card #32.
 
+## Captacao de audio (RF30, card #164)
+
+`POST /api/v1/ingestion/audio` recebe `multipart/form-data` com os campos
+`file` (arquivo) e `demand_id` (UUID), mais o cabecalho obrigatorio `X-User-ID`
+(operador). `X-Request-ID` e propagado ao pipeline e aos erros.
+
+Formatos aceitos: **WAV PCM, MP3, M4A, OGG Vorbis/Opus e FLAC**. A extensao e
+o MIME sao confrontados com o formato identificado no conteudo. O MIME
+generico `application/octet-stream` e aceito apenas quando a inspecao confirma
+o formato. A duracao vem dos metadados do arquivo, lidos pelo Mutagen; nao e
+um valor informado pelo operador. Isso valida o container e os metadados,
+sem transcrever ou executar uma decodificacao completa de todos os formatos.
+WAV PCM tambem e verificado contra truncamento dos frames declarados.
+
+| Variavel | Padrao | Unidade e regra |
+|---|---|---|
+| `AUDIO_MAX_BYTES` | `25000000` | Bytes do arquivo, ate 25 MB decimais; inteiro positivo |
+| `AUDIO_MAX_DURATION_SECONDS` | `3600` | Segundos, ate 60 minutos; numero positivo e finito |
+
+Os valores iniciais seguem os limites propostos na documentacao de STT
+(card #175 / PR #291). Limitam armazenamento, duracao e custo potencial antes
+da integracao do provedor; devem ser revistos apos medicao da PoC.
+O limite e inclusivo. Arquivo maior retorna **413 / AUDIO_TOO_LARGE**, com
+o maximo em bytes; duracao maior retorna **422 / AUDIO_TOO_LONG**, com o maximo
+em segundos. Formato invalido retorna **422 / AUDIO_INVALID_FORMAT**.
+
+Exporte as variaveis no processo ou use o `.env` da raiz com Docker Compose.
+O Compose encaminha os mesmos limites a ingestao e pipeline. Recrie os
+containers apos alterar a configuracao; no uso isolado, configure ambos e
+reinicie os processos. O arquivo e lido ate o teto mais um byte para detectar
+excesso sem carregar o restante na validacao. O parser multipart pode usar
+arquivo temporario durante o recebimento; ele nao e o armazenamento duravel.
+
+O pipeline grava o binario integral e SHA-256 em `audio_inputs`, ligado a
+`raw_inputs`, na mesma transacao. A fonte registra `AUDIO`, demanda, operador,
+data e ordem de recebimento. O commit ocorre antes do HTTP 201 e nenhuma
+chamada STT ocorre durante a captacao. A resposta traz `raw_input_id`,
+`audio` (metadados), `status=RECEBIDA` e `transcription_status=PENDENTE`.
+Esse estado informa que o arquivo foi captado: nao representa um job ja
+disparado. A integracao ElevenLabs e o reprocessamento pertencem aos cards
+#165 e #166. Esta entrega nao efetua chamadas pagas.
+
+Para recuperar o original, consulte no pipeline
+`GET /api/v1/raw-inputs/{raw_input_id}/audio`. O endpoint devolve os bytes,
+o MIME e `X-Content-SHA256`; os metadados aparecem tambem na consulta da fonte
+e no detalhe da demanda. Nao se grava nome de arquivo como se fosse texto:
+em fontes `AUDIO`, `original_content` fica vazio e `normalized_content` nulo
+ate o trabalho de transcricao. O endpoint de texto recusa `source_type=AUDIO`
+e orienta usar o upload.
+
+```sh
+curl -X POST http://localhost:8002/api/v1/ingestion/audio \
+  -H "X-User-ID: <UUID-do-operador>" \
+  -F "demand_id=<UUID-da-demanda>" \
+  -F "file=@reuniao.wav;type=audio/wav"
+```
+
+Testes: `python -m pytest tests/integration/test_audio_ingestion.py`.
+
 ## 8. Testes
 
 ```bash
 pytest
 ```
+

@@ -13,6 +13,7 @@ from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
     from app.models.artifact import Artifact, ArtifactSource
+    from app.models.audio_input import AudioInput
     from app.models.demand import Demand
     from app.models.user import User
 
@@ -91,6 +92,7 @@ class RawInput(Base):
 
     demand: Mapped["Demand"] = relationship(back_populates="raw_inputs")
     author: Mapped["User"] = relationship(back_populates="raw_inputs")
+    audio: Mapped["AudioInput | None"] = relationship(back_populates="raw_input")
     previous_attempt: Mapped["RawInput | None"] = relationship(
         "RawInput",
         primaryjoin="RawInput.previous_attempt_id == RawInput.id",

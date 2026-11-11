@@ -14,6 +14,7 @@ class SourceKind(StrEnum):
     MENSAGENS = "MENSAGENS"
     ANOTACAO = "ANOTACAO"
     OUTRO = "OUTRO"
+    AUDIO = "AUDIO"
 
 
 @dataclass(frozen=True, slots=True)

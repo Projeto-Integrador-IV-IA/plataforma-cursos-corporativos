@@ -189,6 +189,15 @@ Demanda com status diferente de `ABERTA` não muda de etapa.
 | `raw_inputs` | `embedding vector_cosine_ops` (HNSW/IVFFlat) | Busca vetorial semântica via `pgvector` (ADR-0007) |
 | `clients` | `name` com `unaccent` | Busca de cliente sem acento (RF03) — **pendente** |
 
+## Fonte de audio (RF30 consolidado, #164)
+
+`raw_inputs` passa a aceitar `source=AUDIO`. A relacao opcional 1:1
+`raw_inputs.id → audio_inputs.raw_input_id` guarda os bytes, nome, MIME,
+tamanho, duracao e SHA-256, com FK restritiva e arquivo imutavel.
+Para audio, `original_content` e vazio e a transcricao futura sera tratada
+separadamente; a captacao nao inventa texto nem chama STT antes do commit.
+As listagens incluem somente metadados; o download carrega o binario.
+
 ## Questões que afetam este modelo
 
 - **[Q1](../01-requisitos/questoes-em-aberto.md#q1--revisão--versionamento-de-artefato)** — editar a saída da IA cria versão nova ou usa rascunho? Muda `artifact_versions`. **Fechar antes da Fase 3.**

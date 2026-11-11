@@ -1,5 +1,35 @@
 # pipeline-service
 
+## Fontes de audio (RF30, card #164)
+
+A migration `20261110_1200` acrescenta `AUDIO` ao vocabulario de fontes e
+cria `audio_inputs`, contendo o binario e seus metadados, com FK para a fonte
+bruta. O arquivo e a proveniencia sao confirmados na mesma transacao.
+O binario usa BYTEA no PostgreSQL e nao depende do disco local da ingestao.
+UPDATE/DELETE sao recusados por triggers no PostgreSQL e SQLite e por guarda
+do ORM. O binario e carregado sob demanda, fora das listagens de fontes.
+
+`POST /api/v1/demands/{demand_id}/audio-inputs` e a rota interna consumida
+pelo ingestion-service, que envia `file`, a duracao medida em
+`duration_seconds` e `X-User-ID`. A validacao de formato e duracao real e
+feita na captacao; esta rota interna confere os limites novamente, calcula
+tamanho/SHA-256 e confirma o commit antes de devolver 201.
+
+`GET /api/v1/raw-inputs/{id}/audio` recupera o arquivo original.
+`RawInputRead.audio` e `DemandRawInputRead.audio` expõem os metadados sem
+incluir o binario no JSON. Para texto, `audio` e nulo. Para audio,
+`original_content` e vazio: nao ha transcricao nem texto artificial.
+
+Configure `AUDIO_MAX_BYTES=25000000` e
+`AUDIO_MAX_DURATION_SECONDS=3600` em ambos os servicos; o Compose compartilha
+esses valores. Os padroes representam 25 MB decimais e 60 minutos.
+
+Execute `alembic upgrade head` antes de subir os servicos. O downgrade para
+antes dessa migration e **recusado se existirem fontes AUDIO**, para nao
+apagar arquivos ou perder a proveniencia. Sem fontes AUDIO, o downgrade
+remove apenas a estrutura nova. Testes: `python -m pytest
+tests/integration/test_audio_inputs.py`.
+
 Nucleo do CRM: clientes, demandas, etapas do pipeline, historico e artefatos versionados. **Dono do banco de dados relacional** do sistema. Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `8001`
