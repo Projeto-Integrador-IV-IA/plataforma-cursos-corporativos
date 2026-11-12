@@ -6,7 +6,7 @@
  *
  * Responsabilidades:
  *  - ler a URL base de `VITE_API_BASE_URL` (RNF11);
- *  - anexar o token de acesso em toda requisicao autenticada (RF16);
+ *  - anexar o token de acesso em toda requisicao autenticada (RF26);
  *  - traduzir o corpo de erro padronizado da plataforma em erro tipado,
  *    conforme `packages/contracts/schemas/error.schema.json`;
  *  - aplicar timeouts distintos: operacoes de CRM seguem o alvo de RNF07,
@@ -117,7 +117,7 @@ export function isApiError(value: unknown): value is ApiError {
 }
 
 // ---------------------------------------------------------------------------
-// Sessao (RF16)
+// Sessao (RF26)
 // ---------------------------------------------------------------------------
 
 let accessToken: string | null = null;
@@ -354,8 +354,11 @@ export async function request<TResponse, TBody = unknown>(
 
   if (!response.ok) {
     if (response.status === 401) {
+      const hadSession = accessToken !== null;
       accessToken = null;
-      unauthorizedHandler?.();
+      if (hadSession) {
+        unauthorizedHandler?.();
+      }
     }
 
     throw toApiError(response, payload, requestId);

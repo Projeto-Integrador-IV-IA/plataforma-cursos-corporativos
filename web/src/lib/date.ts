@@ -1,5 +1,5 @@
 /**
- * Utilitário único para formatação de datas e horários no frontend (RNF17).
+ * Utilitário único para formatação de datas e horários no frontend (RNF18).
  * Fuso horário padrão de exibição: America/Sao_Paulo (Horário de Brasília - UTC-3).
  * O armazenamento no backend permanece estritamente normalizado em UTC (ISO 8601).
  */

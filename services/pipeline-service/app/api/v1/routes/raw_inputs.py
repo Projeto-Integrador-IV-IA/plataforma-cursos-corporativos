@@ -30,11 +30,11 @@ router = APIRouter(tags=["raw-inputs"])
     responses={
         status.HTTP_404_NOT_FOUND: {
             "model": RawInputErrorResponse,
-            "description": "Demanda ou operador inexistente.",
+            "description": "Demanda, operador ou tentativa anterior inexistente.",
         },
         status.HTTP_409_CONFLICT: {
             "model": RawInputErrorResponse,
-            "description": "Referencia removida durante a persistencia.",
+            "description": "Referencia removida ou tentativa anterior de outra demanda.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": RawInputErrorResponse,
@@ -76,6 +76,30 @@ def get_raw_input(
     session: Annotated[Session, Depends(get_session)],
 ) -> RawInputRead:
     return RawInputRead.model_validate(RawInputService(session).get(raw_input_id))
+
+
+@router.get(
+    "/raw-inputs/{raw_input_id}/attempts",
+    response_model=list[RawInputRead],
+    summary="Consultar historico de reprocessamento",
+    description="Retorna a tentativa inicial e seus reprocessamentos em ordem de recebimento.",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": RawInputErrorResponse,
+            "description": "Fonte bruta inexistente.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": RawInputErrorResponse,
+            "description": "Identificador invalido.",
+        },
+    },
+)
+def get_raw_input_attempts(
+    raw_input_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+) -> list[RawInputRead]:
+    attempts = RawInputService(session).list_attempts(raw_input_id)
+    return [RawInputRead.model_validate(attempt) for attempt in attempts]
 
 
 @router.patch(
