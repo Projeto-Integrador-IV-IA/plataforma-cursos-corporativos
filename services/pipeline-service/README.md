@@ -53,13 +53,17 @@ Como o `pipeline-service` é o dono do banco relacional, todas as alterações d
 Antes de subir a aplicação ou executar testes integrados, atualize a base local:
 ```bash
 alembic upgrade head
+```
 
-Criar uma nova migração
-Após alterar ou criar modelos ORM em app/models/, gere o script de migração:
+### Criar uma nova migração
 
+Após alterar ou criar modelos ORM em `app/models/`, gere o script de migração:
+
+```bash
 alembic revision --autogenerate -m "descricao_da_alteracao"
+```
 
-Atenção: Sempre verifique o arquivo gerado dentro de alembic/versions/ antes de realizar o commit.
+Sempre verifique o arquivo gerado dentro de `alembic/versions/` antes de realizar o commit.
 
 ---
 
@@ -69,9 +73,9 @@ Crie um arquivo `.env` na raiz de `services/pipeline-service/` com base no `.env
 
 | Variável | Descrição | Padrão / Exemplo |
 | :--- | :--- | :--- |
-| **DATABASE_URL** | String de conexão com o PostgreSQL | `postgresql://user:pass@localhost:5432/db_name` |
+| **DATABASE_URL** | String de conexão com o PostgreSQL | `postgresql://<user>:<password>@localhost:5432/db_name` |
 | **PIPELINE_PORT** | Porta em que o Uvicorn irá escutar | `8001` |
-| **AUTH_SERVICE_KEY** | Chave de comunicação interna entre serviços | `chave-secreta-interna` |
+| **AUTH_SERVICE_KEY** | Chave de comunicação interna entre serviços | `<chave-interna>` |
 
 ---
 
@@ -82,9 +86,9 @@ Crie um arquivo `.env` na raiz de `services/pipeline-service/` com base no `.env
 pip install -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload --port "$PIPELINE_PORT"
+```
 
-Criacao, consulta e edicao de contexto de demandas implementadas. As demais rotas, incluindo o
-cadastro de clientes (dependencia RF01.1), ainda sao scaffolding nesta branch.
+O Swagger fica em `http://localhost:8001/docs` quando o serviço estiver em execução.
 
 ---
 
@@ -115,8 +119,7 @@ Com as variaveis de ambiente configuradas, aplique o schema antes de iniciar:
 
 ```bash
 alembic upgrade head
-
-O Swagger fica em `http://localhost:8001/docs` quando o servico estiver em execucao. 
+```
 
 `POST /api/v1/demands` aceita, por exemplo:
 
@@ -127,6 +130,7 @@ O Swagger fica em `http://localhost:8001/docs` quando o servico estiver em execu
   "description": "Capacitacao de vinte gestores.",
   "owner_id": "00000000-0000-0000-0000-000000000001"
 }
+```
 
 Substitua os IDs por registros existentes no banco. `client_id` e `title` sao
 obrigatorios; contexto (`description`) e responsavel (`owner_id`) sao opcionais.
@@ -209,7 +213,7 @@ puro nao faz parte do modelo nem da resposta.
 
 ```bash
 pytest
+```
 
 Os testes de criacao usam SQLite temporario com a cadeia Alembic aplicada e FKs
 habilitadas; nao criam registros no banco do projeto.
-

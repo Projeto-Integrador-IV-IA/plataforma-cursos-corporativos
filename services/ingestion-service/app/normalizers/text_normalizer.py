@@ -3,6 +3,8 @@
 import html
 import re
 import unicodedata
+from collections.abc import Iterable
+from difflib import SequenceMatcher
 from html.parser import HTMLParser
 from typing import ClassVar
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -41,6 +43,7 @@ _LINE_MARKER = re.compile(r"^\s*(?:>{1,3}\s*|#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)")
 _ZERO_WIDTH = re.compile("[\u200b-\u200f\u2060\ufeff]")
 _HORIZONTAL_SPACE = re.compile(r"[^\S\n]+")
 _BLANK_LINES = re.compile(r"\n{3,}")
+_SOURCE_SEPARATOR = "\n\n"
 
 
 class _TextExtractor(HTMLParser):
@@ -108,6 +111,29 @@ def normalize_text(text: str, source_type: SourceKind) -> str:
     return normalized.strip()
 
 
+def concatenate_normalized_sources(sources: Iterable[str]) -> str:
+    """Monta o texto comum da estruturacao sem reordenar as fontes.
+
+    Cada item deve ser a copia ja sanitizada de uma fonte. Uma linha em branco
+    separa fontes consecutivas: o separador conserva os limites para leitura
+    humana e vira apenas uma quebra ignorada pela numeracao de trechos do
+    ``ai-structuring-service``. A ordem do iteravel e, portanto, a ordem de
+    recebimento que chega a IA (RF11).
+    """
+
+    ordered_sources = tuple(sources)
+    if not ordered_sources:
+        raise ValueError("at least one normalized source is required")
+
+    for position, source in enumerate(ordered_sources, start=1):
+        if not source.strip():
+            raise ValueError(f"normalized source at position {position} must not be blank")
+        if source != source.strip() or "\r" in source:
+            raise ValueError(f"source at position {position} is not in the normalized text format")
+
+    return _SOURCE_SEPARATOR.join(ordered_sources)
+
+
 def segment_text(
     text: str,
     source_type: SourceKind,
@@ -117,22 +143,95 @@ def segment_text(
     """Sanitiza e divide a fonte em linhas logicas citaveis e estaveis.
 
     Cada linha nao vazia do texto sanitizado vira um trecho. A posicao e
-    baseada em 1 e preserva a ordem original. O UUIDv5 deriva do identificador
-    imutavel da fonte, da posicao e do conteudo; portanto, reprocessar a mesma
-    fonte produz os mesmos IDs sem depender de banco ou estado em memoria.
+    baseada em 1 e preserva a ordem original. Os offsets sao indices de
+    caracteres, com inicio inclusivo e fim exclusivo, no texto bruto original.
+    O UUIDv5 permanece derivado do identificador da fonte, posicao e conteudo.
     """
 
     normalized = normalize_text(text, source_type)
-    logical_lines = (line for line in normalized.splitlines() if line.strip())
+    mapped_lines = _map_normalized_lines_to_original(text, normalized, source_type)
     return tuple(
         SourceSegment(
             id=uuid5(NAMESPACE_URL, f"raw-input:{source_id}:segment:{position}:{line}"),
             source_id=source_id,
             position=position,
             text=line,
+            original_start_offset=start,
+            original_end_offset=end,
         )
-        for position, line in enumerate(logical_lines, start=1)
+        for position, (line, start, end) in enumerate(mapped_lines, start=1)
     )
+
+
+def _map_normalized_lines_to_original(
+    original: str,
+    normalized: str,
+    source_type: SourceKind,
+) -> list[tuple[str, int, int]]:
+    """Alinha cada linha sanitizada ao intervalo de caracteres da fonte bruta."""
+
+    matcher = SequenceMatcher(a=normalized, b=original, autojunk=False)
+    blocks = [block for block in matcher.get_matching_blocks() if block.size]
+    mapped: list[tuple[str, int, int]] = []
+    normalized_cursor = 0
+    original_cursor = 0
+
+    for line in normalized.splitlines():
+        line_start = normalized.find(line, normalized_cursor)
+        line_end = line_start + len(line)
+        normalized_cursor = line_end + 1
+        if not line.strip():
+            continue
+
+        spans: list[tuple[int, int]] = []
+        for block in blocks:
+            overlap_start = max(line_start, block.a)
+            overlap_end = min(line_end, block.a + block.size)
+            if overlap_start < overlap_end:
+                source_start = block.b + overlap_start - block.a
+                source_end = source_start + overlap_end - overlap_start
+                spans.append((source_start, source_end))
+
+        if spans:
+            start = min(span[0] for span in spans)
+            end = max(span[1] for span in spans)
+            if original[start:end] != line:
+                start = original.rfind("\n", 0, start) + 1
+                end = original.find("\n", end)
+                if end < 0:
+                    end = len(original)
+        else:
+            start, end = _find_original_line(original, line, source_type, original_cursor)
+
+        if end <= start:
+            raise ValueError("could not map normalized segment to original source text")
+        mapped.append((line, start, end))
+        original_cursor = max(original_cursor, end)
+
+    return mapped
+
+
+def _find_original_line(
+    original: str,
+    normalized_line: str,
+    source_type: SourceKind,
+    search_from: int,
+) -> tuple[int, int]:
+    """Resolve fully transformed lines from their normalized physical source line."""
+
+    cursor = search_from
+    while cursor < len(original):
+        newline = original.find("\n", cursor)
+        end = len(original) if newline < 0 else newline
+        raw_line = original[cursor:end].rstrip("\r")
+        normalized_candidate = normalize_text(raw_line, source_type)
+        if normalized_line in normalized_candidate.splitlines():
+            return cursor, end
+        if newline < 0:
+            break
+        cursor = newline + 1
+
+    raise ValueError("could not map normalized segment to original source text")
 
 
 def _strip_html(text: str) -> str:
