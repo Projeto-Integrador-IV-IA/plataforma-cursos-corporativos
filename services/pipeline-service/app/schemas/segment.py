@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class SourceSegmentCreate(BaseModel):
@@ -13,6 +13,20 @@ class SourceSegmentCreate(BaseModel):
     id: UUID
     position: int = Field(ge=1)
     content: str = Field(min_length=1)
+    original_start_offset: int = Field(
+        ge=0,
+        description="Indice de caractere inicial, inclusivo, no conteudo original da fonte.",
+    )
+    original_end_offset: int = Field(
+        ge=1,
+        description="Indice de caractere final, exclusivo, no conteudo original da fonte.",
+    )
+
+    @model_validator(mode="after")
+    def validate_original_span(self) -> "SourceSegmentCreate":
+        if self.original_end_offset <= self.original_start_offset:
+            raise ValueError("original_end_offset must be after original_start_offset")
+        return self
 
     @field_validator("content")
     @classmethod
@@ -53,6 +67,19 @@ class SourceSegmentRead(BaseModel):
     demand_id: UUID
     position: int
     content: str
+    original_start_offset: int | None = Field(
+        description="Indice inicial na fonte original; nulo em registros legados sem mapeamento."
+    )
+    original_end_offset: int | None = Field(
+        description=(
+            "Indice final exclusivo na fonte original; nulo em registros legados sem mapeamento."
+        )
+    )
+    original_content: str | None = Field(
+        description=(
+            "Fatia literal da fonte original indicada pelos offsets; nula sem mapeamento legado."
+        )
+    )
 
 
 class SourceSegmentErrorDetails(BaseModel):
