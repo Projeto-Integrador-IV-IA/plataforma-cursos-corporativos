@@ -358,8 +358,10 @@ describe('revisao da estruturacao', () => {
 
     // A transicao para concluido fica visivel: nome do estado, explicacao e o
     // tempo de ponta a ponta.
-    expect(estado.textContent).toContain('Concluida');
+    expect(estado.textContent).toContain('Aguardando revisao');
+    expect(estado.className).toContain('structuring-status__state--aguardando-revisao');
     expect(textoDaTela()).toContain('Tempo total: 12,4 s');
+    expect(screen.getByRole('link', { name: 'Abrir tela de revisao' })).toBeDefined();
 
     const reenviar = screen.getByRole('button', { name: 'Reenviar a estruturacao' });
     await waitFor(() => expect(reenviar.hasAttribute('disabled')).toBe(false));
@@ -372,8 +374,9 @@ describe('revisao da estruturacao', () => {
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
 
     expect(estado.textContent).toContain('Falhou');
-    expect(textoDaTela()).toContain('O provedor de LLM esta indisponivel.');
+    expect(textoDaTela()).toContain('Causa: O provedor de LLM esta indisponivel.');
     expect(textoDaTela()).toContain('LLM_UNAVAILABLE');
+    expect(screen.getByRole('button', { name: 'Reprocessar estrutura' })).toBeDefined();
   });
 
   it('envia a demanda para estruturacao e passa a acompanhar a execucao aceita', async () => {

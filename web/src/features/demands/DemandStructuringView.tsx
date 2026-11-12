@@ -163,7 +163,11 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
         <h2 className="demand-detail__section-title" id="estrutura-processamento">
           Processamento
         </h2>
-        <DemandStructuringStatus demandId={demandId} source={fonteMaisRecente(demanda.data)} />
+        <DemandStructuringStatus
+          demandId={demandId}
+          source={fonteMaisRecente(demanda.data)}
+          reviewAvailable={versao !== undefined}
+        />
       </section>
 
       {curso === undefined ? null : (
