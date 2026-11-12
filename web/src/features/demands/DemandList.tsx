@@ -28,13 +28,20 @@ import { useId, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
-import { STATUS_LABELS } from '@/features/demands/DemandListLabels';
+import { STAGE_LABELS, STATUS_LABELS } from '@/features/demands/DemandListLabels';
 import { DemandListPager } from '@/features/demands/DemandListPager';
 import { DemandListTable } from '@/features/demands/DemandListTable';
 import { isApiError } from '@/services/api';
 import { listClients } from '@/services/clients';
 import { listDemands } from '@/services/demands';
-import { DEMAND_STATUSES, type Client, type DemandStatus, type Uuid } from '@/types/api';
+import {
+  DEMAND_STATUSES,
+  PIPELINE_STAGES,
+  type Client,
+  type DemandStatus,
+  type PipelineStage,
+  type Uuid,
+} from '@/types/api';
 
 /** Demandas por pagina. O contrato admite ate 100; 20 e o padrao dele. */
 const PAGE_SIZE = 20;
@@ -49,6 +56,7 @@ const CLIENT_LIMIT = 100;
 const PARAM = {
   page: 'pagina',
   status: 'situacao',
+  stage: 'etapa',
   client: 'cliente',
   owner: 'responsavel',
 } as const;
@@ -74,6 +82,12 @@ function readStatus(params: URLSearchParams): DemandStatus | undefined {
   return DEMAND_STATUSES.find((status) => status === raw);
 }
 
+function readStage(params: URLSearchParams): PipelineStage | undefined {
+  const raw = params.get(PARAM.stage);
+
+  return PIPELINE_STAGES.find((stage) => stage === raw);
+}
+
 function readClient(params: URLSearchParams): Uuid | undefined {
   const raw = params.get(PARAM.client);
 
@@ -88,26 +102,30 @@ export function DemandList() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const statusFieldId = useId();
+  const stageFieldId = useId();
   const clientFieldId = useId();
   const ownerFieldId = useId();
   const ownersSeen = useRef(new Set<string>());
 
   const page = readPage(searchParams);
   const status = readStatus(searchParams);
+  const stage = readStage(searchParams);
   const clientId = readClient(searchParams);
   const ownerId = searchParams.get(PARAM.owner) || undefined;
 
-  const filtered = status !== undefined || clientId !== undefined || ownerId !== undefined;
+  const filtered =
+    status !== undefined || stage !== undefined || clientId !== undefined || ownerId !== undefined;
 
   const params = useMemo(
     () => ({
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
       status,
+      stage,
       client_id: clientId,
       owner_id: ownerId,
     }),
-    [page, status, clientId, ownerId],
+    [page, status, stage, clientId, ownerId],
   );
 
   const demands = useQuery({
@@ -157,6 +175,7 @@ export function DemandList() {
   function clearFilters() {
     changeSearch({
       [PARAM.status]: '',
+      [PARAM.stage]: '',
       [PARAM.client]: '',
       [PARAM.owner]: '',
       [PARAM.page]: '',
@@ -188,6 +207,25 @@ export function DemandList() {
         aria-label="Filtros da lista de demandas"
         onSubmit={(event) => event.preventDefault()}
       >
+        <div className="form__field">
+          <label className="form__label" htmlFor={stageFieldId}>
+            Etapa
+          </label>
+          <select
+            id={stageFieldId}
+            className="form__control"
+            value={stage ?? ''}
+            onChange={(event) => handleFilterChange(PARAM.stage, event.target.value)}
+          >
+            <option value="">Todas</option>
+            {PIPELINE_STAGES.map((value) => (
+              <option key={value} value={value}>
+                {STAGE_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="form__field">
           <label className="form__label" htmlFor={statusFieldId}>
             Situacao

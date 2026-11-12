@@ -168,6 +168,14 @@ describe('listagem de demandas', () => {
     expect(screen.getByLabelText<HTMLSelectElement>('Situacao').value).toBe('GANHA');
   });
 
+  it('retoma a etapa filtrada vinda do painel do pipeline', async () => {
+    renderRoute('/demandas?etapa=ESTRUTURACAO');
+    await screen.findByRole('row', { name: /Demanda 01/ });
+
+    expect(ultimosFiltros().stage).toBe('ESTRUTURACAO');
+    expect(screen.getByLabelText<HTMLSelectElement>('Etapa').value).toBe('ESTRUTURACAO');
+  });
+
   it('ignora pagina invalida na URL em vez de pedir um recorte negativo', async () => {
     renderRoute('/demandas?pagina=-3');
     await screen.findByRole('row', { name: /Demanda 01/ });

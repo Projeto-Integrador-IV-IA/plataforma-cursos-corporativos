@@ -53,7 +53,7 @@ export const routes: RouteObject[] = [
       </RequireSession>
     ),
     children: [
-      { index: true, element: <Navigate to={PATHS.clients} replace /> },
+      { index: true, element: <Navigate to={PATHS.pipeline} replace /> },
       { path: PATHS.clients, element: <ClientsPage /> },
       { path: PATHS.clientNew, element: <ClientNewPage /> },
       { path: PATHS.clientDetail, element: <ClientDetailPage /> },

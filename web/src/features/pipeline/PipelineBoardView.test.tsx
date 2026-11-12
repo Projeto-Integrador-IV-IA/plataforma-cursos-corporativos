@@ -164,7 +164,11 @@ describe('quadro do pipeline', () => {
 
     expect(within(empty).getByText('Nenhuma demanda nesta etapa.')).toBeDefined();
     expect(within(empty).getByText('0 demandas')).toBeDefined();
-    expect(within(empty).queryByRole('link')).toBeNull();
+    // A coluna vazia ainda oferece o atalho de cabecalho para a lista
+    // filtrada; o que nao existe e cartao de demanda dentro dela.
+    expect(
+      within(empty).getByRole('link', { name: 'Ver demandas na etapa Produto' }),
+    ).toBeDefined();
   });
 
   it('conta a etapa inteira no cabecalho, mesmo quando o recorte nao trouxe todas', async () => {
