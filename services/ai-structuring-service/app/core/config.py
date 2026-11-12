@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     llm_app_title: str | None = None
     llm_timeout_seconds: float = Field(gt=0)
     llm_max_retries: int = Field(ge=0)
+    llm_schema_max_retries: int = Field(ge=0)
     llm_temperature: float = Field(ge=0, le=2)
 
     @field_validator("llm_api_key", mode="before")

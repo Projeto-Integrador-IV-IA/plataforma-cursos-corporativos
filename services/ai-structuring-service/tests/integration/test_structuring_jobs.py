@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from app.api.v1.routes.structuring import get_structuring_service
 from app.core.config import Settings, get_settings
 from app.core.exceptions import LLMTimeoutError
+from app.core.logging import consultar_registros_de_execucao
 from app.main import create_app
 from app.providers import CompletionParams, CompletionResult, MockLLMProvider
 from app.services.structuring_service import StructuringService
@@ -250,6 +251,20 @@ def test_entrada_invalida_nao_ocupa_lugar_na_fila(
 def test_campo_desconhecido_e_recusado(montar_cliente: MontarCliente) -> None:
     with montar_cliente() as client:
         assert aceitar(client, prioridade="alta").status_code == 422
+
+
+def test_execucao_assincrona_fica_recuperavel_pelo_mesmo_job_id(
+    montar_cliente: MontarCliente,
+) -> None:
+    """RNF08.1: quem ja tem o ``job_id`` de RF17 recupera o log sem id novo."""
+
+    with montar_cliente() as client:
+        job_id = aceitar(client).json()["job_id"]
+        aguardar_desfecho(client, job_id)
+
+    registros = consultar_registros_de_execucao(job_id)
+    assert registros
+    assert registros[0]["execution_id"] == job_id
 
 
 def test_caminho_sincrono_continua_funcionando(montar_cliente: MontarCliente) -> None:
