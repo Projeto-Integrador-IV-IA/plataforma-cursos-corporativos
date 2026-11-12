@@ -15,6 +15,7 @@ from app.repositories.artifact_repository import ArtifactRepository
 from app.repositories.artifact_version_repository import ArtifactVersionRepository
 from app.schemas.artifact import (
     ArtifactRead,
+    ArtifactReprocessCreate,
     ArtifactResultCreate,
     ArtifactSourceRead,
     ArtifactVersionRead,
@@ -157,6 +158,90 @@ class ArtifactService:
             restored_from_number=number,
         )
         return ArtifactVersionRead.model_validate(restored)
+
+    def reprocess(self, artifact_id: UUID, data: ArtifactReprocessCreate) -> ArtifactVersionRead:
+        """Acrescenta uma versao de origem IA com o resultado de uma nova execucao.
+
+        RF17 consolidado, card #15.
+
+        Reprocessar e rodar a estruturacao de novo - sobre o texto original ou
+        um revisado - e gravar o resultado como versao nova: nenhuma versao
+        existente e alterada, e a anterior continua recuperavel (RF09, mesma
+        garantia de ``restore_version``). Quem decide qual texto entrou na
+        chamada ao LLM e monta ``structured_content``/``raw_output`` e quem
+        chamou - a interface ou a avaliacao de qualidade -, contra
+        ``ai-structuring-service``; este metodo so persiste o desfecho.
+
+        Fonte em ``raw_input_ids`` que ainda nao estava vinculada ao artefato
+        (por exemplo, o texto revisado captado como fonte nova) entra no
+        vinculo acumulado do artefato; fonte ja vinculada numa execucao
+        anterior nao duplica (``ArtifactSource`` e chave composta).
+        """
+
+        artifact = self.versions.get_artifact_for_update(artifact_id)
+        if artifact is None:
+            raise NotFoundError(
+                code="ARTIFACT_NOT_FOUND",
+                message="Artefato nao encontrado.",
+                details={"artifact_id": str(artifact_id)},
+            )
+
+        sources = self.repository.get_sources(data.raw_input_ids)
+        found_by_id = {source.id: source for source in sources}
+        missing = [source_id for source_id in data.raw_input_ids if source_id not in found_by_id]
+        if missing:
+            raise NotFoundError(
+                code="RAW_INPUT_NOT_FOUND",
+                message="Uma ou mais fontes nao foram encontradas.",
+                details={"raw_input_ids": ",".join(map(str, missing))},
+            )
+        foreign = [source.id for source in sources if source.demand_id != artifact.demand_id]
+        if foreign:
+            raise ConflictError(
+                code="ARTIFACT_SOURCE_DEMAND_MISMATCH",
+                message="Todas as fontes devem pertencer a demanda do artefato.",
+                details={"raw_input_ids": ",".join(map(str, foreign))},
+            )
+
+        ja_vinculadas = {link.raw_input_id for link in artifact.source_links}
+        novos_vinculos = [
+            ArtifactSource(
+                artifact_id=artifact.id,
+                raw_input_id=source_id,
+                demand_id=artifact.demand_id,
+            )
+            for source_id in data.raw_input_ids
+            if source_id not in ja_vinculadas
+        ]
+        artifact.source_links.extend(novos_vinculos)
+
+        try:
+            version = self.versions.append(
+                artifact_id,
+                content=data.structured_content,
+                origin=ArtifactOrigin.IA.value,
+                raw_content=data.raw_output,
+                ai_metadata=data.ai_metadata,
+            )
+        except IntegrityError as exc:
+            self.repository.rollback()
+            is_constraint_error = getattr(exc.orig, "sqlstate", None) in {
+                "23503",
+                "23505",
+                "23514",
+            } or getattr(exc.orig, "sqlite_errorcode", None) in {
+                sqlite3.SQLITE_CONSTRAINT_CHECK,
+                sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY,
+                sqlite3.SQLITE_CONSTRAINT_UNIQUE,
+            }
+            if not is_constraint_error:
+                raise
+            raise ConflictError(
+                code="ARTIFACT_PERSISTENCE_CONFLICT",
+                message="Nao foi possivel gravar atomicamente a nova versao e suas fontes.",
+                details={"artifact_id": str(artifact_id)},
+            ) from exc
+        return ArtifactVersionRead.model_validate(version)
 
     def list_versions(self, artifact_id: UUID) -> list[ArtifactVersionRead]:
         """Todas as versoes do artefato, da primeira a vigente (RF08)."""

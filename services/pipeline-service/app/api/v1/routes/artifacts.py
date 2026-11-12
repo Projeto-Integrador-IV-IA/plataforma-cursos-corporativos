@@ -10,6 +10,7 @@ from app.db.session import get_session
 from app.schemas.artifact import (
     ArtifactErrorResponse,
     ArtifactRead,
+    ArtifactReprocessCreate,
     ArtifactResultCreate,
     ArtifactVersionRead,
 )
@@ -135,3 +136,37 @@ def restore_artifact_version(
     session: Annotated[Session, Depends(get_session)],
 ) -> ArtifactVersionRead:
     return ArtifactService(session).restore_version(artifact_id, number, author_id)
+
+
+@router.post(
+    "/artifacts/{artifact_id}/reprocess",
+    response_model=ArtifactVersionRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar uma nova execucao da IA como versao do artefato",
+    description=(
+        "Acrescenta uma versao nova, de origem IA, com o resultado de uma nova execucao da "
+        "estruturacao sobre o artefato - rodada sobre o texto original ou um revisado (RF17 "
+        "consolidado). Nenhuma versao existente e alterada; o historico completo continua "
+        "consultavel."
+    ),
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ArtifactErrorResponse,
+            "description": "Artefato ou fonte inexistente.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ArtifactErrorResponse,
+            "description": "Fonte de outra demanda ou conflito de persistencia.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ArtifactErrorResponse,
+            "description": "Resultado ou identificadores invalidos.",
+        },
+    },
+)
+def reprocess_artifact(
+    artifact_id: UUID,
+    data: ArtifactReprocessCreate,
+    session: Annotated[Session, Depends(get_session)],
+) -> ArtifactVersionRead:
+    return ArtifactService(session).reprocess(artifact_id, data)
