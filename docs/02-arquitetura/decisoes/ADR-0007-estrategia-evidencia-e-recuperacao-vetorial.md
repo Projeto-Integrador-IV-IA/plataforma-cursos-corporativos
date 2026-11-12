@@ -25,3 +25,9 @@ Além disso, faz-se necessário definir o mecanismo de armazenamento e busca sem
   - Atendimento estrito aos critérios de rastreabilidade exigidos pelo requisito RF29.
 - **Negativas / Trade-offs:** 
   - Escalabilidade de busca vetorial limitada ao limite de desempenho do PostgreSQL em instâncias únicas (suficiente e adequado para o escopo do MVP corporativo atual).
+
+## Nota de implementação (cards #158/#159, novembro de 2026)
+
+A extensão `vector` foi habilitada (imagem `pgvector/pgvector:pg16` no Compose, `CREATE EXTENSION` no init script e na migration) e o armazenamento foi modelado em `segment_embeddings`, com chave composta `(segment_id, model)` — append-only, igual ao restante do projeto (RNF09): trocar de modelo de embedding soma uma linha nova em vez de substituir a existente. Um índice `hnsw (vector_cosine_ops)` foi criado para uso futuro.
+
+**Desvio consciente desta ADR:** a busca por similaridade em si (`SegmentEmbeddingRepository.search_similar`) calcula a similaridade de cosseno em **Python**, não pelo operador nativo `<=>` do pgvector. Motivo: a suíte de testes deste serviço roda inteiramente contra SQLite (nenhum serviço de Postgres sobe no CI hoje), que não tem tipo vetorial nem operador de distância — um caminho de busca escrito só para o dialeto Postgres nunca seria exercitado pela suíte, divergindo do que é testado do que roda em produção. No volume de um MVP (poucos trechos por demanda), a comparação em Python sobre o conjunto já filtrado por demanda é imediata. O índice `hnsw` fica pronto para quando o volume justificar trocar este cálculo por uma consulta nativa — e, nesse momento, caberá também provisionar Postgres no CI para testar o caminho de verdade.
