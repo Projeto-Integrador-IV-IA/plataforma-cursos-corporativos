@@ -9,7 +9,6 @@ from app.auth.dependencies import require_permission
 from app.auth.jwt import AuthenticatedUser
 from app.services.auth_service import Permission, Role, role_has_permission
 
-
 MATRIX_EXPECTED = {
     Role.OPERADOR: {
         Permission.READ: True,
