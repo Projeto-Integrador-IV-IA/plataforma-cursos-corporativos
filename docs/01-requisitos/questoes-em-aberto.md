@@ -30,29 +30,9 @@ revisão. Decidir depois de implementar significa migração de dados.
 Preserva a distinção entre "o que a IA gerou" e "o que o humano aprovou", que é justamente o insumo
 das métricas de RNF04.
 
-**Decisão tomada.** **Nunca sobrescrever: toda edição da saída da IA gera uma versão nova.**
-O `pipeline-service` grava a edição como versão vigente, de origem `HUMANO`, com o autor e dois
-vínculos: `previous_number` (a versão de que a edição partiu) e `ai_origin_number` (a versão gerada
-pela IA que originou a cadeia, mesmo com várias edições no meio). Assim "o que a IA gerou" e "o que o
-humano corrigiu" ficam lado a lado, que é o insumo das métricas de RNF04.
-
-- A opção **sobrescrever** está descartada (RF08, RNF09). O ORM e o banco a impedem: gatilhos recusam
-  UPDATE e DELETE em `artifact_versions`.
-- A edição só é aceita sobre a versão vigente (`base_number`); se outra pessoa salvou no meio, o
-  retorno é conflito e a edição dela não é perdida. Salvar um conteúdo igual ao vigente também é
-  recusado, para não criar versão trivial.
-- O backend cria **uma versão por chamada de salvar**. Se a interface guarda um rascunho e só salva ao
-  concluir a revisão (recomendação da equipe técnica) ou salva a cada ajuste é decisão da interface;
-  o backend atende às duas.
-- O `pipeline-service` guarda o conteúdo editado como veio. A validação contra o schema canônico
-  continua sendo do `ai-structuring-service` e não é feita na edição (risco aceito por ora).
-- Não exige ADR: confirma a regra append-only já registrada na
-  [visão geral](../02-arquitetura/visao-geral.md) (princípio 3), sem mudar a arquitetura.
-- **Decidido em:** ___/___/2026 — por: ____________ (preencher no PR)
-
 - **Responsável:** Backend + IA
 - **Prazo:** antes do início da Fase 3 (16/09)
-- **Status:** ✅ decidido — nova versão a cada edição salva; sobrescrever descartado
+- **Status:** ⬜ em aberto
 
 ---
 
