@@ -153,6 +153,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArtifactErrorResponse'
+  /api/v1/artifacts/{artifact_id}/reprocess:
+    post:
+      tags:
+      - artifacts
+      summary: Registrar uma nova execucao da IA como versao do artefato
+      description: 'Acrescenta uma versao nova, de origem IA, com o resultado de
+        uma nova execucao da estruturacao sobre o artefato - rodada sobre o texto
+        original ou um revisado (RF17 consolidado). Nenhuma versao existente e alterada;
+        o historico completo continua consultavel.'
+      operationId: reprocess_artifact_api_v1_artifacts__artifact_id__reprocess_post
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtifactReprocessCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactVersionRead'
+        '404':
+          description: Artefato ou fonte inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '409':
+          description: Fonte de outra demanda ou conflito de persistencia.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Resultado ou identificadores invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
   /api/v1/demands/{demand_id}/artifacts:
     post:
       tags:
@@ -1384,6 +1433,46 @@ components:
       - versions
       title: ArtifactRead
       description: Artefato recuperavel pela demanda, com fontes e versoes.
+    ArtifactReprocessCreate:
+      properties:
+        raw_output:
+          type: string
+          minLength: 1
+          title: Raw Output
+          description: Resposta integral devolvida pelo LLM nesta execucao.
+        structured_content:
+          additionalProperties: true
+          type: object
+          title: Structured Content
+          description: Resultado desta execucao, ja validado contra o schema canonico.
+        raw_input_ids:
+          items:
+            type: string
+            format: uuid
+          type: array
+          minItems: 1
+          title: Raw Input Ids
+          description: Fontes usadas nesta execucao - a mesma demanda do artefato;
+            texto original ou revisado, ja persistido como fonte.
+        ai_metadata:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Ai Metadata
+          description: Modelo, prompt, tokens e latencia desta execucao.
+      additionalProperties: false
+      type: object
+      required:
+      - raw_output
+      - structured_content
+      - raw_input_ids
+      title: ArtifactReprocessCreate
+      description: "Resultado de uma nova execucao da IA sobre um artefato ja existente\
+        \ (RF17 consolidado).\n\nMesmos campos de ``ArtifactResultCreate`` - a estruturacao\
+        \ devolve a mesma\nforma, tenha rodado sobre o texto original ou um revisado\
+        \ -, sem ``type``\nnem ``title``: esses pertencem ao artefato, que ja existe,\
+        \ nao a versao\nnova."
     ArtifactResultCreate:
       properties:
         type:
