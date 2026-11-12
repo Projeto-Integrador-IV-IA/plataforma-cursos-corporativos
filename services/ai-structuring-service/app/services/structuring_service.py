@@ -21,6 +21,21 @@ ementa e os objetivos devolvidos hoje sao os que o proprio cliente descreveu no
 texto, extraidos junto com os demais campos (RF12 parcial). Os passos 6 e 7
 entram com os cards de RNF04 e RF13.
 
+Evidencia por trecho (RF28)
+----------------------------
+Antes de montar o prompt, ``numerar_trechos`` divide o texto normalizado em
+trechos citaveis e ``formatar_trechos_numerados`` apresenta cada um como
+``[n] trecho``. O prompt instrui o modelo a citar esses numeros em
+``evidencias``, e ``StructuringOutcome.trechos`` guarda a mesma lista na mesma
+ordem - ``trechos[n - 1]`` e o conteudo do numero ``n`` citado.
+
+Nao basta citar, a citacao tem de existir (RNF27): ``_citacoes_fora_do_intervalo``
+confere, depois da validacao de schema, que todo numero em ``evidencias`` cai
+entre 1 e a quantidade de trechos enviados nesta chamada. Citacao fora dessa
+faixa vira ``LLMInvalidResponseError`` no desfecho - mesma regra de RNF05.1,
+agora aplicada a evidencia -, registrada em log para diagnostico sem repetir
+o texto do cliente.
+
 Tratamento de falha (RNF05)
 ---------------------------
 
@@ -82,25 +97,28 @@ Fica aqui, e apenas aqui: o provedor traduz o transporte em erro tipado, o
 caso de uso decide se insiste. Assim qualquer provedor registrado - inclusive
 um futuro, com dialeto proprio - herda a mesma politica sem reimplementa-la.
 
-Implementada com ``tenacity``: no maximo ``LLM_MAX_RETRIES`` repeticoes alem da
-primeira tentativa, somente para falhas marcadas como ``retryable``
-(indisponibilidade, timeout, limite de uso). Resposta invalida nao e retentada
-- repetir sem mudar prompt, parametros ou configuracao tende a repetir o erro.
-O intervalo e exponencial, exceto quando o fornecedor informa ``Retry-After``,
+Implementada com ``tenacity``: repeticoes alem da primeira tentativa, somente
+para falhas marcadas como ``retryable`` (indisponibilidade, timeout, limite de
+uso e resposta fora do schema). O teto depende da causa, nao de um numero so:
+``LLM_MAX_RETRIES`` para falha de rede/provedor, ``LLM_SCHEMA_MAX_RETRIES``
+para resposta fora do schema - o modelo erra formato de forma intermitente, e
+misturar os dois num teto so esconderia qual causa esta se repetindo. O
+intervalo e exponencial, exceto quando o fornecedor informa ``Retry-After``,
 que e respeitado como veio.
 """
 
 import asyncio
-import logging
 import time
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, replace
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass, field, replace
 from typing import Any, Final
+from uuid import UUID, uuid4
 
-from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt
+from tenacity import AsyncRetrying, RetryCallState, retry_if_exception
 
 from app.core.config import Settings
 from app.core.exceptions import LLMInvalidResponseError, LLMProviderError
+from app.core.logging import get_logger
 from app.domain.course import (
     StructuredCourse,
     schema_do_curso_estruturado,
@@ -111,7 +129,7 @@ from app.providers.base import CompletionParams, CompletionResult, LLMProvider
 
 #: Log deste modulo. A configuracao (formato, nivel, correlacao) e do processo,
 #: nunca fixada aqui - ver ``app.core.logging``.
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 #: Teto de caracteres da resposta recusada registrada em nivel ``DEBUG``. O
 #: texto e produto da demanda do cliente: o bastante para diagnosticar a
@@ -134,7 +152,7 @@ EXTRACTION_PROMPT_NAME: Final[str] = "extract-requirements"
 #: ``status: ativo`` no catalogo. Versao nova e arquivo novo, nunca edicao no
 #: lugar - ver ``app/prompts/README.md``. Ao publicar uma versao nova, mova este
 #: padrao junto: prompt ativo que ninguem carrega nao vale nada.
-DEFAULT_PROMPT_VERSION: Final[str] = "v3"
+DEFAULT_PROMPT_VERSION: Final[str] = "v6"
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,10 +167,13 @@ class RawDemand:
         demand_id: identificador da demanda na negociacao, usado para
             correlacionar log, metrica e reprocessamento.
         text: texto recebido, ja normalizado pelo ingestion-service (RF10).
+        source_ids: identificadores das fontes concatenadas em ``text``, na
+            mesma ordem, para o registro auditavel da chamada (RNF08.1).
     """
 
     demand_id: str
     text: str
+    source_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,7 +183,10 @@ class StructuringOutcome:
     Attributes:
         demand: a mesma demanda que entrou - e o que garante que a falha nao
             deixa o chamador sem o texto original (RNF05).
-        attempts: tentativas gastas, contando a primeira.
+        attempts: tentativas gastas, contando a primeira. Em ``structure``, so
+            chamadas ao provedor (falha de rede). Em ``structure_course``, a
+            soma de todas as chamadas, inclusive as refeitas por resposta fora
+            do schema (``LLM_SCHEMA_MAX_RETRIES``).
         completion: saida bruta do modelo; ``None`` quando houve falha.
         error: falha tipada do provedor; ``None`` quando houve sucesso.
         elapsed_ms: tempo de parede da execucao inteira, incluindo as esperas
@@ -172,6 +196,15 @@ class StructuringOutcome:
         prompt_id: prompt versionado usado na execucao, ex.:
             ``extract-requirements.v1``. Acompanha a proveniencia do artefato
             (RNF04, RNF09).
+        trechos: trechos numerados enviados ao provedor (RF28), na mesma ordem
+            da citacao em ``course.evidencias`` - o numero ``n`` citado
+            corresponde a ``trechos[n - 1]``. Vazio quando a chamada nao
+            passou por ``structure_course``.
+        execution_id: identificador da execucao, usado para recuperar o
+            registro de log desta chamada (RNF08.1). Gerado automaticamente
+            quando o chamador nao informa um - mesmo o caminho sincrono sem
+            conceito de execucao (``POST /structuring/structure-course``)
+            acaba com um desfecho recuperavel por identificador.
     """
 
     demand: RawDemand
@@ -181,6 +214,8 @@ class StructuringOutcome:
     elapsed_ms: float = 0.0
     course: StructuredCourse | None = None
     prompt_id: str | None = None
+    trechos: tuple[str, ...] = ()
+    execution_id: UUID = field(default_factory=uuid4)
 
     @property
     def succeeded(self) -> bool:
@@ -281,6 +316,8 @@ class StructuringService:
         *,
         prompt: str | None = None,
         params: CompletionParams | None = None,
+        execution_id: UUID | None = None,
+        prompt_version: str | None = None,
     ) -> StructuringOutcome:
         """Envia a demanda ao provedor e devolve o desfecho, com ou sem falha.
 
@@ -295,11 +332,17 @@ class StructuringService:
                 prompt entra com o card de RF11.
             params: parametros da chamada; o timeout do ambiente e aplicado
                 quando o chamador nao informa um.
+            execution_id: identificador da execucao, para recuperar o registro
+                de log desta chamada (RNF08.1). Gerado quando ausente.
+            prompt_version: identificador do prompt versionado usado, so para
+                o registro de log - este metodo nao monta prompt (RF11), quem
+                sabe a versao e ``structure_course``.
 
         Returns:
             ``StructuringOutcome`` com o resultado ou com a falha tipada.
         """
 
+        execution_id = execution_id or uuid4()
         enviado = demand.text if prompt is None else prompt
         parametros = self._com_padroes(params)
         inicio = time.perf_counter()
@@ -317,31 +360,73 @@ class StructuringService:
                 attempts=tentativas,
                 retryable=erro.retryable,
             )
+            duracao = _decorrido_ms(inicio)
+            # Falha tambem produz registro recuperavel (RNF08.1): sem resultado
+            # do provedor, so entram provedor/modelo que a propria falha souber -
+            # nunca inventados - e nenhum token, que so o sucesso informa.
+            _logger.warning(
+                "Chamada ao provedor de LLM falhou (execution_id=%s, demand_id=%s, "
+                "tentativas=%d, codigo=%s).",
+                execution_id,
+                demand.demand_id,
+                tentativas,
+                erro.code,
+                extra=_contexto_da_chamada(
+                    execution_id=execution_id,
+                    demand_id=demand.demand_id,
+                    source_ids=demand.source_ids,
+                    prompt_version=prompt_version,
+                    parametros=parametros,
+                    tentativas=tentativas,
+                    duration_ms=duracao,
+                    provider=erro.provider,
+                    model=erro.model,
+                    erro_codigo=erro.code,
+                    erro_classe=type(erro).__name__,
+                ),
+            )
             return StructuringOutcome(
                 demand=demand,
                 attempts=tentativas,
                 error=erro,
-                elapsed_ms=_decorrido_ms(inicio),
+                elapsed_ms=duracao,
+                execution_id=execution_id,
             )
 
         assert resultado is not None
+        duracao = _decorrido_ms(inicio)
         # Provedor e modelo (slug completo) ficam no log para que a comparacao
         # entre modelos (RNF29) possa ser reconstruida; sem texto do cliente (RNF10).
         _logger.info(
-            "Resposta do provedor recebida (demand_id=%s, provider=%s, model=%s, "
-            "tentativas=%d, tokens=%d, latencia_ms=%.0f).",
+            "Resposta do provedor recebida (execution_id=%s, demand_id=%s, provider=%s, "
+            "model=%s, tentativas=%d, tokens=%d, latencia_ms=%.0f).",
+            execution_id,
             demand.demand_id,
             resultado.provider,
             resultado.model,
             tentativas,
             resultado.usage.total_tokens,
             resultado.latency_ms,
+            extra=_contexto_da_chamada(
+                execution_id=execution_id,
+                demand_id=demand.demand_id,
+                source_ids=demand.source_ids,
+                prompt_version=prompt_version,
+                parametros=parametros,
+                tentativas=tentativas,
+                duration_ms=duracao,
+                provider=resultado.provider,
+                model=resultado.model,
+                tokens_entrada=resultado.usage.prompt_tokens,
+                tokens_saida=resultado.usage.completion_tokens,
+            ),
         )
         return StructuringOutcome(
             demand=demand,
             attempts=tentativas,
             completion=resultado,
-            elapsed_ms=_decorrido_ms(inicio),
+            elapsed_ms=duracao,
+            execution_id=execution_id,
         )
 
     async def structure_course(
@@ -349,6 +434,7 @@ class StructuringService:
         demand: RawDemand,
         *,
         prompt_version: str = DEFAULT_PROMPT_VERSION,
+        execution_id: UUID | None = None,
     ) -> StructuringOutcome:
         """Estrutura a demanda de ponta a ponta e devolve o curso validado (RF11).
 
@@ -359,9 +445,16 @@ class StructuringService:
 
         Nao levanta excecao, pela mesma razao que ``structure`` nao levanta: o
         chamador sempre recebe o desfecho com a demanda bruta em maos (RNF05).
-        Resposta fora do schema vira ``LLMInvalidResponseError`` no desfecho -
-        nao e aceita como "quase certa" (ADR-0006) - e a recusa e registrada em
-        log para diagnostico, sem devolver o texto recusado a quem chamou. A
+        Resposta fora do schema, ou que cita em ``evidencias`` um trecho que
+        nao foi enviado (RNF27), dispara nova chamada ao provedor, ate
+        ``LLM_SCHEMA_MAX_RETRIES`` vezes alem da primeira - o modelo erra
+        formato ou citacao de forma intermitente, e uma nova tentativa
+        costuma resolver (``_politica_de_retentativa``, reaproveitada aqui
+        para a falha de schema do mesmo jeito que ``structure`` reaproveita
+        para a falha de rede). Esgotado o limite, a ultima recusa vira
+        ``LLMInvalidResponseError`` no desfecho - nao e aceita como "quase
+        certa" (ADR-0006) - e cada recusa da sequencia e registrada em log
+        para diagnostico, sem devolver o texto recusado a quem chamou. A
         fronteira HTTP chama ``raise_for_course`` e deixa o handler de
         ``app.main`` traduzir o erro.
 
@@ -369,10 +462,15 @@ class StructuringService:
             demand: demanda bruta ja persistida pelo ingestion-service.
             prompt_version: versao do prompt de extracao a usar; por padrao, a
                 ativa no catalogo.
+            execution_id: identificador da execucao (RNF08.1). Gerado quando
+                ausente; ``job_service.py`` passa o mesmo ``job.id`` que o
+                chamador ja usa para consultar o estado da execucao (RF17), de
+                modo que um unico identificador sirva para as duas consultas.
 
         Returns:
             ``StructuringOutcome`` com ``course`` preenchido quando deu certo,
-            ou com o erro tipado quando nao deu.
+            ou com o erro tipado quando nao deu. ``attempts`` soma as chamadas
+            ao provedor gastas em todas as rodadas - de rede e de schema.
 
         Raises:
             ValueError: ``prompt_version`` nao existe no catalogo de prompts.
@@ -380,35 +478,78 @@ class StructuringService:
                 por isso sobe em vez de virar desfecho.
         """
 
+        execution_id = execution_id or uuid4()
         prompt = carregar_prompt(EXTRACTION_PROMPT_NAME, prompt_version)
-        outcome = await self.structure(
-            demand,
-            prompt=prompt.render(texto_normalizado=demand.text),
-            params=self._parametros_da_extracao(),
-        )
-        outcome = replace(outcome, prompt_id=prompt.identificador)
-        if outcome.completion is None:
-            return outcome
+        trechos = numerar_trechos(demand.text)
+        params = self._parametros_da_extracao()
+        outcome: StructuringOutcome | None = None
+        curso: StructuredCourse | None = None
+        tentativas_totais = 0
 
         try:
-            curso = validar_curso_estruturado(outcome.completion.text)
+            async for tentativa in self._politica_de_retentativa():
+                with tentativa:
+                    outcome = replace(
+                        await self.structure(
+                            demand,
+                            prompt=prompt.render(
+                                texto_normalizado=formatar_trechos_numerados(trechos)
+                            ),
+                            params=params,
+                            execution_id=execution_id,
+                            prompt_version=prompt.identificador,
+                        ),
+                        prompt_id=prompt.identificador,
+                        trechos=trechos,
+                        execution_id=execution_id,
+                    )
+                    tentativas_totais += outcome.attempts
+                    # ``completion is None`` e falha de rede/provedor, que ja
+                    # esgotou o proprio limite (LLM_MAX_RETRIES) dentro de
+                    # ``structure``; nao e falha de schema e nao ha o que
+                    # validar nem retentar nesta rodada.
+                    if outcome.completion is not None:
+                        try:
+                            curso = validar_curso_estruturado(outcome.completion.text)
+                        except LLMInvalidResponseError as erro:
+                            _registrar_resposta_recusada(
+                                demand=demand,
+                                prompt_id=prompt.identificador,
+                                attempts=tentativa.retry_state.attempt_number,
+                                erro=erro,
+                                bruto=outcome.completion.text,
+                            )
+                            raise
+                        invalidas = _citacoes_fora_do_intervalo(curso, len(trechos))
+                        if invalidas:
+                            erro = LLMInvalidResponseError(
+                                "Resposta cita trecho que nao foi enviado nesta chamada.",
+                                details={"citacoes_invalidas": list(invalidas)},
+                            )
+                            _registrar_citacao_invalida(
+                                demand=demand,
+                                prompt_id=prompt.identificador,
+                                attempts=tentativa.retry_state.attempt_number,
+                                invalidas=invalidas,
+                                total_trechos=len(trechos),
+                            )
+                            raise erro
         except LLMInvalidResponseError as erro:
-            _registrar_resposta_recusada(
-                demand=demand,
-                prompt_id=prompt.identificador,
-                attempts=outcome.attempts,
-                erro=erro,
-                bruto=outcome.completion.text,
-            )
+            assert outcome is not None
+            outcome = replace(outcome, attempts=tentativas_totais)
             erro.add_context(
                 demand_id=demand.demand_id,
-                attempts=outcome.attempts,
+                attempts=tentativas_totais,
                 prompt=prompt.identificador,
                 retryable=erro.retryable,
             )
-            return replace(outcome, error=erro)
+            return replace(outcome, error=erro, execution_id=execution_id)
 
-        return replace(outcome, course=curso)
+        assert outcome is not None
+        outcome = replace(outcome, attempts=tentativas_totais)
+        if curso is None:
+            return outcome
+        return replace(outcome, course=curso, execution_id=execution_id)
 
     def _parametros_da_extracao(self) -> CompletionParams:
         """Parametros da chamada de extracao, todos vindos do ambiente (RNF11).
@@ -427,15 +568,40 @@ class StructuringService:
         )
 
     def _politica_de_retentativa(self) -> AsyncRetrying:
-        """Monta a politica de retentativa a partir do ambiente."""
+        """Monta a politica de retentativa a partir do ambiente.
+
+        Usada tanto por ``structure`` (falha de rede/provedor, em volta de
+        ``complete``) quanto por ``structure_course`` (falha de schema, em
+        volta de ``complete`` + ``validar_curso_estruturado``): o teto que
+        ``_parar_apos_tentativas`` aplica depende do tipo da falha, nao de
+        quem chamou, por isso uma politica so basta para os dois.
+        """
 
         return AsyncRetrying(
-            stop=stop_after_attempt(self._settings.llm_max_retries + 1),
+            stop=self._parar_apos_tentativas,
             retry=retry_if_exception(_e_retentavel),
             wait=_espera,
             sleep=self._sleep,
             reraise=True,
         )
+
+    def _parar_apos_tentativas(self, estado: RetryCallState) -> bool:
+        """Decide parar com base no teto da falha que acabou de acontecer.
+
+        Falha de schema (``LLMInvalidResponseError``) usa
+        ``LLM_SCHEMA_MAX_RETRIES``; qualquer outra falha de provedor usa
+        ``LLM_MAX_RETRIES``. Os dois tetos sao independentes porque as causas
+        sao independentes: misturar formatacao do modelo com falha de rede num
+        so numero esconderia qual delas esta acontecendo.
+        """
+
+        falha = estado.outcome.exception() if estado.outcome is not None else None
+        limite = (
+            self._settings.llm_schema_max_retries
+            if isinstance(falha, LLMInvalidResponseError)
+            else self._settings.llm_max_retries
+        )
+        return estado.attempt_number >= limite + 1
 
     def _com_padroes(self, params: CompletionParams | None) -> CompletionParams:
         """Completa os parametros com o timeout do ambiente (RNF06, RNF11)."""
@@ -444,6 +610,143 @@ class StructuringService:
         if parametros.timeout_seconds is not None:
             return parametros
         return replace(parametros, timeout_seconds=self._settings.llm_timeout_seconds)
+
+
+def numerar_trechos(texto: str) -> tuple[str, ...]:
+    """Divide o texto normalizado em trechos citaveis, um por linha nao vazia (RF28).
+
+    Cada trecho e a unidade que o modelo cita em ``evidencias``: granularidade
+    de linha casa com a forma como a demanda ja chega (e-mail colado,
+    mensagem de chat, fala de reuniao transcrita sao naturalmente quebrados em
+    linha) e fica pequena o bastante para a citacao apontar algo especifico,
+    nao o texto inteiro. Linha em branco nao e trecho - citar "nada" nao
+    sustenta campo nenhum.
+
+    A numeracao e por chamada, nao persistida: comeca em 1 a cada execucao e
+    nao tem relacao com os identificadores estaveis de trecho que o
+    ingestion-service e o pipeline-service mantem entre si (RF27) - aqui o que
+    importa e so distinguir trecho dentro desta unica resposta.
+    """
+
+    return tuple(linha.strip() for linha in texto.splitlines() if linha.strip())
+
+
+def formatar_trechos_numerados(trechos: Sequence[str]) -> str:
+    """Formata os trechos como ``[n] trecho``, um por linha, para o prompt citar.
+
+    A numeracao comeca em 1: e o que o prompt instrui o modelo a citar em
+    ``evidencias``, e zero nao e um indice natural para citacao humana nem do
+    modelo.
+    """
+
+    return "\n".join(f"[{numero}] {trecho}" for numero, trecho in enumerate(trechos, start=1))
+
+
+def _citacoes_fora_do_intervalo(
+    curso: StructuredCourse, total_trechos: int
+) -> tuple[dict[str, Any], ...]:
+    """Numeros citados em ``evidencias`` que nao correspondem a trecho enviado (RNF27).
+
+    O numero existe se estiver entre 1 e ``total_trechos`` - a mesma faixa que
+    ``formatar_trechos_numerados`` produziu para esta chamada, numerando a
+    partir de 1. Citar fora dessa faixa e o modelo inventando evidencia para
+    um trecho que nunca foi enviado (RF28): nao basta citar, a citacao tem de
+    existir.
+
+    Returns:
+        Uma entrada ``{"campo", "numero"}`` por citacao invalida, na ordem em
+        que apareceram em ``evidencias``. Vazia quando todas as citacoes
+        correspondem a um trecho real.
+    """
+
+    return tuple(
+        {"campo": campo, "numero": numero}
+        for campo, numeros in curso.evidencias.items()
+        for numero in numeros
+        if not 1 <= numero <= total_trechos
+    )
+
+
+def _registrar_citacao_invalida(
+    *,
+    demand: RawDemand,
+    prompt_id: str,
+    attempts: int,
+    invalidas: tuple[dict[str, Any], ...],
+    total_trechos: int,
+) -> None:
+    """Registra em log a citacao que nao corresponde a trecho enviado (RNF27).
+
+    Mesmo nivel e mesma justificativa de ``_registrar_resposta_recusada``: so
+    nomes de campo e numeros, nada do texto do cliente (RNF10, RNF11).
+
+    Args:
+        demand: demanda em processamento, para correlacionar log e reprocessamento.
+        prompt_id: prompt versionado usado na chamada.
+        attempts: tentativas gastas ate esta recusa.
+        invalidas: citacoes fora do intervalo, de ``_citacoes_fora_do_intervalo``.
+        total_trechos: quantos trechos foram enviados nesta chamada - o que
+            delimita a faixa valida.
+    """
+
+    _logger.warning(
+        "Resposta cita trecho inexistente (demand_id=%s, prompt=%s, tentativas=%d, "
+        "trechos_enviados=%d, citacoes=%s).",
+        demand.demand_id,
+        prompt_id,
+        attempts,
+        total_trechos,
+        ", ".join(f"{item['campo']}:{item['numero']}" for item in invalidas),
+    )
+
+
+def _contexto_da_chamada(
+    *,
+    execution_id: UUID,
+    demand_id: str,
+    source_ids: tuple[str, ...],
+    prompt_version: str | None,
+    parametros: CompletionParams,
+    tentativas: int,
+    duration_ms: float,
+    provider: str | None = None,
+    model: str | None = None,
+    tokens_entrada: int | None = None,
+    tokens_saida: int | None = None,
+    erro_codigo: str | None = None,
+    erro_classe: str | None = None,
+) -> dict[str, Any]:
+    """Monta o ``extra=`` do registro de log de uma chamada ao provedor (RNF08.1).
+
+    Nunca repassa ``parametros`` inteiro - so ``model`` e ``temperature``, os
+    unicos dois que o card pede e que nunca carregam credencial (RNF11).
+    Campo ausente (``None``) fica fora do registro em vez de entrar como nulo:
+    na falha sem resultado, por exemplo, nao ha token a reportar - e melhor
+    omitir do que inventar.
+    """
+
+    extra: dict[str, Any] = {
+        "execution_id": str(execution_id),
+        "demand_id": demand_id,
+        "source_ids": list(source_ids),
+        "tentativas": tentativas,
+        "duration_ms": duration_ms,
+        "parametros_modelo": parametros.model,
+        "parametros_temperatura": parametros.temperature,
+    }
+    opcionais = {
+        "prompt_version": prompt_version,
+        "provider": provider,
+        "model": model,
+        "tokens_entrada": tokens_entrada,
+        "tokens_saida": tokens_saida,
+        "erro_codigo": erro_codigo,
+        "erro_classe": erro_classe,
+    }
+    for chave, valor in opcionais.items():
+        if valor is not None:
+            extra[chave] = valor
+    return extra
 
 
 def _registrar_resposta_recusada(
@@ -467,7 +770,8 @@ def _registrar_resposta_recusada(
     Args:
         demand: demanda em processamento, para correlacionar log e reprocessamento.
         prompt_id: prompt versionado usado na chamada, ex.: ``extract-requirements.v2``.
-        attempts: tentativas gastas ate a resposta recusada.
+        attempts: numero desta tentativa na sequencia de recusas (1a, 2a...),
+            para a sequencia completa aparecer entre chamadas que se repetem.
         erro: falha tipada levantada pela validacao de schema.
         bruto: texto devolvido pelo provedor, exatamente como chegou.
     """

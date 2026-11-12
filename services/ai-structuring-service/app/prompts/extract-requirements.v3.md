@@ -1,6 +1,7 @@
 ---
 versao: 3
-status: ativo
+status: substituido
+substituido_por: extract-requirements.v4
 requisito: RF13
 modelo_alvo: qualquer modelo com saída em JSON; avaliação comparativa na PoC (Fase 2)
 autor: equipe de IA
