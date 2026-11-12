@@ -121,8 +121,7 @@ def registrar_consumo(
         tokens_entrada: tokens de entrada da chamada que acabou de responder.
         tokens_saida: tokens de saida da mesma chamada.
         limite_diario: teto configurado em ``LLM_DAILY_TOKEN_BUDGET``; ``None``
-            desliga o alerta - MVP sem orcamento definido ainda nao tem o que
-            vigiar.
+            desliga o alerta - sem teto definido ainda nao ha o que vigiar.
 
     Returns:
         O consumo acumulado do dia depois de somar esta chamada.
