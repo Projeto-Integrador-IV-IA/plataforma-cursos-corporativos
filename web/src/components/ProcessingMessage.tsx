@@ -11,8 +11,17 @@ interface ProcessingMessageProps {
 }
 
 export function ProcessingMessage({ operation }: ProcessingMessageProps) {
+  // `status` nao calcula o nome acessivel a partir do conteudo (regra da ARIA):
+  // sem `aria-label`, leitores de tela anunciam a mudanca sem dizer o que
+  // esta em andamento.
   return (
-    <p className="processing-message" role="status" aria-live="polite" aria-busy="true">
+    <p
+      className="processing-message"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label={`Processando: ${operation}…`}
+    >
       <span className="processing-message__mark" aria-hidden="true">
         …
       </span>
