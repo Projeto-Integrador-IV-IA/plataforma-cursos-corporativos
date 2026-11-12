@@ -326,6 +326,11 @@ body {
   outline-offset: 1px;
 }
 
+.form__control[aria-invalid='true'] {
+  border-color: var(--cor-erro);
+  box-shadow: 0 0 0 1px var(--cor-erro);
+}
+
 .form__control:disabled {
   background: var(--cor-fundo);
   color: var(--cor-texto-suave);
