@@ -11,7 +11,6 @@ from app.schemas.artifact import (
     ArtifactErrorResponse,
     ArtifactRead,
     ArtifactResultCreate,
-    ArtifactVersionCreate,
     ArtifactVersionRead,
 )
 from app.services.artifact_service import ArtifactService
@@ -102,41 +101,6 @@ def list_artifact_versions(
     session: Annotated[Session, Depends(get_session)],
 ) -> list[ArtifactVersionRead]:
     return ArtifactService(session).list_versions(artifact_id)
-
-
-@router.post(
-    "/artifacts/{artifact_id}/versions",
-    response_model=ArtifactVersionRead,
-    status_code=status.HTTP_201_CREATED,
-    summary="Salvar a edicao da saida da IA como versao nova",
-    description=(
-        "Grava o conteudo editado como uma versao nova, vigente, e nunca sobrescreve a "
-        "anterior. A versao nova aponta para a versao de que partiu e para a versao gerada "
-        "pela IA que originou a cadeia. A edicao precisa partir da versao vigente "
-        "(`base_number`); o autor e lido do cabecalho X-User-ID."
-    ),
-    responses={
-        status.HTTP_404_NOT_FOUND: {
-            "model": ArtifactErrorResponse,
-            "description": "Artefato, versao ou operador inexistente.",
-        },
-        status.HTTP_409_CONFLICT: {
-            "model": ArtifactErrorResponse,
-            "description": "A edicao nao partiu da versao vigente ou nao mudou o conteudo.",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "model": ArtifactErrorResponse,
-            "description": "Conteudo vazio ou identificador invalido.",
-        },
-    },
-)
-def edit_artifact_version(
-    artifact_id: UUID,
-    data: ArtifactVersionCreate,
-    author_id: Annotated[UUID, Header(alias="X-User-ID")],
-    session: Annotated[Session, Depends(get_session)],
-) -> ArtifactVersionRead:
-    return ArtifactService(session).edit_version(artifact_id, data, author_id)
 
 
 @router.post(

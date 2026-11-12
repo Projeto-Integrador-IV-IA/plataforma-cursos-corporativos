@@ -12,7 +12,6 @@ from fastapi import APIRouter, Depends, status
 
 from app.auth.dependencies import require_permission
 from app.auth.jwt import AuthenticatedUser
-from app.services.auth_service import Permission
 from app.core.config import Settings, get_settings
 from app.schemas.auth import (
     ErrorResponse,
@@ -21,7 +20,7 @@ from app.schemas.auth import (
     SessionResponse,
     TokenResponse,
 )
-from app.services.auth_service import AuthService
+from app.services.auth_service import AuthService, Permission
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

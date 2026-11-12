@@ -117,14 +117,6 @@ class ArtifactVersion(Base):
             "COALESCE(previous_number, 0) = number - 1",
             name="previous_is_predecessor",
         ),
-        sa.CheckConstraint(
-            "ai_origin_number IS NULL OR ai_origin_number < number",
-            name="ai_origin_before_self",
-        ),
-        sa.CheckConstraint(
-            f"origin <> '{ArtifactOrigin.IA.value}' OR ai_origin_number IS NULL",
-            name="ia_has_no_ai_origin",
-        ),
         sa.UniqueConstraint(
             "artifact_id",
             "number",
@@ -142,16 +134,9 @@ class ArtifactVersion(Base):
             name="fk_artifact_versions_previous",
             ondelete="RESTRICT",
         ),
-        sa.ForeignKeyConstraint(
-            ["artifact_id", "ai_origin_number"],
-            ["artifact_versions.artifact_id", "artifact_versions.number"],
-            name="fk_artifact_versions_ai_origin",
-            ondelete="RESTRICT",
-        ),
         sa.Index("ix_artifact_versions_author_id", "author_id"),
         sa.Index("ix_artifact_versions_restored_from", "artifact_id", "restored_from_number"),
         sa.Index("ix_artifact_versions_previous", "artifact_id", "previous_number"),
-        sa.Index("ix_artifact_versions_ai_origin", "artifact_id", "ai_origin_number"),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -188,9 +173,6 @@ class ArtifactVersion(Base):
     )
     # Versao imediatamente anterior do mesmo artefato; nula so na versao 1.
     previous_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
-    # Versao gerada pela IA que originou a cadeia desta versao humana, mesmo com
-    # varias edicoes no meio; nula nas versoes da IA.
-    ai_origin_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     # Preenchido so na versao criada por restauracao: numero da versao restaurada,
     # do mesmo artefato e sempre anterior (FK composta e CHECK na migration).
     restored_from_number: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
