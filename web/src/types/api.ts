@@ -620,6 +620,20 @@ export interface FieldGap {
   readonly motivo: string | null;
 }
 
+/** Procedencia do valor de um campo estruturado. */
+export const FIELD_ORIGINS = ['extraido', 'inferido', 'ausente'] as const;
+
+export type FieldOrigin = (typeof FIELD_ORIGINS)[number];
+
+/** Trecho numerado da fonte que pode ser citado pela estruturacao. */
+export interface SourceSegmentRead {
+  readonly id: Uuid;
+  readonly raw_input_id: Uuid;
+  readonly demand_id: Uuid;
+  readonly position: number;
+  readonly content: string;
+}
+
 /** Formatos de realizacao declarados pelo contrato (RF11). */
 export const COURSE_FORMATS = ['presencial', 'online', 'hibrido'] as const;
 
@@ -664,6 +678,8 @@ export interface StructuredCourse {
    * inferido (RF14). Cada item traz o campo, o tipo da lacuna e o motivo.
    */
   readonly campos_ausentes: readonly FieldGap[];
+  readonly procedencia?: Readonly<Record<string, FieldOrigin>>;
+  readonly evidencias?: Readonly<Record<string, readonly number[]>>;
   readonly observacoes: readonly string[];
 }
 

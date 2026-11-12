@@ -21,6 +21,7 @@ import type {
   DemandRawInputRead,
   JobStatus,
   JsonObject,
+  SourceSegmentRead,
   StructuringJobRead,
 } from '@/types/api';
 
@@ -28,6 +29,7 @@ vi.mock('@/services/demands', () => ({
   createDemand: vi.fn(),
   listDemands: vi.fn(),
   getDemand: vi.fn(),
+  listDemandSegments: vi.fn(),
   updateDemand: vi.fn(),
 }));
 
@@ -45,6 +47,7 @@ vi.mock('@/services/structuring', () => ({
 }));
 
 const { getDemand } = await import('@/services/demands');
+const { listDemandSegments } = await import('@/services/demands');
 const { listArtifacts } = await import('@/services/artifacts');
 const { getStructuringJob, submitStructuringJob } = await import('@/services/structuring');
 const { renderRoute } = await import('@/test/renderRoute');
@@ -153,6 +156,7 @@ function execucaoCom(status: JobStatus): StructuringJobRead {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getDemand).mockResolvedValue(DEMANDA);
+  vi.mocked(listDemandSegments).mockResolvedValue([]);
   vi.mocked(listArtifacts).mockResolvedValue([artefatoCom(CURSO)]);
   vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('CONCLUIDA'));
   vi.mocked(submitStructuringJob).mockResolvedValue({
@@ -202,6 +206,48 @@ describe('revisao da estruturacao', () => {
     const texto = textoDaTela();
     expect(texto).toContain('Versao 1');
     expect(texto).toContain('gerada pela IA');
+  });
+
+  it('mostra a evidencia de cada campo junto da procedencia', async () => {
+    vi.mocked(listArtifacts).mockResolvedValue([
+      artefatoCom({
+        ...CURSO,
+        procedencia: {
+          tema: 'extraido',
+          publico_alvo: 'inferido',
+          carga_horaria: 'ausente',
+        },
+        evidencias: { tema: [1], publico_alvo: [2] },
+      }),
+    ]);
+    const segmentos: SourceSegmentRead[] = [
+      {
+        id: '99999999-9999-4999-8999-999999999991',
+        raw_input_id: FONTE_ID,
+        demand_id: DEMAND_ID,
+        position: 1,
+        content: 'Treinamento de NR-12 para a planta 2.',
+      },
+      {
+        id: '99999999-9999-4999-8999-999999999992',
+        raw_input_id: FONTE_ID,
+        demand_id: DEMAND_ID,
+        position: 2,
+        content: 'Publico formado por tecnicos de manutencao.',
+      },
+    ];
+    vi.mocked(listDemandSegments).mockResolvedValue(segmentos);
+
+    await abrirRevisao();
+
+    expect(textoDaTela()).toContain('Extraido da fonte');
+    expect(textoDaTela()).toContain('Inferido pela IA');
+    expect(textoDaTela()).toContain('Trecho [1]: Treinamento de NR-12 para a planta 2.');
+    expect(textoDaTela()).toContain('Trecho [2]: Publico formado por tecnicos de manutencao.');
+    expect(textoDaTela()).toContain('Sem valor utilizavel');
+    expect(document.querySelector('.structuring-course__field--evidenced')).not.toBeNull();
+    expect(document.querySelector('.structuring-course__field--inferred')).not.toBeNull();
+    expect(document.querySelector('.structuring-course__field--absent')).not.toBeNull();
   });
 
   it('declara a ausencia em vez de deixar o campo em branco', async () => {
