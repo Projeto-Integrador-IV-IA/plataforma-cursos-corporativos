@@ -26,7 +26,7 @@ export function PipelinePage() {
         </p>
       </header>
       <p className="page__description">
-        Demandas distribuidas pelas etapas, na ordem em que o pipeline as percorre.{' '}
+        Demandas distribuidas pelas etapas e as movimentacoes recentes da trilha de auditoria.{' '}
         <Link to={PATHS.demands}>Ver a mesma carteira em lista</Link>
       </p>
       <PipelineBoardView />

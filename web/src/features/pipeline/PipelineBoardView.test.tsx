@@ -27,11 +27,16 @@ import type {
   PipelineCardRead,
   PipelineStage,
   PipelineStageGroup,
+  StageTransition,
+  StageTransitionTimeline,
 } from '@/types/api';
 
-vi.mock('@/services/pipeline', () => ({ getPipelineBoard: vi.fn() }));
+vi.mock('@/services/pipeline', () => ({
+  getPipelineBoard: vi.fn(),
+  listStageTransitions: vi.fn(),
+}));
 
-const { getPipelineBoard } = await import('@/services/pipeline');
+const { getPipelineBoard, listStageTransitions } = await import('@/services/pipeline');
 const { renderRoute } = await import('@/test/renderRoute');
 
 /** Ordem em que o servico devolve as etapas, conforme o contrato. */
@@ -73,6 +78,24 @@ function createCard(number: number, partial: Partial<PipelineCardRead> = {}): Pi
   };
 }
 
+function createTransition(number: number, occurredAt: string): StageTransition {
+  const label = String(number).padStart(2, '0');
+
+  return {
+    id: `evento-${label}`,
+    demand_id: `demanda-${label}`,
+    from_stage: 'CAPTACAO',
+    to_stage: 'ESTRUTURACAO',
+    reason: null,
+    author: { id: 'operador-01', name: 'Marina Prado' },
+    occurred_at: occurredAt,
+  };
+}
+
+function timeline(...items: StageTransition[]): StageTransitionTimeline {
+  return { items, total: items.length };
+}
+
 /**
  * Quadro como o servico o devolve: as cinco etapas sempre presentes, cada uma
  * com seus cartoes e o total real da etapa. `totals` existe para simular o
@@ -112,6 +135,7 @@ function columnTitles(): readonly (string | null)[] {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(listStageTransitions).mockResolvedValue(timeline());
   withBoard(
     createBoard({
       CAPTACAO: [createCard(1), createCard(2)],
@@ -195,6 +219,74 @@ describe('quadro do pipeline', () => {
     // Somente o recorte: nenhum filtro de etapa, que o servico recusa com 422
     // e `PipelineBoardParams` nem permite expressar.
     expect(lastParams()).toEqual({ limit: CARDS_PER_STAGE });
+  });
+
+  it('limita e ordena atualizacoes recentes com autor e link da demanda', async () => {
+    const demands = Array.from({ length: 6 }, (_, index) => createCard(index + 1));
+    const occurredAt = [
+      '2026-09-20T09:00:00-03:00',
+      '2026-09-20T10:00:00-03:00',
+      '2026-09-20T11:00:00-03:00',
+      '2026-09-20T12:00:00-03:00',
+      '2026-09-20T13:00:00-03:00',
+      '2026-09-20T14:00:00-03:00',
+    ];
+    withBoard(createBoard({ CAPTACAO: demands }));
+    vi.mocked(listStageTransitions).mockImplementation((demandId) => {
+      const number = Number(demandId.slice(-2));
+      const timestamp = occurredAt[number - 1];
+
+      return Promise.resolve(timestamp ? timeline(createTransition(number, timestamp)) : timeline());
+    });
+
+    renderRoute('/pipeline');
+    const list = await screen.findByRole('list', { name: /atualizacoes recentes/i });
+    const items = within(list).getAllByRole('listitem');
+
+    expect(items).toHaveLength(5);
+    expect(items.map((item) => within(item).getByRole('link').textContent)).toEqual([
+      'Demanda 06',
+      'Demanda 05',
+      'Demanda 04',
+      'Demanda 03',
+      'Demanda 02',
+    ]);
+    expect(items.map((item) => within(item).getByRole('link').getAttribute('href'))).toEqual([
+      '/demandas/demanda-06',
+      '/demandas/demanda-05',
+      '/demandas/demanda-04',
+      '/demandas/demanda-03',
+      '/demandas/demanda-02',
+    ]);
+    expect(within(items[0]!).getByText(/Por Marina Prado/)).toBeDefined();
+    expect(within(items[0]!).getByText(/Mudanca de etapa/)).toBeDefined();
+    expect(items[0]?.querySelector('time')?.textContent).toBe(
+      new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(
+        new Date(occurredAt[5]!),
+      ),
+    );
+    expect(items[0]?.querySelector('time')?.getAttribute('datetime')).toBe(occurredAt[5]);
+  });
+
+  it('mostra erro das trilhas e permite repetir a consulta', async () => {
+    const user = userEvent.setup();
+    vi.mocked(listStageTransitions).mockRejectedValue(
+      new ApiError({
+        kind: 'http',
+        code: 'VALIDATION_ERROR',
+        message: 'A trilha nao pode ser carregada agora.',
+        status: 503,
+      }),
+    );
+    renderRoute('/pipeline');
+
+    const warning = await screen.findByText('A trilha nao pode ser carregada agora.');
+    expect(warning.closest('[aria-live="assertive"]')).not.toBeNull();
+
+    vi.mocked(listStageTransitions).mockResolvedValue(timeline());
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(await screen.findByText('Nenhuma movimentacao registrada ate agora.')).toBeDefined();
   });
 
   it('trata quadro vazio convidando a abrir a primeira negociacao, sem perder as colunas', async () => {
