@@ -1,6 +1,6 @@
 import { isApiError } from '@/services/api';
 
-export type FieldErrors = Readonly<Record<string, string>>;
+export type FieldErrors = Readonly<Record<string, string | undefined>>;
 
 interface ValidationIssue {
   readonly location?: readonly unknown[];
