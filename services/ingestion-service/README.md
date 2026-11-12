@@ -111,7 +111,21 @@ O remetente citado no texto nao e confundido com o operador identificado pelo
 cabecalho `X-User-ID`. Nao ha novo campo nem migration: a proveniencia reutiliza as colunas
 introduzidas no RF09. A ordenacao de recebimento pertence ao card #32.
 
-## 8. Testes
+## 8. Transcrição de Áudio e Integração STT (RF30)
+
+O `ingestion-service` realiza a transcrição de arquivos de áudio multimídia para conversão em fontes de texto normalizadas.
+
+- **Formatos Aceitos:** `.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac`.
+- **Limites de Arquivo:** Tamanho máximo de 25 MB por arquivo e duração máxima de 60 minutos por arquivo de áudio enviado.
+- **Configuração de Variáveis (`.env`):**
+  ```env
+  STT_PROVIDER=openai
+  OPENAI_API_KEY=sua-chave-aqui
+  STT_MAX_AUDIO_MB=25
+
+Limites de Consumo e Cota (RF30 / RNF22): O serviço aplica validações de cota para preservar a camada gratuita estudantil, limitando o processamento base a 2 horas de áudio por tenant/mês (dentro do teto global de 10h mensais do MVP).
+
+## 9. Testes
 
 ```bash
 pytest
