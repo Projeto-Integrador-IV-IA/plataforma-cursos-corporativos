@@ -117,6 +117,7 @@ from uuid import UUID, uuid4
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception
 
 from app.core.config import Settings
+from app.core.consumption import registrar_consumo
 from app.core.exceptions import LLMInvalidResponseError, LLMProviderError
 from app.core.logging import get_logger
 from app.domain.course import (
@@ -420,6 +421,13 @@ class StructuringService:
                 tokens_entrada=resultado.usage.prompt_tokens,
                 tokens_saida=resultado.usage.completion_tokens,
             ),
+        )
+        # So a chamada com sucesso soma ao consumo do dia (RNF22): falha de
+        # provedor nao tem token de saida do fornecedor a contar.
+        registrar_consumo(
+            tokens_entrada=resultado.usage.prompt_tokens,
+            tokens_saida=resultado.usage.completion_tokens,
+            limite_diario=self._settings.llm_daily_token_budget,
         )
         return StructuringOutcome(
             demand=demand,

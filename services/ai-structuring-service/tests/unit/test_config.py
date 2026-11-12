@@ -47,3 +47,25 @@ def test_mock_provider_does_not_require_api_key(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("LLM_API_KEY", "")
 
     assert Settings().llm_api_key is None
+
+
+def test_daily_token_budget_is_optional_and_absent_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sem ``LLM_DAILY_TOKEN_BUDGET``, o alerta de consumo (RNF22) fica desligado."""
+
+    _set_common_environment(monkeypatch)
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_API_KEY", "")
+
+    assert Settings().llm_daily_token_budget is None
+
+
+def test_daily_token_budget_rejects_zero_and_negative(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_common_environment(monkeypatch)
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("LLM_DAILY_TOKEN_BUDGET", "0")
+
+    with pytest.raises(ValidationError):
+        Settings()

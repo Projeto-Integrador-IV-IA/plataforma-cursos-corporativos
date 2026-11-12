@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     llm_max_retries: int = Field(ge=0)
     llm_schema_max_retries: int = Field(ge=0)
     llm_temperature: float = Field(ge=0, le=2)
+    llm_daily_token_budget: int | None = Field(default=None, ge=1)
 
     @field_validator("llm_api_key", mode="before")
     @classmethod
