@@ -5,24 +5,19 @@
  * (packages/contracts/openapi/). Tipos de entrada e saida vivem em `src/types`
  * e derivam do mesmo contrato (RNF02).
  *
- * Estado do contrato: `GET /api/v1/pipeline` ja esta declarada em
- * `pipeline-service.yaml`, e entrada e saida de `getPipelineBoard` espelham os
- * schemas de la. As rotas de transicao (RF06, RF07) seguem pendentes; os
- * caminhos delas seguem a convencao de subrecurso de
- * docs/02-arquitetura/contratos-api.md (`/demands/{id}/transitions`) e serao
- * CONFIRMADOS quando o contrato for publicado.
+ * As operacoes do quadro e da trilha de etapas espelham os schemas publicados
+ * em `pipeline-service.yaml`.
  */
 
 import { api, type RequestContext } from '@/services/api';
 import type {
   DemandRead,
-  Page,
-  PageParams,
   PipelineBoard,
   PipelineBoardParams,
   PipelineStage,
   StageTransition,
   StageTransitionCreate,
+  StageTransitionTimeline,
   Uuid,
 } from '@/types/api';
 
@@ -101,17 +96,14 @@ export function revertDemandStage(
 }
 
 /**
- * Historico de etapas da demanda (RF07).
+ * Historico completo de etapas da demanda (RF07).
  *
- * Append-only: o historico so cresce, nunca e corrigido no lugar (RNF09).
+ * O endpoint devolve todos os eventos em ordem cronologica crescente. A
+ * resposta nao e paginada: `total` e a quantidade completa de eventos.
  */
 export function listStageTransitions(
   demandId: Uuid,
-  params: PageParams = {},
   context: RequestContext = {},
-): Promise<Page<StageTransition>> {
-  return api.get<Page<StageTransition>>(`${RESOURCE}/${demandId}/transitions`, {
-    ...context,
-    query: { page: params.page, size: params.size },
-  });
+): Promise<StageTransitionTimeline> {
+  return api.get<StageTransitionTimeline>(`${RESOURCE}/${demandId}/transitions`, context);
 }

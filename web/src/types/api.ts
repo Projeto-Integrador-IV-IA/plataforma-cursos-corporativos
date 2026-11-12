@@ -374,7 +374,7 @@ export interface RawInputCreate {
 }
 
 // ---------------------------------------------------------------------------
-// Pipeline - PREVISTO (RF05, RF06, RF07), conforme `stage_transitions`
+// Pipeline - DERIVADO de `pipeline-service.yaml` (RF05, RF06, RF07)
 // ---------------------------------------------------------------------------
 
 /** Transicao de etapa registrada. Historico append-only (RNF09). */
@@ -384,8 +384,14 @@ export interface StageTransition {
   readonly from_stage: PipelineStage | null;
   readonly to_stage: PipelineStage;
   readonly reason: string | null;
-  readonly author_id: Uuid;
+  readonly author: PipelineCardPersonRead;
   readonly occurred_at: IsoDateTime;
+}
+
+/** Linha do tempo completa de uma demanda, do mais antigo ao mais recente. */
+export interface StageTransitionTimeline {
+  readonly items: readonly StageTransition[];
+  readonly total: number;
 }
 
 /**
