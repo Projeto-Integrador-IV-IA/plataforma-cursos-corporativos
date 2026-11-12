@@ -7,7 +7,6 @@
  * O `QueryClient` e criado uma vez por montagem para que cada teste tenha cache
  * proprio e nao contamine o seguinte.
  *
- * TODO(RF16): adicionar o contexto de autenticacao (token e usuario corrente).
  * TODO(RF17): adicionar o contexto de notificacoes de processamento.
  */
 

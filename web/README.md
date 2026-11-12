@@ -4,7 +4,7 @@ Interface do operador: onde clientes, demandas e o pipeline são consultados e o
 revisada antes de qualquer uso externo (RF14). Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `5173`
-- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RNF10, RNF25
+- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RF26, RNF10, RNF25
 
 ---
 
@@ -12,7 +12,7 @@ revisada antes de qualquer uso externo (RF14). Atende **RNF25** (Documento Conso
 
 | Tela | Requisitos |
 |---|---|
-| Login | RF16 |
+| Login | RF26 |
 | Lista de clientes / cadastro | RF01, RF03 |
 | Lista de demandas com filtro por status, cliente e período | RF02, RF03 |
 | Detalhe da negociação: pipeline, histórico e artefatos | RF04, RF05, RF06, RF07, RF15 |
@@ -52,7 +52,7 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 
 | Caminho | Tela | Requisitos |
 |---|---|---|
-| `/login` | Entrar | RF16 |
+| `/login` | Entrar | RF26 |
 | `/clientes` | Clientes | RF01, RF03 |
 | `/clientes/:clientId` | Detalhe do cliente | RF01 |
 | `/demandas` | Demandas | RF02, RF03 |
@@ -63,25 +63,26 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 
 `/` redireciona para `/clientes`; qualquer outro caminho cai na tela de rota inexistente.
 
-`/login` é rota irmã do layout: todas as demais são filhas de `App` e recebem a navegação
-lateral. Essa separação é o lugar do guarda de sessão (RNF10) quando RF16 existir — hoje
-não há token para verificar e as rotas ficam abertas.
+`/login` é rota irmã do layout: todas as demais são filhas de `App`, recebem a navegação
+lateral e passam pelo guarda de sessão. Sem sessão, o destino pretendido fica preservado no
+estado do roteador e é retomado depois da autenticação.
 
 ---
 
 ## 4. Acesso ao Gateway e Variáveis de Ambiente
 
 Toda chamada de rede passa por [`src/services/api.ts`](src/services/api.ts) — nenhum componente usa
-`fetch` diretamente. 
+`fetch` diretamente. O cliente HTTP lê a URL base de `VITE_API_BASE_URL` (RNF11), anexa o token da sessão (RF26), aplica o timeout da operação (RNF06, RNF07) e traduz falhas em `ApiError`.
 
 ### Variáveis de Ambiente (.env)
+
 O frontend consome as seguintes variáveis definidas a partir do arquivo `.env.example`:
 
 | Variável | Descrição | Exemplo / Padrão |
 |---|---|---|
 | `VITE_API_BASE_URL` | URL base do gateway da API (RNF11) | `http://localhost:8000` |
 
-O cliente HTTP lê a URL base, anexa o token da sessão (RF16), aplica o timeout da operação (RNF06, RNF07) e traduz qualquer falha em um único tipo, `ApiError`: erro da API no envelope `{ "error": { code, message, details, request_id } }`, falha de rede, timeout ou resposta ilegível chegam à tela da mesma forma.
+A resposta usa o envelope `{ "error": { code, message, details, request_id } }`; falhas de rede, timeout e resposta inválida chegam à tela como `ApiError`.
 
 Os tipos de entrada e saída vivem em [`src/types/api.ts`](src/types/api.ts) e derivam dos contratos
 em `packages/contracts` (RNF02).

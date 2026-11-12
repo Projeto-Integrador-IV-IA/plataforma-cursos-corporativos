@@ -47,7 +47,7 @@ O serviço utiliza um arquivo `.env` na raiz do microsserviço. Copie o `.env.ex
 
 | Variável | Descrição | Padrão / Exemplo |
 |---|---|---|
-| `DATABASE_URL` | String de conexão com o PostgreSQL | `postgresql://user:password@localhost:5432/db_name` |
+| `DATABASE_URL` | String de conexão com o PostgreSQL | `postgresql://<user>:<password>@localhost:5432/db_name` |
 | `INGESTION_PORT` | Porta em que o serviço Uvicorn irá escutar | `8002` |
 
 ---

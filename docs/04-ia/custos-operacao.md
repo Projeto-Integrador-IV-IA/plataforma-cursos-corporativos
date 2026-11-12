@@ -39,6 +39,7 @@ O custo é proporcional aos tokens consumidos. A fórmula de cálculo por demand
 ```text
 custo_por_demanda = (tokens_entrada  × preço_entrada_por_token)
                   + (tokens_saída    × preço_saída_por_token)
+```
 
 ### Preços Unitários de Referência por Modelo (OpenRouter / APIs)
 
