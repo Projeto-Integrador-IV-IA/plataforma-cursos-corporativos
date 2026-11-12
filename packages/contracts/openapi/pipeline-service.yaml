@@ -1040,13 +1040,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/RawInputRead'
         '404':
-          description: Demanda ou operador inexistente.
+          description: Demanda, operador ou tentativa anterior inexistente.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputErrorResponse'
         '409':
-          description: Referencia removida durante a persistencia.
+          description: Referencia removida ou tentativa anterior de outra demanda.
           content:
             application/json:
               schema:
@@ -1080,6 +1080,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RawInputRead'
+        '404':
+          description: Fonte bruta inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawInputErrorResponse'
+  /api/v1/raw-inputs/{raw_input_id}/attempts:
+    get:
+      tags:
+      - raw-inputs
+      summary: Consultar historico de reprocessamento
+      description: Retorna a tentativa inicial e seus reprocessamentos em ordem de recebimento.
+      operationId: get_raw_input_attempts_api_v1_raw_inputs__raw_input_id__attempts_get
+      parameters:
+      - name: raw_input_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Raw Input Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RawInputRead'
+                title: Response Get Raw Input Attempts Api V1 Raw Inputs  Raw Input Id  Attempts Get
         '404':
           description: Fonte bruta inexistente.
           content:
@@ -1179,7 +1216,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SourceSegmentErrorResponse'
         '422':
-          description: Lote ou identificador invalido.
+          description: Lote, identificador ou intervalo original invalido.
           content:
             application/json:
               schema:
@@ -2351,12 +2388,24 @@ components:
           type: string
           minLength: 1
           title: Content
+        original_start_offset:
+          type: integer
+          minimum: 0.0
+          title: Original Start Offset
+          description: Indice de caractere inicial, inclusivo, no conteudo original da fonte.
+        original_end_offset:
+          type: integer
+          minimum: 1.0
+          title: Original End Offset
+          description: Indice de caractere final, exclusivo, no conteudo original da fonte.
       additionalProperties: false
       type: object
       required:
       - id
       - position
       - content
+      - original_start_offset
+      - original_end_offset
       title: SourceSegmentCreate
       description: Trecho identificado de forma estavel pelo ingestion-service.
     SourceSegmentErrorDetails:
@@ -2410,6 +2459,24 @@ components:
         content:
           type: string
           title: Content
+        original_start_offset:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Original Start Offset
+          description: Indice inicial na fonte original; nulo em registros legados sem mapeamento.
+        original_end_offset:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Original End Offset
+          description: Indice final exclusivo na fonte original; nulo em registros legados sem mapeamento.
+        original_content:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Original Content
+          description: Fatia literal da fonte original indicada pelos offsets; nula sem mapeamento legado.
       type: object
       required:
       - id
@@ -2417,6 +2484,9 @@ components:
       - demand_id
       - position
       - content
+      - original_start_offset
+      - original_end_offset
+      - original_content
       title: SourceSegmentRead
       description: Trecho recuperavel com os vinculos de fonte e demanda.
     RawInputCreate:
@@ -2427,6 +2497,12 @@ components:
           title: Original Content
         source:
           $ref: '#/components/schemas/RawInputSource'
+        previous_attempt_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previous Attempt Id
       additionalProperties: false
       type: object
       required:
@@ -2499,6 +2575,12 @@ components:
           - type: string
           - type: 'null'
           title: Normalized Content
+        previous_attempt_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previous Attempt Id
         source:
           $ref: '#/components/schemas/RawInputSource'
         author_id:
@@ -2519,6 +2601,7 @@ components:
       - received_order
       - original_content
       - normalized_content
+      - previous_attempt_id
       - source
       - author_id
       - truncated

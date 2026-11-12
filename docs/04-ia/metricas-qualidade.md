@@ -54,7 +54,7 @@ escala de 1 a 5:
 | **Coerência com os requisitos** | A ementa corresponde ao tema, público e carga extraídos? |
 | **Adequação ao público** | O nível corresponde ao perfil declarado dos participantes? |
 | **Consistência de carga** | A soma da carga dos módulos fecha com a carga total? |
-| **Qualidade dos objetivos** | O objetivos são verificáveis, com verbo de ação? |
+| **Qualidade dos objetivos** | Os objetivos são verificáveis, com verbo de ação? |
 | **Utilidade prática** | O operador usaria isso como ponto de partida real? |
 
 Meta inicial: média ≥ 3,5 em cada critério; **nenhum** critério abaixo de 3,0.
@@ -110,7 +110,9 @@ O **OpenRouter** atua como o *gateway/hub* unificado de roteamento de inferênci
 
 Relatório por rodada de avaliação, versionado neste diretório:
 
-docs/04-ia/avaliacoes/YYYY-MM-DD-.md
+```
+docs/04-ia/avaliacoes/YYYY-MM-DD-<versao-do-prompt>.md
+```
 
 Cada relatório traz: versão de prompt, modelo, tamanho do conjunto, tabela de métricas, comparação
 com a rodada anterior e conclusão sobre o que mudar.

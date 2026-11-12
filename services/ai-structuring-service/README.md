@@ -1,12 +1,23 @@
 # ai-structuring-service
 
-Estruturacao do curso por LLM: extracao de requisitos, geracao de ementa e metricas de qualidade.
+Estruturacao do curso por LLM: extracao de requisitos, geracao de ementa e metricas de qualidade. Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `8003`
-- **Requisitos atendidos:** RF11, RF12, RNF03, RNF04, RNF05, RNF06
+- **Requisitos atendidos:** RF11, RF12, RNF03, RNF04, RNF05, RNF06, RNF25
 - **Contrato de API:** [`packages/contracts/openapi/ai-structuring-service.yaml`](../../packages/contracts/openapi/ai-structuring-service.yaml)
 
-## Estrutura
+---
+
+## 1. Responsabilidade e Fronteira
+
+O **AI Structuring Service** atua no núcleo de inteligência artificial do sistema.
+
+- **O que ele faz:** transforma o conteúdo normalizado em uma estrutura de curso validada contra o schema canônico.
+- **O que ele não faz:** não realiza a captação bruta de dados (`ingestion-service`) nem gerencia o estado global do fluxo (`pipeline-service`).
+
+---
+
+## 2. Estrutura
 
 ```
 app/
@@ -18,7 +29,25 @@ app/
 └── services/      Casos de uso / regras de aplicacao
 ```
 
-## Executar
+---
+
+## 3. Endpoints Expostos
+
+O serviço expõe sua API REST documentada via OpenAPI/Swagger:
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/v1/structuring` | Estrutura a demanda de forma síncrona |
+| `POST` | `/api/v1/structuring/jobs` | Aceita uma estruturação assíncrona e devolve o identificador da execução |
+| `GET` | `/api/v1/structuring/jobs/{job_id}` | Consulta o estado e o resultado da execução |
+| `GET` | `/health` | Verifica a saúde do microsserviço |
+
+Os corpos de entrada e saída estão definidos no
+[`ai-structuring-service.yaml`](../../packages/contracts/openapi/ai-structuring-service.yaml).
+
+---
+
+## 4. Como Executar
 
 ```bash
 # Exporte no shell as variaveis de .env.example e preencha os campos vazios.
@@ -26,13 +55,10 @@ pip install -e ".[dev]"
 uvicorn app.main:app --reload --port "$AI_STRUCTURING_PORT"
 ```
 
-> Estado: **scaffolding**. As rotas de negocio ainda nao possuem implementacao. Ja implementados:
-> configuracao (`core/config.py`), contrato de provedor (`providers/base.py`), excecoes
-> (`core/exceptions.py`), os provedores `mock` e `http` com selecao por ambiente, a chamada
-> resiliente ao provedor (`services/structuring_service.py`) e a traducao das falhas em resposta
-> HTTP (`main.py`).
+As rotas síncrona e assíncrona estão implementadas. Para desenvolvimento e CI, o provedor
+`mock` permite exercitar o fluxo completo sem credencial ou chamada externa.
 
-## Provedor de LLM (RNF03)
+## 5. Provedor de LLM (RNF03)
 
 O servico conversa com um **contrato**, nao com um fornecedor. `providers/base.py` define
 `LLMProvider.complete(prompt, params)`, que devolve o texto bruto do modelo mais os metadados de
@@ -69,7 +95,7 @@ LLM_API_KEY=...
 Nome nao registrado em `LLM_PROVIDER` falha na criacao do provedor, listando os disponiveis - erro
 de configuracao aparece na subida, nao no meio de uma demanda.
 
-## Curso estruturado (RNF03)
+## 6. Curso estruturado (RNF03)
 
 A saida da estruturacao tem forma fixa entre execucoes. `domain/course.py` define o modelo
 canonico `StructuredCourse` (Pydantic) e `validar_curso_estruturado()`, que transforma o texto
@@ -82,13 +108,13 @@ bruto do provedor em objeto validado:
   `LLMInvalidResponseError`: resposta invalida e falha, nao e aceita como "quase certa"
   ([ADR-0006](../../docs/02-arquitetura/decisoes/ADR-0006-saida-da-ia-com-schema-fixo.md));
 - **obrigatoriedade = a chave vem na resposta**, ainda que com valor nulo. As sete chaves
-  obrigatorias sao exatamente as que o prompt ativo `extract-requirements.v1` manda devolver;
+  obrigatorias sao exatamente as que o prompt ativo `extract-requirements.v5` manda devolver;
   `nicho`, `numero_participantes` e `formato` ficam opcionais ate existir prompt que os produza.
 
 `schema_do_curso_estruturado()` devolve o JSON Schema derivado do modelo - e o que se passa em
 `CompletionParams.response_schema` para fornecedores com saida estruturada.
 
-## Falha e timeout do LLM (RNF05)
+## 7. Falha e timeout do LLM (RNF05)
 
 O provedor pode falhar; a demanda bruta, nao. Quem persiste o texto colado e o `ingestion-service`,
 **antes** de qualquer chamada ao modelo - este servico nao abre transacao nem escreve no banco de
@@ -110,7 +136,13 @@ tentativas houve e se vale repetir - sem expor credencial (RNF11) nem dado do cl
 Cobertura em [`tests/unit/test_structuring_service.py`](tests/unit/test_structuring_service.py) e
 [`tests/unit/test_error_responses.py`](tests/unit/test_error_responses.py).
 
-## Estratégia de Testes do Modelo (RNF30)
+## 8. Testes
+
+```bash
+pytest
+```
+
+## 9. Estratégia de Testes do Modelo (RNF30)
 
 O `ai-structuring-service` possui uma suíte de testes em camadas para garantir a integridade das saídas do LLM:
 
@@ -119,11 +151,7 @@ O `ai-structuring-service` possui uma suíte de testes em camadas para garantir 
 3. **Avaliação por Gabarito:** Validação de precisão semântica comparando o payload retornado com os gabaritos em `tests/fixtures/gabaritos/`.
 
 Para rodar os testes da suíte de IA:
+
 ```bash
 pytest services/ai-structuring-service/tests/
-
-## Testes
-
-```bash
-pytest
 ```

@@ -61,6 +61,13 @@ describe('mapa de rotas', () => {
     renderRoute(PATHS.login);
     expect(screen.queryByRole('navigation', { name: 'Navegacao principal' })).toBeNull();
   });
+
+  it('impede acesso a rota protegida sem sessao', () => {
+    renderRoute(PATHS.clients, { authenticated: false });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Entrar' })).toBeDefined();
+    expect(screen.queryByRole('navigation', { name: 'Navegacao principal' })).toBeNull();
+  });
 });
 
 describe('parametros de rota', () => {
