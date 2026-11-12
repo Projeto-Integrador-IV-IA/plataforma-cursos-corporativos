@@ -1146,6 +1146,21 @@ body {
   border-radius: var(--raio);
 }
 
+.structuring-course__field--evidenced,
+.structuring-course__block--evidenced {
+  border-left: 4px solid var(--cor-sucesso);
+}
+
+.structuring-course__field--inferred,
+.structuring-course__block--inferred {
+  border-left: 4px dashed var(--cor-destaque);
+}
+
+.structuring-course__field--absent,
+.structuring-course__block--absent {
+  border-left: 4px double var(--cor-borda);
+}
+
 .structuring-course__term {
   color: var(--cor-texto-suave);
   font-size: 0.8125rem;
@@ -1154,6 +1169,35 @@ body {
 .structuring-course__value {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.structuring-course__evidence {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-fundo);
+  font-size: 0.8125rem;
+}
+
+.structuring-course__evidence strong {
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.structuring-course__evidence ul {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.structuring-course__evidence--missing {
+  border-style: dashed;
+  color: var(--cor-texto-suave);
 }
 
 .structuring-course__block-title {

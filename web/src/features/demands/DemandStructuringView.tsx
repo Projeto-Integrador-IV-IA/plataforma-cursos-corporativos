@@ -44,7 +44,7 @@ import { DemandStructuringStatus } from '@/features/demands/DemandStructuringSta
 import { lerCursoEstruturado } from '@/features/demands/StructuredCourseContent';
 import { isApiError } from '@/services/api';
 import { listArtifacts } from '@/services/artifacts';
-import { getDemand } from '@/services/demands';
+import { getDemand, listDemandSegments } from '@/services/demands';
 import type {
   ArtifactResultRead,
   ArtifactResultVersionRead,
@@ -126,7 +126,13 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     enabled: demandId !== '',
   });
 
-  if (demanda.isPending || artefatos.isPending) {
+  const trechos = useQuery({
+    queryKey: ['demand-segments', demandId],
+    queryFn: ({ signal }) => listDemandSegments(demandId, { signal }),
+    enabled: demandId !== '',
+  });
+
+  if (demanda.isPending || artefatos.isPending || trechos.isPending) {
     return (
       <p className="page__pending" aria-live="polite">
         Carregando a estrutura gerada…
@@ -134,10 +140,10 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     );
   }
 
-  if (demanda.isError || artefatos.isError) {
+  if (demanda.isError || artefatos.isError || trechos.isError) {
     return (
       <p className="demand-detail__failure" aria-live="polite">
-        {mensagemDeErro(demanda.error ?? artefatos.error)}
+        {mensagemDeErro(demanda.error ?? artefatos.error ?? trechos.error)}
       </p>
     );
   }
@@ -194,7 +200,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
               {artefato.title ?? 'Requisitos extraidos'}: versao {versao.number} (
               {rotuloDaOrigem(versao.origin)}) gerada em {formatarDataHora(versao.created_at)}.
             </p>
-            <DemandStructuringCourse course={curso} />
+            <DemandStructuringCourse course={curso} segments={trechos.data} />
             <p className="page__description">
               <Link to={buildPath.artifactVersions(artefato.id)}>
                 Ver o historico de versoes ({artefato.versions.length})
