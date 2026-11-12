@@ -10,6 +10,7 @@ import { type FormEvent, useId, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { hasAuthSession, login } from '@/services/auth';
@@ -40,7 +41,7 @@ function intendedDestination(state: unknown): string {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showError } = useFeedback();
+  const { showSuccess, showError } = useFeedback();
   const emailId = useId();
   const passwordId = useId();
   const [email, setEmail] = useState('');
@@ -66,6 +67,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await login({ email: email.trim(), password });
+      showSuccess('Sessao iniciada.');
       navigate(destination, { replace: true });
     } catch (error) {
       showError(isApiError(error) ? error.message : LOGIN_FAILURE);
@@ -144,6 +146,7 @@ export function LoginPage() {
               {submitting ? 'Entrando...' : 'Entrar'}
             </button>
           </div>
+          {submitting ? <ProcessingMessage operation="autenticacao" /> : null}
         </form>
       </section>
     </main>

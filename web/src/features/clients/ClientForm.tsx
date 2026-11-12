@@ -23,6 +23,7 @@ import { type FormEvent, useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { createClient } from '@/services/clients';
@@ -213,6 +214,7 @@ export function ClientForm() {
           {cadastro.isPending ? 'Cadastrando…' : 'Cadastrar cliente'}
         </button>
       </div>
+      {cadastro.isPending ? <ProcessingMessage operation="cadastro do cliente" /> : null}
     </form>
   );
 }
