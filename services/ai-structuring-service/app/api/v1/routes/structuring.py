@@ -115,7 +115,11 @@ async def structure_course(
     """
 
     outcome = await service.structure_course(
-        RawDemand(demand_id=payload.demand_id, text=payload.text),
+        RawDemand(
+            demand_id=payload.demand_id,
+            text=payload.text,
+            source_ids=payload.source_ids,
+        ),
         prompt_version=payload.prompt_version,
     )
     return StructuringResponse.from_outcome(outcome)
@@ -141,7 +145,11 @@ async def submit_structuring_job(
     """
 
     job = jobs.submit(
-        RawDemand(demand_id=payload.demand_id, text=payload.text),
+        RawDemand(
+            demand_id=payload.demand_id,
+            text=payload.text,
+            source_ids=payload.source_ids,
+        ),
         prompt_version=payload.prompt_version,
     )
     return StructuringJobAccepted.from_job(job)
