@@ -12,6 +12,7 @@
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { ClientList } from '@/features/clients/ClientList';
 
 export function ClientsPage() {
@@ -26,7 +27,9 @@ export function ClientsPage() {
       </header>
       <p className="page__description">
         Empresas clientes, da mais recente para a mais antiga.{' '}
-        <Link to={PATHS.clientNew}>Cadastrar cliente</Link>
+        <PermissionGate permission={PERMISSIONS.clientsManage}>
+          <Link to={PATHS.clientNew}>Cadastrar cliente</Link>
+        </PermissionGate>
       </p>
       <ClientList />
     </section>

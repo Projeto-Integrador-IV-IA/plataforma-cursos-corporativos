@@ -4,7 +4,7 @@ Interface do operador: onde clientes, demandas e o pipeline são consultados e o
 revisada antes de qualquer uso externo (RF14).
 
 - **Porta:** `5173`
-- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RF26, RNF10
+- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RF26, RNF10, RNF18
 
 ## Telas previstas
 
@@ -45,6 +45,7 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 | Caminho | Tela | Requisitos |
 |---|---|---|
 | `/login` | Entrar | RF26 |
+| `/acesso-negado` | Perfil sem permissão | RNF18 |
 | `/clientes` | Clientes | RF01, RF03 |
 | `/clientes/:clientId` | Detalhe do cliente | RF01 |
 | `/demandas` | Demandas | RF02, RF03 |
@@ -58,6 +59,11 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 `/login` é rota irmã do layout: todas as demais são filhas de `App`, recebem a navegação
 lateral e passam pelo guarda de sessão. Sem sessão, o destino pretendido fica preservado no
 estado do roteador e é retomado depois da autenticação.
+
+`RequirePermission` protege rotas e `PermissionGate` oculta ações e links conforme o perfil da
+sessão. Até a matriz de RNF18 ser publicada no backend, somente `OPERADOR` tem permissões
+configuradas; perfis desconhecidos são negados por padrão. Esses controles são apenas visuais:
+o servidor continua responsável por autorizar cada operação e devolver `403` quando necessário.
 
 ## Acesso ao gateway
 

@@ -34,6 +34,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { formatarDataHora, rotuloDaOrigem } from '@/features/demands/DemandDetailLabels';
 import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import { DemandStructuringCourse } from '@/features/demands/DemandStructuringCourse';
@@ -196,9 +197,11 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
             </p>
             <DemandStructuringCourse course={curso} />
             <p className="page__description">
-              <Link to={buildPath.artifactVersions(artefato.id)}>
-                Ver o historico de versoes ({artefato.versions.length})
-              </Link>
+              <PermissionGate permission={PERMISSIONS.artifactsRead}>
+                <Link to={buildPath.artifactVersions(artefato.id)}>
+                  Ver o historico de versoes ({artefato.versions.length})
+                </Link>
+              </PermissionGate>
             </p>
           </>
         )}

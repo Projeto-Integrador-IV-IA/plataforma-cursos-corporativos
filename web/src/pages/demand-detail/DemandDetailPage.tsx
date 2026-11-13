@@ -13,6 +13,7 @@
 import { Link, useParams } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { DemandDetailView } from '@/features/demands/DemandDetailView';
 
 export function DemandDetailPage() {
@@ -35,7 +36,9 @@ export function DemandDetailPage() {
       )}
 
       <p className="page__description">
-        <Link to={PATHS.demands}>Voltar para a lista de demandas</Link>
+        <PermissionGate permission={PERMISSIONS.demandsRead}>
+          <Link to={PATHS.demands}>Voltar para a lista de demandas</Link>
+        </PermissionGate>
       </p>
     </section>
   );

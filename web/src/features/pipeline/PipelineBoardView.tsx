@@ -33,6 +33,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { demandCount } from '@/features/pipeline/PipelineBoardLabels';
 import { PipelineStageColumn } from '@/features/pipeline/PipelineStageColumn';
 import { isApiError } from '@/services/api';
@@ -81,7 +82,9 @@ export function PipelineBoardView() {
           {board.data.total === 0 ? (
             <p className="pipeline-board__state" aria-live="polite">
               Nenhuma demanda no pipeline ate agora.{' '}
-              <Link to={PATHS.demandNew}>Abra a primeira negociacao</Link>.
+              <PermissionGate permission={PERMISSIONS.demandsManage}>
+                <Link to={PATHS.demandNew}>Abra a primeira negociacao</Link>.
+              </PermissionGate>
             </p>
           ) : null}
 
@@ -106,7 +109,9 @@ export function PipelineBoardView() {
           <p className="pipeline-board__summary" aria-live="polite">
             {demandCount(board.data.total)} no pipeline. Cada coluna carrega ate{' '}
             {CARDS_PER_STAGE} cartoes; o numero no topo da coluna e o total da etapa.{' '}
-            <Link to={PATHS.demands}>Ver tudo em lista</Link>
+            <PermissionGate permission={PERMISSIONS.demandsRead}>
+              <Link to={PATHS.demands}>Ver tudo em lista</Link>
+            </PermissionGate>
           </p>
         </>
       ) : null}

@@ -18,6 +18,7 @@
 import { Link } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import type { Uuid } from '@/types/api';
 
 interface DemandDetailSourcesProps {
@@ -32,7 +33,9 @@ export function DemandDetailSources({ demandId }: DemandDetailSourcesProps) {
         que as devolve.
       </p>
       <p className="page__description">
-        <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
+        <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+          <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
+        </PermissionGate>
       </p>
     </>
   );
