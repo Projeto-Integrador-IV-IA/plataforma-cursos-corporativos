@@ -10,6 +10,7 @@
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { ClientForm } from '@/features/clients/ClientForm';
 
 export function ClientNewPage() {
@@ -31,7 +32,9 @@ export function ClientNewPage() {
       <ClientForm />
 
       <p className="page__description">
-        <Link to={PATHS.clients}>Voltar para a lista de clientes</Link>
+        <PermissionGate permission={PERMISSIONS.clientsRead}>
+          <Link to={PATHS.clients}>Voltar para a lista de clientes</Link>
+        </PermissionGate>
       </p>
     </section>
   );

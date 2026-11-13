@@ -9,23 +9,28 @@
 import { NavLink } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PERMISSIONS, hasPermission, useAuthorization } from '@/features/auth/Authorization';
 
 interface NavItem {
   to: string;
   label: string;
+  permission: (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { to: PATHS.clients, label: 'Clientes' },
-  { to: PATHS.pipeline, label: 'Pipeline' },
-  { to: PATHS.demands, label: 'Demandas' },
+  { to: PATHS.clients, label: 'Clientes', permission: PERMISSIONS.clientsRead },
+  { to: PATHS.pipeline, label: 'Pipeline', permission: PERMISSIONS.pipelineRead },
+  { to: PATHS.demands, label: 'Demandas', permission: PERMISSIONS.demandsRead },
 ];
 
 export function AppNav() {
+  const { role } = useAuthorization();
+  const visibleItems = NAV_ITEMS.filter((item) => hasPermission(role, item.permission));
+
   return (
     <nav className="nav" aria-label="Navegacao principal">
       <ul className="nav__list">
-        {NAV_ITEMS.map((item) => (
+        {visibleItems.map((item) => (
           <li key={item.to}>
             <NavLink
               to={item.to}

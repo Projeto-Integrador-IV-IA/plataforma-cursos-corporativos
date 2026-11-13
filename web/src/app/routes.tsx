@@ -14,9 +14,9 @@
  *   /demandas/:demandId/estruturacao  revisao da saida da IA antes de uso externo (RF14)
  *   /artefatos/:artifactId/versoes    historico de versoes (RF08)
  *
- * Toda rota, exceto /login, exige sessao autenticada (RNF10). A arvore ja
- * separa as duas familias: `/login` e rota irma, e as demais sao filhas do
- * layout `App`.
+ * Toda rota, exceto /login, exige sessao autenticada (RNF10); as rotas de
+ * operacao ainda exigem a permissao visual correspondente. A arvore separa
+ * `/login` do layout `App`, que envolve as telas privadas.
  *
  * O guarda preserva o destino pretendido no estado de navegacao e o login
  * devolve o operador a esse caminho depois de autenticar.
@@ -26,7 +26,9 @@ import { Navigate, type RouteObject } from 'react-router-dom';
 
 import { App } from '@/app/App';
 import { PATHS } from '@/app/paths';
+import { PERMISSIONS, RequirePermission } from '@/features/auth/Authorization';
 import { RequireSession } from '@/features/auth/RequireSession';
+import { AccessDeniedPage } from '@/pages/access-denied/AccessDeniedPage';
 import { ArtifactVersionsPage } from '@/pages/artifact-versions/ArtifactVersionsPage';
 import { ClientDetailPage } from '@/pages/client-detail/ClientDetailPage';
 import { ClientNewPage } from '@/pages/client-new/ClientNewPage';
@@ -54,16 +56,90 @@ export const routes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <Navigate to={PATHS.clients} replace /> },
-      { path: PATHS.clients, element: <ClientsPage /> },
-      { path: PATHS.clientNew, element: <ClientNewPage /> },
-      { path: PATHS.clientDetail, element: <ClientDetailPage /> },
-      { path: PATHS.pipeline, element: <PipelinePage /> },
-      { path: PATHS.demands, element: <DemandsPage /> },
-      { path: PATHS.demandNew, element: <DemandNewPage /> },
-      { path: PATHS.demandDetail, element: <DemandDetailPage /> },
-      { path: PATHS.demandIngestion, element: <DemandIngestionPage /> },
-      { path: PATHS.demandStructuring, element: <DemandStructuringPage /> },
-      { path: PATHS.artifactVersions, element: <ArtifactVersionsPage /> },
+      {
+        path: PATHS.accessDenied,
+        element: <AccessDeniedPage />,
+      },
+      {
+        path: PATHS.clients,
+        element: (
+          <RequirePermission permission={PERMISSIONS.clientsRead}>
+            <ClientsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.clientNew,
+        element: (
+          <RequirePermission permission={PERMISSIONS.clientsManage}>
+            <ClientNewPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.clientDetail,
+        element: (
+          <RequirePermission permission={PERMISSIONS.clientsRead}>
+            <ClientDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.pipeline,
+        element: (
+          <RequirePermission permission={PERMISSIONS.pipelineRead}>
+            <PipelinePage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.demands,
+        element: (
+          <RequirePermission permission={PERMISSIONS.demandsRead}>
+            <DemandsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.demandNew,
+        element: (
+          <RequirePermission permission={PERMISSIONS.demandsManage}>
+            <DemandNewPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.demandDetail,
+        element: (
+          <RequirePermission permission={PERMISSIONS.demandsRead}>
+            <DemandDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.demandIngestion,
+        element: (
+          <RequirePermission permission={PERMISSIONS.ingestionCreate}>
+            <DemandIngestionPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.demandStructuring,
+        element: (
+          <RequirePermission permission={PERMISSIONS.structuringReview}>
+            <DemandStructuringPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: PATHS.artifactVersions,
+        element: (
+          <RequirePermission permission={PERMISSIONS.artifactsRead}>
+            <ArtifactVersionsPage />
+          </RequirePermission>
+        ),
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
