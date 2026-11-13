@@ -67,6 +67,10 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 lateral e passam pelo guarda de sessão. Sem sessão, o destino pretendido fica preservado no
 estado do roteador e é retomado depois da autenticação.
 
+Na revisão da estrutura, cada evidência leva ao detalhe da demanda já focado na fonte original:
+o trecho é destacado, os segmentos vizinhos ficam visíveis e o retorno restaura o endereço da
+revisão, inclusive parâmetros de execução e a posição do campo consultado.
+
 ---
 
 ## 4. Acesso ao Gateway e Variáveis de Ambiente
@@ -109,4 +113,3 @@ npm run lint    # eslint (Verifica a qualidade de código)
 
 Estado: estrutura base pronta (RNF01) — rotas, layout e providers navegáveis.
 As telas são molduras: nenhum dado é consumido do gateway ainda.
-

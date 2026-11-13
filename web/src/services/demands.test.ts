@@ -10,8 +10,14 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { ApiError, isApiError } from '@/services/api';
-import { createDemand, getDemand, listDemands, updateDemand } from '@/services/demands';
-import type { DemandRead, Page } from '@/types/api';
+import {
+  createDemand,
+  getDemand,
+  listDemandSegments,
+  listDemands,
+  updateDemand,
+} from '@/services/demands';
+import type { DemandRead, Page, SourceSegmentRead } from '@/types/api';
 
 const BASE_URL = 'https://gateway.test/api/v1';
 
@@ -129,5 +135,28 @@ describe('getDemand e updateDemand', () => {
     await updateDemand(DEMANDA.id, { title: 'Formacao de lideranca II' });
     expect(lastCall().init?.method).toBe('PATCH');
     expect(lastCall().init?.body).toBe(JSON.stringify({ title: 'Formacao de lideranca II' }));
+  });
+});
+
+describe('listDemandSegments', () => {
+  it('consulta os trechos citaveis da demanda com offsets na fonte original', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
+    const segmento: SourceSegmentRead = {
+      id: '33333333-3333-4333-8333-333333333333',
+      raw_input_id: '44444444-4444-4444-8444-444444444444',
+      demand_id: DEMANDA.id,
+      position: 1,
+      content: 'Trecho original.',
+      original_start_offset: 0,
+      original_end_offset: 16,
+      original_content: 'Trecho original.',
+    };
+    stubFetch([segmento]);
+
+    const segmentos = await listDemandSegments(DEMANDA.id);
+
+    expectTypeOf(segmentos).toEqualTypeOf<readonly SourceSegmentRead[]>();
+    expect(segmentos).toEqual([segmento]);
+    expect(lastCall().url).toBe(`${BASE_URL}/demands/${DEMANDA.id}/segments`);
   });
 });
