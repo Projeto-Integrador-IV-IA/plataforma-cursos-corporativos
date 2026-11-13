@@ -16,8 +16,8 @@
  *  - etapa e situacao aparecem, mas nao mudam por aqui - quem as move e o
  *    pipeline (RF05, RF06), que registra a transicao e ainda nao tem operacao
  *    publicada no contrato;
- *  - as fontes captadas aparecem como secao vazia, pelo motivo explicado em
- *    `DemandDetailSources`.
+ *  - a secao de fontes recupera o texto original da demanda e, quando a URL
+ *    identifica uma evidencia, apresenta o trecho e seus vizinhos.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -36,8 +36,8 @@ import {
 import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import { DemandDetailSources } from '@/features/demands/DemandDetailSources';
 import { isApiError } from '@/services/api';
-import { getDemand } from '@/services/demands';
-import type { Uuid } from '@/types/api';
+import { getDemand, listDemandSegments } from '@/services/demands';
+import type { SourceSegmentRead, Uuid } from '@/types/api';
 
 /** Mensagem exibida quando a falha nao veio no envelope da plataforma. */
 const FALHA_GENERICA = 'Nao foi possivel carregar a demanda. Tente novamente.';
@@ -72,15 +72,30 @@ function Campo({ termo, children }: CampoProps) {
 
 interface DemandDetailViewProps {
   demandId: Uuid;
+  selectedSourceId: string | null;
+  selectedSegmentId: string | null;
+  returnTo: { pathname: string; search: string; hash: string };
 }
 
-export function DemandDetailView({ demandId }: DemandDetailViewProps) {
+export function DemandDetailView({
+  demandId,
+  selectedSourceId,
+  selectedSegmentId,
+  returnTo,
+}: DemandDetailViewProps) {
   const [editandoContexto, setEditandoContexto] = useState(false);
+  const evidenciaSelecionada = selectedSourceId !== null || selectedSegmentId !== null;
 
   const detalhe = useQuery({
     queryKey: demandDetailKey(demandId),
     queryFn: ({ signal }) => getDemand(demandId, { signal }),
     enabled: demandId !== '',
+  });
+
+  const segmentos = useQuery<readonly SourceSegmentRead[]>({
+    queryKey: ['demand-segments', demandId],
+    queryFn: ({ signal }) => listDemandSegments(demandId, { signal }),
+    enabled: demandId !== '' && evidenciaSelecionada,
   });
 
   if (detalhe.isPending) {
@@ -95,6 +110,22 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
     return (
       <p className="demand-detail__failure" aria-live="polite">
         {mensagemDeErro(detalhe.error)}
+      </p>
+    );
+  }
+
+  if (evidenciaSelecionada && segmentos.isPending) {
+    return (
+      <p className="page__pending" aria-live="polite">
+        Carregando a fonte citada…
+      </p>
+    );
+  }
+
+  if (evidenciaSelecionada && segmentos.isError) {
+    return (
+      <p className="demand-detail__failure" role="alert">
+        {mensagemDeErro(segmentos.error)}
       </p>
     );
   }
@@ -191,7 +222,14 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
         <h2 className="demand-detail__section-title" id="demanda-fontes">
           Fontes captadas
         </h2>
-        <DemandDetailSources demandId={demandId} />
+        <DemandDetailSources
+          demandId={demandId}
+          rawInputs={demanda.raw_inputs}
+          segments={segmentos.data ?? []}
+          selectedSourceId={selectedSourceId}
+          selectedSegmentId={selectedSegmentId}
+          returnTo={returnTo}
+        />
       </section>
 
       <section className="demand-detail__section" aria-labelledby="demanda-artefatos">

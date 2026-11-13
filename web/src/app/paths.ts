@@ -25,18 +25,27 @@ export const PATHS = {
  *
  * Ficam aqui pelo mesmo motivo dos caminhos: quem le o endereco e quem o
  * escreve precisam concordar sobre o nome. A execucao acompanhada na revisao
- * da estruturacao vai na URL para sobreviver a um recarregamento - o estado da
- * execucao e consultado por identificador (RF24), e perde-lo deixaria o
- * operador sem saber se ainda ha algo em curso.
+ * vai na URL para sobreviver a um recarregamento; os identificadores da fonte
+ * e do trecho tambem permitem abrir diretamente uma evidencia.
  */
 export const QUERY_PARAMS = {
   structuringJob: 'execucao',
+  sourceId: 'fonte',
+  sourceSegmentId: 'trecho',
 } as const;
 
 /** Constroi o caminho de uma tela que depende de identificador. */
 export const buildPath = {
   clientDetail: (clientId: string): string => `/clientes/${clientId}`,
   demandDetail: (demandId: string): string => `/demandas/${demandId}`,
+  demandEvidence: (demandId: string, sourceId: string, segmentId: string): string => {
+    const query = new URLSearchParams({
+      [QUERY_PARAMS.sourceId]: sourceId,
+      [QUERY_PARAMS.sourceSegmentId]: segmentId,
+    });
+
+    return `/demandas/${demandId}?${query.toString()}#source-evidence`;
+  },
   demandIngestion: (demandId: string): string => `/demandas/${demandId}/ingestao`,
   demandStructuring: (demandId: string): string => `/demandas/${demandId}/estruturacao`,
   artifactVersions: (artifactId: string): string => `/artefatos/${artifactId}/versoes`,

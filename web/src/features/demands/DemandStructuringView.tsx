@@ -51,6 +51,7 @@ import type {
   ArtifactType,
   DemandDetail,
   DemandRawInputRead,
+  SourceSegmentRead,
   Uuid,
 } from '@/types/api';
 
@@ -98,6 +99,22 @@ function fonteMaisRecente(demand: DemandDetail): DemandRawInputRead | undefined 
       ? candidata
       : escolhida;
   }, undefined);
+}
+
+/**
+ * Reconstroi a numeracao da chamada de IA: fontes na ordem do agregado da
+ * demanda e, dentro de cada fonte, segmentos por posicao.
+ */
+function trechosNaOrdemDaRevisao(
+  rawInputs: readonly DemandRawInputRead[],
+  segments: readonly SourceSegmentRead[],
+) {
+  return rawInputs.flatMap((source) =>
+    segments
+      .filter((segment) => segment.raw_input_id === source.id)
+      .slice()
+      .sort((left, right) => left.position - right.position),
+  );
 }
 
 /** Versao corrente: a de maior numero, que e a que vale hoje (RF08). */
@@ -151,6 +168,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
   const artefato = artefatoEmRevisao(artefatos.data);
   const versao = artefato === undefined ? undefined : versaoCorrente(artefato);
   const curso = versao === undefined ? undefined : lerCursoEstruturado(versao.structured_content);
+  const trechosDaRevisao = trechosNaOrdemDaRevisao(demanda.data.raw_inputs, trechos.data);
 
   return (
     <div className="structuring">
@@ -200,7 +218,11 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
               {artefato.title ?? 'Requisitos extraidos'}: versao {versao.number} (
               {rotuloDaOrigem(versao.origin)}) gerada em {formatarDataHora(versao.created_at)}.
             </p>
-            <DemandStructuringCourse course={curso} segments={trechos.data} />
+            <DemandStructuringCourse
+              course={curso}
+              demandId={demandId}
+              segments={trechosDaRevisao}
+            />
             <p className="page__description">
               <Link to={buildPath.artifactVersions(artefato.id)}>
                 Ver o historico de versoes ({artefato.versions.length})

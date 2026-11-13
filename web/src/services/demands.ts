@@ -39,7 +39,7 @@ export function createDemand(
   return api.post<DemandRead, DemandCreate>(RESOURCE, payload, context);
 }
 
-/** Lista os trechos citaveis persistidos para todos os textos da demanda. */
+/** Lista os trechos citaveis de todas as fontes da demanda em ordem deterministica. */
 export function listDemandSegments(
   demandId: Uuid,
   context: RequestContext = {},

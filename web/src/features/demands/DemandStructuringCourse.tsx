@@ -19,6 +19,10 @@
  * - aprovar, rejeitar ou devolver (#102). Sao cards proprios.
  */
 
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+
+import { buildPath } from '@/app/paths';
 import { SEM_INFORMACAO } from '@/features/demands/DemandDetailLabels';
 import { DemandStructuringGapNote } from '@/features/demands/DemandStructuringGaps';
 import { classesDoDestaque, lacunasDoCampo } from '@/features/demands/DemandStructuringGapStyles';
@@ -67,6 +71,7 @@ function valorDoCampo(curso: CursoEstruturadoLido, campo: CampoDoCurso): string 
 interface DemandStructuringCourseProps {
   course: CursoEstruturadoLido;
   segments: readonly SourceSegmentRead[];
+  demandId: string;
 }
 
 function textoDaProcedencia(origin: FieldOrigin | undefined, hasEvidence: boolean): string {
@@ -91,11 +96,15 @@ function EvidenceNote({
   field,
   segments,
   hasValue,
+  demandId,
+  reviewLocation,
 }: {
   course: CursoEstruturadoLido;
   field: CampoDoCurso;
   segments: readonly SourceSegmentRead[];
   hasValue: boolean;
+  demandId: string;
+  reviewLocation: { pathname: string; search: string; hash: string };
 }) {
   const numbers = course.evidencias[field] ?? [];
   const origin = course.procedencia[field];
@@ -107,11 +116,32 @@ function EvidenceNote({
       {numbers.length > 0 ? (
         <ul>
           {numbers.map((number) => {
-            const segment = segments.find((item) => item.position === number);
+            const segment = segments[number - 1];
 
             return (
               <li key={number}>
-                Trecho [{number}]: {segment?.content ?? 'trecho nao disponivel'}
+                {segment === undefined ? (
+                  <>Trecho [{number}]: trecho nao disponivel</>
+                ) : (
+                  <Link
+                    aria-label={`Abrir trecho ${number} na fonte original`}
+                    className="structuring-course__evidence-link"
+                    id={`evidence-${field}-${number}`}
+                    state={{
+                      returnTo: {
+                        ...reviewLocation,
+                        hash: `#evidence-${field}-${number}`,
+                      },
+                    }}
+                    to={buildPath.demandEvidence(
+                      demandId,
+                      segment.raw_input_id,
+                      segment.id,
+                    )}
+                  >
+                    Trecho [{number}]: {segment.content}
+                  </Link>
+                )}
               </li>
             );
           })}
@@ -121,7 +151,26 @@ function EvidenceNote({
   );
 }
 
-export function DemandStructuringCourse({ course, segments }: DemandStructuringCourseProps) {
+export function DemandStructuringCourse({
+  course,
+  segments,
+  demandId,
+}: DemandStructuringCourseProps) {
+  const location = useLocation();
+  const reviewLocation = {
+    pathname: location.pathname,
+    search: location.search,
+    hash: location.hash,
+  };
+
+  useEffect(() => {
+    if (!location.hash) return;
+
+    document.getElementById(location.hash.slice(1))?.scrollIntoView?.({
+      block: 'center',
+    });
+  }, [location.hash]);
+
   const lacunasDosObjetivos = lacunasDoCampo(course.campos_ausentes, 'objetivos_aprendizagem');
   const lacunasDaEmenta = lacunasDoCampo(course.campos_ausentes, 'ementa');
 
@@ -148,6 +197,8 @@ export function DemandStructuringCourse({ course, segments }: DemandStructuringC
                   field={campo}
                   segments={segments}
                   hasValue={valor !== null}
+                  demandId={demandId}
+                  reviewLocation={reviewLocation}
                 />
               </dd>
             </div>
@@ -170,6 +221,8 @@ export function DemandStructuringCourse({ course, segments }: DemandStructuringC
           field="objetivos_aprendizagem"
           segments={segments}
           hasValue={course.objetivos_aprendizagem.length > 0}
+          demandId={demandId}
+          reviewLocation={reviewLocation}
         />
         {course.objetivos_aprendizagem.length === 0 ? (
           <p className="demand-detail__empty">
@@ -200,6 +253,8 @@ export function DemandStructuringCourse({ course, segments }: DemandStructuringC
           field="ementa"
           segments={segments}
           hasValue={course.ementa.length > 0}
+          demandId={demandId}
+          reviewLocation={reviewLocation}
         />
         {course.ementa.length === 0 ? (
           <p className="demand-detail__empty">

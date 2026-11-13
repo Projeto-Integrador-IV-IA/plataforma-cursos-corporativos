@@ -21,6 +21,7 @@ vi.mock('@/services/demands', () => ({
   createDemand: vi.fn(),
   listDemands: vi.fn(),
   getDemand: vi.fn(),
+  listDemandSegments: vi.fn(),
   updateDemand: vi.fn(),
 }));
 
@@ -77,8 +78,8 @@ const DEMANDA: DemandDetail = {
     notes: null,
     active: true,
   },
-  // A secao de fontes do detalhe continua anunciada e vazia (RF09): o que
-  // consome `raw_inputs` hoje e a revisao da estruturacao (RF19).
+  // A secao de fontes continua vazia neste fixture; a revisao consome
+  // `raw_inputs` em outro fluxo (RF19).
   raw_inputs: [],
   artifacts: [EMENTA],
 };
@@ -168,10 +169,10 @@ describe('detalhe da demanda', () => {
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
 
-  it('avisa que as fontes captadas ainda nao estao disponiveis', async () => {
+  it('avisa quando a demanda ainda nao tem fontes captadas', async () => {
     await abrirDetalhe();
 
-    expect(textoDaTela()).toContain('A listagem das fontes captadas ainda nao esta disponivel');
+    expect(textoDaTela()).toContain('Nenhuma fonte captada foi registrada nesta demanda.');
   });
 
   it('avisa quando a demanda ainda nao tem artefato', async () => {

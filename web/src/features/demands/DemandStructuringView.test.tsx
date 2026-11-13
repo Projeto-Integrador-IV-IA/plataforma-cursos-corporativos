@@ -54,6 +54,11 @@ const { renderRoute } = await import('@/test/renderRoute');
 
 const DEMAND_ID = '22222222-2222-4222-8222-222222222222';
 const FONTE_ID = '77777777-7777-4777-8777-777777777777';
+const SEGUNDA_FONTE_ID = '77777777-7777-4777-8777-777777777778';
+const PRIMEIRO_TRECHO = '🙂 Precisamos de um treinamento de NR-12 para uns 25 tecnicos.';
+const SEGUNDO_TRECHO = 'O curso sera presencial.';
+const TERCEIRO_TRECHO = 'A turma tera 12 supervisores.';
+const FONTE_TEXTO = `${PRIMEIRO_TRECHO}\n${SEGUNDO_TRECHO}`;
 
 const CURSO: JsonObject = {
   tema: 'NR-12 (seguranca em maquinas e equipamentos)',
@@ -77,11 +82,40 @@ const CURSO: JsonObject = {
 const FONTE: DemandRawInputRead = {
   id: FONTE_ID,
   source: 'EMAIL',
-  original_content: 'Precisamos de um treinamento de NR-12 para uns 25 tecnicos.',
+  original_content: FONTE_TEXTO,
   truncated: false,
   author_id: '66666666-6666-4666-8666-666666666666',
   created_at: '2026-10-10T09:00:00-03:00',
 };
+
+const SEGUNDA_FONTE: DemandRawInputRead = {
+  ...FONTE,
+  id: SEGUNDA_FONTE_ID,
+  original_content: TERCEIRO_TRECHO,
+};
+
+const SEGMENTOS: SourceSegmentRead[] = [
+  {
+    id: '99999999-9999-4999-8999-999999999991',
+    raw_input_id: FONTE_ID,
+    demand_id: DEMAND_ID,
+    position: 1,
+    content: PRIMEIRO_TRECHO,
+    original_start_offset: 0,
+    original_end_offset: Array.from(PRIMEIRO_TRECHO).length,
+    original_content: PRIMEIRO_TRECHO,
+  },
+  {
+    id: '99999999-9999-4999-8999-999999999992',
+    raw_input_id: FONTE_ID,
+    demand_id: DEMAND_ID,
+    position: 2,
+    content: SEGUNDO_TRECHO,
+    original_start_offset: Array.from(PRIMEIRO_TRECHO).length + 1,
+    original_end_offset: Array.from(FONTE_TEXTO).length,
+    original_content: SEGUNDO_TRECHO,
+  },
+];
 
 const DEMANDA: DemandDetail = {
   id: DEMAND_ID,
@@ -156,7 +190,7 @@ function execucaoCom(status: JobStatus): StructuringJobRead {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getDemand).mockResolvedValue(DEMANDA);
-  vi.mocked(listDemandSegments).mockResolvedValue([]);
+  vi.mocked(listDemandSegments).mockResolvedValue(SEGMENTOS);
   vi.mocked(listArtifacts).mockResolvedValue([artefatoCom(CURSO)]);
   vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('CONCLUIDA'));
   vi.mocked(submitStructuringJob).mockResolvedValue({
@@ -220,30 +254,12 @@ describe('revisao da estruturacao', () => {
         evidencias: { tema: [1], publico_alvo: [2] },
       }),
     ]);
-    const segmentos: SourceSegmentRead[] = [
-      {
-        id: '99999999-9999-4999-8999-999999999991',
-        raw_input_id: FONTE_ID,
-        demand_id: DEMAND_ID,
-        position: 1,
-        content: 'Treinamento de NR-12 para a planta 2.',
-      },
-      {
-        id: '99999999-9999-4999-8999-999999999992',
-        raw_input_id: FONTE_ID,
-        demand_id: DEMAND_ID,
-        position: 2,
-        content: 'Publico formado por tecnicos de manutencao.',
-      },
-    ];
-    vi.mocked(listDemandSegments).mockResolvedValue(segmentos);
-
     await abrirRevisao();
 
     expect(textoDaTela()).toContain('Extraido da fonte');
     expect(textoDaTela()).toContain('Inferido pela IA');
-    expect(textoDaTela()).toContain('Trecho [1]: Treinamento de NR-12 para a planta 2.');
-    expect(textoDaTela()).toContain('Trecho [2]: Publico formado por tecnicos de manutencao.');
+    expect(textoDaTela()).toContain(`Trecho [1]: ${PRIMEIRO_TRECHO}`);
+    expect(textoDaTela()).toContain(`Trecho [2]: ${SEGUNDO_TRECHO}`);
     expect(textoDaTela()).toContain('Sem valor utilizavel');
     expect(document.querySelector('.structuring-course__field--evidenced')).not.toBeNull();
     expect(document.querySelector('.structuring-course__field--inferred')).not.toBeNull();
@@ -278,6 +294,70 @@ describe('revisao da estruturacao', () => {
     expect(
       within(secao).getByRole('link', { name: 'Ver a captacao desta demanda' }),
     ).toBeDefined();
+  });
+
+  it('abre a fonte completa destacando a evidencia e volta a revisao com o estado na URL', async () => {
+    vi.mocked(listArtifacts).mockResolvedValue([
+      artefatoCom({
+        ...CURSO,
+        procedencia: { tema: 'extraido' },
+        evidencias: { tema: [1] },
+      }),
+    ]);
+    const usuario = userEvent.setup();
+    renderRoute(`/demandas/${DEMAND_ID}/estruturacao?execucao=${JOB_ID}`);
+
+    await usuario.click(
+      await screen.findByRole('link', { name: 'Abrir trecho 1 na fonte original' }),
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Fonte original' })).toBeDefined();
+    expect(document.querySelector('.source-evidence__highlight')?.textContent).toBe(
+      PRIMEIRO_TRECHO,
+    );
+    expect(textoDaTela()).toContain(FONTE_TEXTO);
+    expect(textoDaTela()).toContain('Trecho seguinte');
+    expect(textoDaTela()).toContain(SEGUNDO_TRECHO);
+
+    const voltar = screen.getByRole('link', { name: 'Voltar para a revisao' });
+    expect(voltar.getAttribute('href')).toBe(
+      `/demandas/${DEMAND_ID}/estruturacao?execucao=${JOB_ID}#evidence-tema-1`,
+    );
+    await usuario.click(voltar);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Estrutura gerada' })).toBeDefined();
+    expect(await screen.findByRole('status', { name: 'Estado da execucao' })).toBeDefined();
+  });
+
+  it('mapeia a evidencia global a fonte correta quando a posicao do trecho reinicia', async () => {
+    const segundoFonteSegmento: SourceSegmentRead = {
+      ...SEGMENTOS[0],
+      id: '99999999-9999-4999-8999-999999999993',
+      raw_input_id: SEGUNDA_FONTE_ID,
+      content: TERCEIRO_TRECHO,
+      original_content: TERCEIRO_TRECHO,
+      original_end_offset: Array.from(TERCEIRO_TRECHO).length,
+    };
+    vi.mocked(getDemand).mockResolvedValue({
+      ...DEMANDA,
+      raw_inputs: [FONTE, SEGUNDA_FONTE],
+    });
+    vi.mocked(listDemandSegments).mockResolvedValue([...SEGMENTOS, segundoFonteSegmento]);
+    vi.mocked(listArtifacts).mockResolvedValue([
+      artefatoCom({
+        ...CURSO,
+        procedencia: { tema: 'extraido' },
+        evidencias: { tema: [3] },
+      }),
+    ]);
+
+    await abrirRevisao();
+
+    expect(
+      screen.getByRole('link', { name: `Abrir trecho 3 na fonte original` }).getAttribute('href'),
+    ).toBe(
+      `/demandas/${DEMAND_ID}?fonte=${SEGUNDA_FONTE_ID}&trecho=${segundoFonteSegmento.id}#source-evidence`,
+    );
   });
 
   it('anuncia que nada foi anexado quando a demanda nao tem estrutura', async () => {

@@ -625,13 +625,16 @@ export const FIELD_ORIGINS = ['extraido', 'inferido', 'ausente'] as const;
 
 export type FieldOrigin = (typeof FIELD_ORIGINS)[number];
 
-/** Trecho numerado da fonte que pode ser citado pela estruturacao. */
+/** Trecho citavel com intervalo recuperavel no conteudo original da fonte. */
 export interface SourceSegmentRead {
   readonly id: Uuid;
   readonly raw_input_id: Uuid;
   readonly demand_id: Uuid;
   readonly position: number;
   readonly content: string;
+  readonly original_start_offset: number | null;
+  readonly original_end_offset: number | null;
+  readonly original_content: string | null;
 }
 
 /** Formatos de realizacao declarados pelo contrato (RF11). */
