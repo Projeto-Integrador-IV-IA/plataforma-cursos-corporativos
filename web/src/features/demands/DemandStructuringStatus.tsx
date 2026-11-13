@@ -34,6 +34,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { buildPath, QUERY_PARAMS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { formatarDataHora } from '@/features/demands/DemandDetailLabels';
 import {
   explicacaoDoEstado,
@@ -204,7 +205,9 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
             estruturar.
           </p>
           <p className="page__description">
-            <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
+            <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+              <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
+            </PermissionGate>
           </p>
         </>
       ) : (

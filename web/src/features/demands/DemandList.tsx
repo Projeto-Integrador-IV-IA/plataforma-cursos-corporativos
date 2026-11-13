@@ -28,6 +28,7 @@ import { useId, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { STATUS_LABELS } from '@/features/demands/DemandListLabels';
 import { DemandListPager } from '@/features/demands/DemandListPager';
 import { DemandListTable } from '@/features/demands/DemandListTable';
@@ -283,7 +284,9 @@ export function DemandList() {
           ) : (
             <p>
               Nenhuma demanda aberta ate agora.{' '}
-              <Link to={PATHS.demandNew}>Abra a primeira negociacao</Link>.
+              <PermissionGate permission={PERMISSIONS.demandsManage}>
+                <Link to={PATHS.demandNew}>Abra a primeira negociacao</Link>.
+              </PermissionGate>
             </p>
           )}
         </div>

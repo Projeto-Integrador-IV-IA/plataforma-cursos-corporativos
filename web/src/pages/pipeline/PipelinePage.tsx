@@ -14,6 +14,7 @@
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { PipelineBoardView } from '@/features/pipeline/PipelineBoardView';
 
 export function PipelinePage() {
@@ -27,7 +28,9 @@ export function PipelinePage() {
       </header>
       <p className="page__description">
         Demandas distribuidas pelas etapas, na ordem em que o pipeline as percorre.{' '}
-        <Link to={PATHS.demands}>Ver a mesma carteira em lista</Link>
+        <PermissionGate permission={PERMISSIONS.demandsRead}>
+          <Link to={PATHS.demands}>Ver a mesma carteira em lista</Link>
+        </PermissionGate>
       </p>
       <PipelineBoardView />
     </section>

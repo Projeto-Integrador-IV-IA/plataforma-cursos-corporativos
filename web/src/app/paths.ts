@@ -8,6 +8,7 @@
 
 export const PATHS = {
   login: '/login',
+  accessDenied: '/acesso-negado',
   clients: '/clientes',
   clientNew: '/clientes/novo',
   clientDetail: '/clientes/:clientId',

@@ -25,6 +25,7 @@ import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { DemandDetailArtifacts } from '@/features/demands/DemandDetailArtifacts';
 import { DemandDetailContextForm } from '@/features/demands/DemandDetailContextForm';
 import {
@@ -126,7 +127,12 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
           Contexto
         </h2>
         {editandoContexto ? (
-          <DemandDetailContextForm demand={demanda} onFinish={() => setEditandoContexto(false)} />
+          <PermissionGate permission={PERMISSIONS.demandsManage}>
+            <DemandDetailContextForm
+              demand={demanda}
+              onFinish={() => setEditandoContexto(false)}
+            />
+          </PermissionGate>
         ) : (
           <>
             <dl className="demand-detail__fields">
@@ -135,9 +141,11 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
               <Campo termo="Responsavel">{demanda.owner_id ?? 'Sem responsavel definido'}</Campo>
             </dl>
             <div className="form__actions">
-              <button className="button" type="button" onClick={() => setEditandoContexto(true)}>
-                Editar contexto
-              </button>
+              <PermissionGate permission={PERMISSIONS.demandsManage}>
+                <button className="button" type="button" onClick={() => setEditandoContexto(true)}>
+                  Editar contexto
+                </button>
+              </PermissionGate>
             </div>
           </>
         )}
@@ -149,7 +157,9 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
         </h2>
         <dl className="demand-detail__fields">
           <Campo termo="Empresa">
-            <Link to={buildPath.clientDetail(cliente.id)}>{cliente.name}</Link>
+            <PermissionGate permission={PERMISSIONS.clientsRead}>
+              <Link to={buildPath.clientDetail(cliente.id)}>{cliente.name}</Link>
+            </PermissionGate>
           </Campo>
           <Campo termo="CNPJ">{ouSemInformacao(cliente.cnpj)}</Campo>
           <Campo termo="Segmento">{ouSemInformacao(cliente.segment)}</Campo>
@@ -181,9 +191,11 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
           pipeline nao foram publicadas.
         </p>
         <p className="page__description">
-          <Link to={buildPath.demandStructuring(demandId)}>
-            Revisar a estruturacao por IA desta demanda
-          </Link>
+          <PermissionGate permission={PERMISSIONS.structuringReview}>
+            <Link to={buildPath.demandStructuring(demandId)}>
+              Revisar a estruturacao por IA desta demanda
+            </Link>
+          </PermissionGate>
         </p>
       </section>
 

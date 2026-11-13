@@ -13,6 +13,7 @@
 import { Link, useParams } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { ClientDetailView } from '@/features/clients/ClientDetailView';
 
 export function ClientDetailPage() {
@@ -37,7 +38,9 @@ export function ClientDetailPage() {
       )}
 
       <p className="page__description">
-        <Link to={PATHS.clients}>Voltar para a lista de clientes</Link>
+        <PermissionGate permission={PERMISSIONS.clientsRead}>
+          <Link to={PATHS.clients}>Voltar para a lista de clientes</Link>
+        </PermissionGate>
       </p>
     </section>
   );

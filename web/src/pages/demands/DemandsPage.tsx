@@ -12,6 +12,7 @@
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
 import { DemandList } from '@/features/demands/DemandList';
 
 export function DemandsPage() {
@@ -26,7 +27,9 @@ export function DemandsPage() {
       </header>
       <p className="page__description">
         Demandas vinculadas a cliente, da mais recente para a mais antiga.{' '}
-        <Link to={PATHS.demandNew}>Abrir nova demanda</Link>
+        <PermissionGate permission={PERMISSIONS.demandsManage}>
+          <Link to={PATHS.demandNew}>Abrir nova demanda</Link>
+        </PermissionGate>
       </p>
       <DemandList />
     </section>
