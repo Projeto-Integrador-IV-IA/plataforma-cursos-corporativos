@@ -12,6 +12,7 @@ import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { Providers } from '@/app/providers';
 import { routes } from '@/app/routes';
 import '@/styles/global.css';
+import '@/styles/button-variants.css';
 
 const container = document.getElementById('root');
 

@@ -37,6 +37,41 @@ class ArtifactResultCreate(BaseModel):
         return value
 
 
+class ArtifactReprocessCreate(BaseModel):
+    """Resultado de uma nova execucao da IA sobre um artefato ja existente (RF17 consolidado).
+
+    Mesmos campos de ``ArtifactResultCreate`` - a estruturacao devolve a mesma
+    forma, tenha rodado sobre o texto original ou um revisado -, sem ``type``
+    nem ``title``: esses pertencem ao artefato, que ja existe, nao a versao
+    nova.
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    raw_output: str = Field(
+        min_length=1, description="Resposta integral devolvida pelo LLM nesta execucao."
+    )
+    structured_content: dict[str, Any] = Field(
+        description="Resultado desta execucao, ja validado contra o schema canonico."
+    )
+    raw_input_ids: list[UUID] = Field(
+        min_length=1,
+        description="Fontes usadas nesta execucao - a mesma demanda do artefato; texto "
+        "original ou revisado, ja persistido como fonte.",
+    )
+    ai_metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Modelo, prompt, tokens e latencia desta execucao.",
+    )
+
+    @field_validator("raw_input_ids")
+    @classmethod
+    def sources_must_be_unique(cls, value: list[UUID]) -> list[UUID]:
+        if len(value) != len(set(value)):
+            raise ValueError("raw_input_ids must not contain duplicates")
+        return value
+
+
 class ArtifactSourceRead(BaseModel):
     """Referencia suficiente para recuperar e auditar uma fonte usada."""
 
