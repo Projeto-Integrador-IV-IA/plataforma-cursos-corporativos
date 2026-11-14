@@ -16,43 +16,56 @@
  *  - etapa e situacao aparecem, mas nao mudam por aqui - quem as move e o
  *    pipeline (RF05, RF06), que registra a transicao e ainda nao tem operacao
  *    publicada no contrato;
- *  - as fontes captadas aparecem como secao vazia, pelo motivo explicado em
- *    `DemandDetailSources`.
+ *  - as fontes captadas chegam no agregado da demanda e aparecem nesta tela.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { type ReactNode, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useQuery } from "@tanstack/react-query";
+import { type ReactNode, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
-import { buildPath } from '@/app/paths';
-import { DemandDetailArtifacts } from '@/features/demands/DemandDetailArtifacts';
-import { DemandDetailContextForm } from '@/features/demands/DemandDetailContextForm';
+import { buildPath, QUERY_PARAMS } from "@/app/paths";
+import { DemandDetailArtifacts } from "@/features/demands/DemandDetailArtifacts";
+import { DemandDetailContextForm } from "@/features/demands/DemandDetailContextForm";
 import {
   formatarDataHora,
   ouSemInformacao,
   rotuloDaEtapa,
   rotuloDaSituacao,
-} from '@/features/demands/DemandDetailLabels';
-import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
-import { DemandDetailSources } from '@/features/demands/DemandDetailSources';
-import { isApiError } from '@/services/api';
-import { getDemand } from '@/services/demands';
-import type { Uuid } from '@/types/api';
+} from "@/features/demands/DemandDetailLabels";
+import { demandDetailKey } from "@/features/demands/DemandDetailQueryKeys";
+import { DemandDetailSources } from "@/features/demands/DemandDetailSources";
+import { DemandStructuringStatus } from "@/features/demands/DemandStructuringStatus";
+import { isApiError } from "@/services/api";
+import { getDemand } from "@/services/demands";
+import type { DemandRawInputRead, Uuid } from "@/types/api";
 
 /** Mensagem exibida quando a falha nao veio no envelope da plataforma. */
-const FALHA_GENERICA = 'Nao foi possivel carregar a demanda. Tente novamente.';
+const FALHA_GENERICA = "Nao foi possivel carregar a demanda. Tente novamente.";
 
 /** Indice da tela. A ordem e a da leitura: o que foi pedido, por quem, onde esta. */
 const SECOES: readonly { readonly id: string; readonly titulo: string }[] = [
-  { id: 'demanda-contexto', titulo: 'Contexto' },
-  { id: 'demanda-cliente', titulo: 'Cliente' },
-  { id: 'demanda-etapa', titulo: 'Etapa e situacao' },
-  { id: 'demanda-fontes', titulo: 'Fontes captadas' },
-  { id: 'demanda-artefatos', titulo: 'Artefatos' },
+  { id: "demanda-contexto", titulo: "Contexto" },
+  { id: "demanda-cliente", titulo: "Cliente" },
+  { id: "demanda-etapa", titulo: "Etapa e situacao" },
+  { id: "demanda-curso-ia", titulo: "Curso com IA" },
+  { id: "demanda-fontes", titulo: "Fontes captadas" },
+  { id: "demanda-artefatos", titulo: "Artefatos" },
 ];
 
 function mensagemDeErro(erro: unknown): string {
   return isApiError(erro) ? erro.message : FALHA_GENERICA;
+}
+
+function fonteMaisRecente(
+  fontes: readonly DemandRawInputRead[],
+): DemandRawInputRead | undefined {
+  return fontes.reduce<DemandRawInputRead | undefined>(
+    (maisRecente, fonte) =>
+      maisRecente === undefined || new Date(fonte.created_at) > new Date(maisRecente.created_at)
+        ? fonte
+        : maisRecente,
+    undefined,
+  );
 }
 
 interface CampoProps {
@@ -76,11 +89,18 @@ interface DemandDetailViewProps {
 
 export function DemandDetailView({ demandId }: DemandDetailViewProps) {
   const [editandoContexto, setEditandoContexto] = useState(false);
+  const [searchParams] = useSearchParams();
+  const execucao = searchParams.get(QUERY_PARAMS.structuringJob);
+  const caminhoDaRevisao = `${buildPath.demandStructuring(demandId)}${
+    execucao === null
+      ? ""
+      : `?${QUERY_PARAMS.structuringJob}=${encodeURIComponent(execucao)}`
+  }`;
 
   const detalhe = useQuery({
     queryKey: demandDetailKey(demandId),
     queryFn: ({ signal }) => getDemand(demandId, { signal }),
-    enabled: demandId !== '',
+    enabled: demandId !== "",
   });
 
   if (detalhe.isPending) {
@@ -104,12 +124,19 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
 
   return (
     <div className="demand-detail">
-      <p className="demand-detail__headline">{demanda.title}</p>
-      <p className="demand-detail__tags">
-        <span className="tag">{rotuloDaEtapa(demanda.current_stage)}</span>
-        <span className="tag">{rotuloDaSituacao(demanda.status)}</span>
-        <span className="tag">{cliente.name}</span>
-      </p>
+      <header className="demand-detail__hero">
+        <div>
+          <p className="demand-detail__eyebrow">NEGOCIAÇÃO</p>
+          <h2 className="demand-detail__headline">{demanda.title}</h2>
+          <p className="demand-detail__hero-client">{cliente.name}</p>
+        </div>
+        <p className="demand-detail__tags">
+          <span className="tag demand-detail__stage">
+            {rotuloDaEtapa(demanda.current_stage)}
+          </span>
+          <span className="tag">{rotuloDaSituacao(demanda.status)}</span>
+        </p>
+      </header>
 
       <nav className="demand-detail__index" aria-label="Secoes da demanda">
         <ul className="demand-detail__index-list">
@@ -121,21 +148,35 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
         </ul>
       </nav>
 
-      <section className="demand-detail__section" aria-labelledby="demanda-contexto">
+      <section
+        className="demand-detail__section demand-detail__section--context"
+        aria-labelledby="demanda-contexto"
+      >
         <h2 className="demand-detail__section-title" id="demanda-contexto">
           Contexto
         </h2>
         {editandoContexto ? (
-          <DemandDetailContextForm demand={demanda} onFinish={() => setEditandoContexto(false)} />
+          <DemandDetailContextForm
+            demand={demanda}
+            onFinish={() => setEditandoContexto(false)}
+          />
         ) : (
           <>
             <dl className="demand-detail__fields">
               <Campo termo="Titulo">{demanda.title}</Campo>
-              <Campo termo="Contexto">{ouSemInformacao(demanda.description)}</Campo>
-              <Campo termo="Responsavel">{demanda.owner_id ?? 'Sem responsavel definido'}</Campo>
+              <Campo termo="Contexto">
+                {ouSemInformacao(demanda.description)}
+              </Campo>
+              <Campo termo="Responsavel">
+                {demanda.owner_id ?? "Sem responsavel definido"}
+              </Campo>
             </dl>
-            <div className="form__actions">
-              <button className="button" type="button" onClick={() => setEditandoContexto(true)}>
+            <div className="form__actions demand-detail__actions">
+              <button
+                className="button"
+                type="button"
+                onClick={() => setEditandoContexto(true)}
+              >
                 Editar contexto
               </button>
             </div>
@@ -143,7 +184,10 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
         )}
       </section>
 
-      <section className="demand-detail__section" aria-labelledby="demanda-cliente">
+      <section
+        className="demand-detail__section demand-detail__section--client"
+        aria-labelledby="demanda-cliente"
+      >
         <h2 className="demand-detail__section-title" id="demanda-cliente">
           Cliente
         </h2>
@@ -155,46 +199,77 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
           <Campo termo="Segmento">{ouSemInformacao(cliente.segment)}</Campo>
           <Campo termo="Contato">{ouSemInformacao(cliente.contact_name)}</Campo>
           <Campo termo="E-mail">{ouSemInformacao(cliente.contact_email)}</Campo>
-          <Campo termo="Telefone">{ouSemInformacao(cliente.contact_phone)}</Campo>
-          <Campo termo="Situacao do cadastro">{cliente.active ? 'Ativo' : 'Inativo'}</Campo>
+          <Campo termo="Telefone">
+            {ouSemInformacao(cliente.contact_phone)}
+          </Campo>
+          <Campo termo="Situacao do cadastro">
+            {cliente.active ? "Ativo" : "Inativo"}
+          </Campo>
         </dl>
         {cliente.notes === null ? null : (
-          <p className="page__description">Observacoes do cadastro: {cliente.notes}</p>
+          <p className="page__description">
+            Observacoes do cadastro: {cliente.notes}
+          </p>
         )}
       </section>
 
-      <section className="demand-detail__section" aria-labelledby="demanda-etapa">
+      <section
+        className="demand-detail__section demand-detail__section--stage"
+        aria-labelledby="demanda-etapa"
+      >
         <h2 className="demand-detail__section-title" id="demanda-etapa">
           Etapa e situacao
         </h2>
         <dl className="demand-detail__fields">
-          <Campo termo="Etapa corrente">{rotuloDaEtapa(demanda.current_stage)}</Campo>
+          <Campo termo="Etapa corrente">
+            {rotuloDaEtapa(demanda.current_stage)}
+          </Campo>
           <Campo termo="Situacao">{rotuloDaSituacao(demanda.status)}</Campo>
-          <Campo termo="Aberta em">{formatarDataHora(demanda.created_at)}</Campo>
-          <Campo termo="Ultima alteracao">{formatarDataHora(demanda.updated_at)}</Campo>
+          <Campo termo="Aberta em">
+            {formatarDataHora(demanda.created_at)}
+          </Campo>
+          <Campo termo="Ultima alteracao">
+            {formatarDataHora(demanda.updated_at)}
+          </Campo>
           <Campo termo="Identificador">{demanda.id}</Campo>
         </dl>
-        {/* TODO(RF05, RF06): avancar e retroceder a etapa daqui, com o motivo
-            do retrocesso, quando as operacoes de pipeline forem publicadas. */}
-        <p className="demand-detail__empty">
-          Avancar ou retroceder a etapa ainda nao e possivel por esta tela: as operacoes de
-          pipeline nao foram publicadas.
-        </p>
-        <p className="page__description">
-          <Link to={buildPath.demandStructuring(demandId)}>
-            Revisar a estruturacao por IA desta demanda
-          </Link>
-        </p>
       </section>
 
-      <section className="demand-detail__section" aria-labelledby="demanda-fontes">
+      <section
+        className="demand-detail__section demand-detail__section--ai"
+        aria-labelledby="demanda-curso-ia"
+      >
+        <h2 className="demand-detail__section-title" id="demanda-curso-ia">
+          Curso com IA
+        </h2>
+        <DemandStructuringStatus
+          demandId={demandId}
+          source={fonteMaisRecente(demanda.raw_inputs)}
+        />
+        <div className="demand-detail__actions">
+          <Link
+            className="button button--secondary"
+            to={caminhoDaRevisao}
+          >
+            Ver curso e revisar
+          </Link>
+        </div>
+      </section>
+
+      <section
+        className="demand-detail__section demand-detail__section--sources"
+        aria-labelledby="demanda-fontes"
+      >
         <h2 className="demand-detail__section-title" id="demanda-fontes">
           Fontes captadas
         </h2>
-        <DemandDetailSources demandId={demandId} />
+        <DemandDetailSources demandId={demandId} sources={demanda.raw_inputs} />
       </section>
 
-      <section className="demand-detail__section" aria-labelledby="demanda-artefatos">
+      <section
+        className="demand-detail__section demand-detail__section--artifacts"
+        aria-labelledby="demanda-artefatos"
+      >
         <h2 className="demand-detail__section-title" id="demanda-artefatos">
           Artefatos
         </h2>

@@ -20,27 +20,50 @@
  * dos cartoes dentro da etapa ser a que o servico devolveu.
  */
 
-import { useId } from 'react';
+import { useId } from "react";
 
-import { STAGE_LABELS } from '@/features/demands/DemandListLabels';
-import { stageCount } from '@/features/pipeline/PipelineBoardLabels';
-import { PipelineCard } from '@/features/pipeline/PipelineCard';
-import type { PipelineStageGroup } from '@/types/api';
+import { STAGE_LABELS } from "@/features/demands/DemandListLabels";
+import { stageCount } from "@/features/pipeline/PipelineBoardLabels";
+import { PipelineCard } from "@/features/pipeline/PipelineCard";
+import type { PipelineStageGroup } from "@/types/api";
+import type { PipelineCardRead } from "@/types/api";
 
 interface PipelineStageColumnProps {
   readonly group: PipelineStageGroup;
+  readonly onCardDragStart?: (card: PipelineCardRead) => void;
+  readonly onCardDragEnd?: () => void;
+  readonly onDrop?: (stage: PipelineStageGroup["stage"]) => void;
+  readonly dragging: boolean;
 }
 
-export function PipelineStageColumn({ group }: PipelineStageColumnProps) {
+export function PipelineStageColumn({
+  group,
+  onCardDragStart,
+  onCardDragEnd,
+  onDrop,
+  dragging,
+}: PipelineStageColumnProps) {
   const titleId = useId();
 
   return (
     <li className="pipeline-board__column">
-      <section className="pipeline-column" aria-labelledby={titleId}>
+      <section
+        className={`pipeline-column${dragging ? " pipeline-column--drop-target" : ""}`}
+        aria-labelledby={titleId}
+        onDragOver={(event) => {
+          if (dragging) event.preventDefault();
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          onDrop?.(group.stage);
+        }}
+      >
         <h2 className="pipeline-column__title" id={titleId}>
           {STAGE_LABELS[group.stage]}
         </h2>
-        <p className="pipeline-column__count">{stageCount(group.items.length, group.total)}</p>
+        <p className="pipeline-column__count">
+          {stageCount(group.items.length, group.total)}
+        </p>
 
         {group.items.length === 0 ? (
           <p className="pipeline-column__empty">Nenhuma demanda nesta etapa.</p>
@@ -48,7 +71,11 @@ export function PipelineStageColumn({ group }: PipelineStageColumnProps) {
           <ol className="pipeline-column__cards">
             {group.items.map((card) => (
               <li key={card.id}>
-                <PipelineCard card={card} />
+                <PipelineCard
+                  card={card}
+                  onDragStart={onCardDragStart}
+                  onDragEnd={onCardDragEnd}
+                />
               </li>
             ))}
           </ol>

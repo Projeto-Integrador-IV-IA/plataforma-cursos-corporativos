@@ -22,6 +22,7 @@ from app.models import (
     Client,
     Demand,
     RawInput,
+    SegmentEmbedding,
     SourceSegment,
     StageTransition,
     User,
@@ -98,6 +99,7 @@ EXPECTED_COLUMNS = {
         "created_at",
     },
     "artifact_sources": {"artifact_id", "raw_input_id", "demand_id"},
+    "segment_embeddings": {"segment_id", "model", "vector", "created_at"},
 }
 
 
@@ -121,6 +123,7 @@ def test_required_domain_relationships_are_not_nullable() -> None:
         ("artifact_sources", "artifact_id"),
         ("artifact_sources", "raw_input_id"),
         ("artifact_sources", "demand_id"),
+        ("segment_embeddings", "segment_id"),
     }
 
     nullable_relationships = {
@@ -219,9 +222,14 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
         origin="HUMANO",
         author=user,
     )
+    embedding = SegmentEmbedding(
+        segment=segment,
+        model="sentence-transformers/all-MiniLM-L6-v2",
+        vector=[0.0] * 384,
+    )
 
     with Session(engine) as session:
-        session.add_all([segment, transition, version])
+        session.add_all([segment, transition, version, embedding])
         session.commit()
 
         assert session.scalar(sa.select(sa.func.count(Client.id))) == 1
@@ -231,5 +239,6 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
         assert session.scalar(sa.select(sa.func.count(StageTransition.id))) == 1
         assert session.scalar(sa.select(sa.func.count(Artifact.id))) == 1
         assert session.scalar(sa.select(sa.func.count(ArtifactVersion.id))) == 1
+        assert session.scalar(sa.select(sa.func.count(SegmentEmbedding.segment_id))) == 1
 
     engine.dispose()

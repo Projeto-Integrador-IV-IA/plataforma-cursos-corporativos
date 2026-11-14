@@ -22,9 +22,11 @@ from datetime import UTC, datetime
 from typing import ClassVar
 from uuid import UUID
 
+import httpx
+
 from app.core.exceptions import LLMProviderError, PlatformError
 from app.domain.jobs import JobStatus, StructuringJob
-from app.services.structuring_service import RawDemand, StructuringService
+from app.services.structuring_service import RawDemand, StructuringOutcome, StructuringService
 
 _logger = logging.getLogger(__name__)
 
@@ -43,8 +45,16 @@ class JobNotFoundError(PlatformError):
 class StructuringJobService:
     """Aceita o pedido, processa fora do ciclo da requisicao e guarda o estado."""
 
-    def __init__(self, structuring_service: StructuringService) -> None:
+    def __init__(
+        self,
+        structuring_service: StructuringService,
+        *,
+        pipeline_service_url: str | None = None,
+    ) -> None:
         self.structuring_service = structuring_service
+        self.pipeline_service_url = (
+            pipeline_service_url.rstrip("/") if pipeline_service_url else None
+        )
         self._jobs: OrderedDict[UUID, StructuringJob] = OrderedDict()
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -103,8 +113,56 @@ class StructuringJobService:
             if outcome.error is not None:
                 self._registrar_falha(job, outcome.error.code, str(outcome.error))
             else:
-                job.status = JobStatus.CONCLUIDA
-                job.finished_at = datetime.now(UTC)
+                try:
+                    if self.pipeline_service_url is not None:
+                        await self._persistir_resultado(job, outcome)
+                except Exception as erro:
+                    _logger.exception(
+                        "Falha ao anexar o curso gerado a demanda (job_id=%s, demand_id=%s).",
+                        job.id,
+                        job.demand.demand_id,
+                    )
+                    self._registrar_falha(job, "ARTIFACT_PERSISTENCE_FAILED", str(erro))
+                else:
+                    job.status = JobStatus.CONCLUIDA
+                    job.finished_at = datetime.now(UTC)
+
+    async def _persistir_resultado(
+        self,
+        job: StructuringJob,
+        outcome: StructuringOutcome,
+    ) -> None:
+        """Anexa o bruto e o curso validado ao pipeline antes de concluir o job."""
+
+        assert outcome.completion is not None
+        assert outcome.course is not None
+        assert job.demand is not None
+        if not job.demand.source_ids:
+            raise ValueError("A execucao nao informou fontes para vincular ao artefato.")
+
+        payload = {
+            "type": "REQUISITOS_EXTRAIDOS",
+            "title": "Estrutura do curso gerada por IA",
+            "raw_output": outcome.completion.text,
+            "structured_content": outcome.course.model_dump(mode="json"),
+            "raw_input_ids": list(job.demand.source_ids),
+            "ai_metadata": {
+                "job_id": str(job.id),
+                "provider": outcome.completion.provider,
+                "model": outcome.completion.model,
+                "prompt": outcome.prompt_id,
+                "attempts": outcome.attempts,
+                "prompt_tokens": outcome.completion.usage.prompt_tokens,
+                "completion_tokens": outcome.completion.usage.completion_tokens,
+                "total_tokens": outcome.completion.usage.total_tokens,
+                "provider_latency_ms": outcome.completion.latency_ms,
+                "elapsed_ms": outcome.elapsed_ms,
+            },
+        }
+        url = f"{self.pipeline_service_url}/api/v1/demands/{job.demand.demand_id}/artifacts"
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
 
     @staticmethod
     def _registrar_falha(job: StructuringJob, code: str, message: str) -> None:

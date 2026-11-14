@@ -177,6 +177,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/consumption:
+    get:
+      tags:
+      - consumption
+      summary: Consultar o consumo de tokens acumulado em um dia
+      description: |-
+        Devolve o consumo acumulado do dia, sem exigir que tenha havido chamada.
+
+        Dia sem nenhuma chamada registrada no processo devolve consumo zerado, nao
+        404: "ainda nao houve chamada" e uma resposta valida, nao um erro.
+      operationId: get_consumption_api_v1_consumption_get
+      parameters:
+      - name: date
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          description: Dia civil (UTC) a consultar, no formato AAAA-MM-DD. Hoje (UTC), quando omitido.
+          title: Date
+        description: Dia civil (UTC) a consultar, no formato AAAA-MM-DD. Hoje (UTC), quando omitido.
+      responses:
+        '200':
+          description: Chamadas e tokens do dia, e se o teto configurado foi ultrapassado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumptionRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 
 components:
   securitySchemes:
@@ -186,6 +222,63 @@ components:
       bearerFormat: JWT
       description: Token emitido pelo gateway-service (RF16).
   schemas:
+    ConsumptionRead:
+      properties:
+        date:
+          type: string
+          format: date
+          title: Date
+        calls:
+          type: integer
+          title: Calls
+        prompt_tokens:
+          type: integer
+          title: Prompt Tokens
+        completion_tokens:
+          type: integer
+          title: Completion Tokens
+        total_tokens:
+          type: integer
+          title: Total Tokens
+        daily_limit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Daily Limit
+        limit_exceeded:
+          type: boolean
+          title: Limit Exceeded
+      type: object
+      required:
+      - date
+      - calls
+      - prompt_tokens
+      - completion_tokens
+      - total_tokens
+      - daily_limit
+      - limit_exceeded
+      title: ConsumptionRead
+      description: |-
+        Consumo de tokens acumulado em um dia civil (UTC) (RNF22).
+
+        Attributes:
+            date: dia civil (UTC) a que o consumo se refere.
+            calls: chamadas bem-sucedidas ao provedor contabilizadas no dia.
+            prompt_tokens: tokens de entrada somados das chamadas do dia.
+            completion_tokens: tokens de saida somados das chamadas do dia.
+            total_tokens: soma dos dois - o numero que o limite diario vigia.
+            daily_limit: teto configurado em ``LLM_DAILY_TOKEN_BUDGET``; ``None``
+                quando o ambiente nao define limite (sem alerta ligado).
+            limit_exceeded: se ``total_tokens`` ja passou ``daily_limit`` hoje.
+                Sempre ``False`` quando ``daily_limit`` e ``None``.
+      examples:
+      - calls: 7
+        completion_tokens: 2114
+        daily_limit: 200000
+        date: '2026-11-12'
+        limit_exceeded: false
+        prompt_tokens: 9821
+        total_tokens: 11935
     CourseFormat:
       type: string
       enum:
