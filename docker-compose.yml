@@ -96,7 +96,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       AI_STRUCTURING_PORT: ${AI_STRUCTURING_PORT:-8003}
-      PIPELINE_SERVICE_URL: ${PIPELINE_SERVICE_URL:-http://pipeline-service:8001}
+      PIPELINE_SERVICE_URL: http://pipeline-service:${PIPELINE_PORT:-8001}
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       LLM_MODEL: ${LLM_MODEL:-mock}
       LLM_API_KEY: ${LLM_API_KEY:-}
