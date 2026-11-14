@@ -10,7 +10,10 @@ name: cursos-corporativos
 
 services:
   db:
-    image: postgres:16-alpine
+    # pgvector/pgvector, nao postgres: oficial, com a extensao "vector" (RNF28
+    # consolidado, ADR-0007) ja compilada - sem isso o CREATE EXTENSION do
+    # init script e da migration falharia por falta do binario da extensao.
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cursos}

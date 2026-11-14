@@ -1257,6 +1257,93 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SourceSegmentErrorResponse'
+  /api/v1/segment-embeddings:
+    post:
+      tags:
+      - segment-embeddings
+      summary: Persistir embeddings de trechos ja captados
+      description: 'Grava em lote os embeddings gerados pelo ai-structuring-service
+        (card #160) para trechos ja persistidos (card #158 em services/pipeline-service/app/models).
+        Append-only: gerar um modelo novo para um trecho ja embeddado soma uma linha,
+        nunca substitui a existente.'
+      operationId: create_segment_embeddings_api_v1_segment_embeddings_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SegmentEmbeddingBatchCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SegmentEmbeddingRead'
+                type: array
+                title: Response Create Segment Embeddings Api V1 Segment Embeddings
+                  Post
+        '404':
+          description: Um ou mais trechos nao foram encontrados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentEmbeddingErrorResponse'
+        '409':
+          description: Par (trecho, modelo) ja gravado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentEmbeddingErrorResponse'
+        '422':
+          description: Lote, dimensao do vetor ou identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentEmbeddingErrorResponse'
+  /api/v1/demands/{demand_id}/segment-embeddings/search:
+    post:
+      tags:
+      - segment-embeddings
+      summary: Buscar trechos da demanda mais proximos de um vetor de consulta
+      description: 'Devolve os trechos da demanda mais similares ao vetor de consulta,
+        ordenados do mais para o menos proximo (card #159). Nunca cruza demanda
+        nem cliente (RNF21).'
+      operationId: search_segment_embeddings_api_v1_demands__demand_id__segment_embeddings_search_post
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Demand Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimilaritySearchRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimilaritySearchResponse'
+        '404':
+          description: Demanda inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentEmbeddingErrorResponse'
+        '422':
+          description: Dimensao do vetor ou parametro de busca invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentEmbeddingErrorResponse'
   /api/v1/demands/{demand_id}/segments:
     get:
       tags:
@@ -2749,3 +2836,173 @@ components:
       - total
       title: StageTransitionTimeline
       description: Linha do tempo de uma demanda, do mais antigo ao mais recente.
+    SegmentEmbeddingCreate:
+      properties:
+        segment_id:
+          type: string
+          format: uuid
+          title: Segment Id
+        model:
+          type: string
+          minLength: 1
+          title: Model
+          description: Identificador do modelo que gerou o vetor.
+        vector:
+          items:
+            type: number
+          type: array
+          maxItems: 384
+          minItems: 384
+          title: Vector
+          description: Vetor de dimensao fixa (384).
+      additionalProperties: false
+      type: object
+      required:
+      - segment_id
+      - model
+      - vector
+      title: SegmentEmbeddingCreate
+      description: Um embedding, de um modelo, para um trecho ja persistido.
+    SegmentEmbeddingBatchCreate:
+      properties:
+        embeddings:
+          items:
+            $ref: '#/components/schemas/SegmentEmbeddingCreate'
+          type: array
+          minItems: 1
+          title: Embeddings
+      additionalProperties: false
+      type: object
+      required:
+      - embeddings
+      title: SegmentEmbeddingBatchCreate
+      description: Lote de embeddings - os trechos de uma fonte sao gerados juntos.
+    SegmentEmbeddingRead:
+      properties:
+        segment_id:
+          type: string
+          format: uuid
+          title: Segment Id
+        model:
+          type: string
+          title: Model
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - segment_id
+      - model
+      - created_at
+      title: SegmentEmbeddingRead
+      description: Confirmacao de gravacao - sem o vetor de volta, que o chamador
+        ja tem.
+    SimilaritySearchRequest:
+      properties:
+        model:
+          type: string
+          minLength: 1
+          title: Model
+          description: Mesmo modelo usado para gerar os embeddings.
+        vector:
+          items:
+            type: number
+          type: array
+          maxItems: 384
+          minItems: 384
+          title: Vector
+        top_k:
+          type: integer
+          maximum: 50.0
+          minimum: 1.0
+          title: Top K
+          description: Teto de trechos devolvidos.
+          default: 5
+        min_similarity:
+          type: number
+          maximum: 1.0
+          minimum: -1.0
+          title: Min Similarity
+          description: Piso de similaridade de cosseno; trecho abaixo nao entra
+            no resultado.
+          default: 0.0
+      additionalProperties: false
+      type: object
+      required:
+      - model
+      - vector
+      title: SimilaritySearchRequest
+      description: 'Consulta: um vetor de um modelo, com quantos e quao parecidos
+        trechos voltam.'
+    SimilaritySearchResult:
+      properties:
+        segment_id:
+          type: string
+          format: uuid
+          title: Segment Id
+        raw_input_id:
+          type: string
+          format: uuid
+          title: Raw Input Id
+        position:
+          type: integer
+          title: Position
+        content:
+          type: string
+          title: Content
+        similarity:
+          type: number
+          title: Similarity
+      type: object
+      required:
+      - segment_id
+      - raw_input_id
+      - position
+      - content
+      - similarity
+      title: SimilaritySearchResult
+      description: Um trecho encontrado, com a similaridade que o trouxe ao resultado.
+    SimilaritySearchResponse:
+      properties:
+        results:
+          items:
+            $ref: '#/components/schemas/SimilaritySearchResult'
+          type: array
+          title: Results
+      type: object
+      required:
+      - results
+      title: SimilaritySearchResponse
+      description: Trechos mais proximos, ordenados do mais para o menos similar.
+    SegmentEmbeddingErrorDetails:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties:
+            type: string
+          type: object
+          title: Details
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+      type: object
+      required:
+      - code
+      - message
+      title: SegmentEmbeddingErrorDetails
+    SegmentEmbeddingErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/SegmentEmbeddingErrorDetails'
+      type: object
+      required:
+      - error
+      title: SegmentEmbeddingErrorResponse
