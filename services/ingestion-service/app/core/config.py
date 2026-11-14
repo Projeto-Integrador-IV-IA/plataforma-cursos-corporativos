@@ -6,9 +6,11 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEFAULT_SOURCE_TEXT_MAX_LENGTH = 50_000
+
 
 class Settings(BaseSettings):
-    """Variaveis obrigatorias do servico, sem valores operacionais no codigo."""
+    """Configuracao do servico e limites operacionais ajustaveis pelo ambiente."""
 
     model_config = SettingsConfigDict(case_sensitive=False, extra="ignore", frozen=True)
 
@@ -18,6 +20,7 @@ class Settings(BaseSettings):
     pipeline_service_url: str = Field(min_length=1)
     pipeline_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     ai_structuring_service_url: str = Field(min_length=1)
+    source_text_max_length: int = Field(default=DEFAULT_SOURCE_TEXT_MAX_LENGTH, ge=10)
 
 
 @lru_cache
