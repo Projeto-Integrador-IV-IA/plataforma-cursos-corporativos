@@ -337,7 +337,7 @@ export type ClientUpdate = Partial<ClientCreate>;
 export type ClientListParams = PageParams;
 
 // ---------------------------------------------------------------------------
-// Ingestao - PREVISTO (RF09, RF10), conforme `raw_inputs` no dicionario
+// Ingestao - DERIVADO de ingestion-service.yaml e pipeline-service.yaml (RF09, RF10)
 // ---------------------------------------------------------------------------
 
 /** Procedencia do texto bruto registrado pelo operador. */
@@ -350,6 +350,24 @@ export const RAW_INPUT_SOURCES = [
 ] as const;
 
 export type RawInputSource = (typeof RAW_INPUT_SOURCES)[number];
+
+/** Corpo de `POST /api/v1/ingestion`: texto que sera preservado para a demanda. */
+export interface IngestionCreateRequest {
+  readonly demand_id: Uuid;
+  readonly text: string;
+  readonly source_type?: RawInputSource | null;
+  readonly previous_attempt_id?: Uuid | null;
+}
+
+/** Confirmacao de que a fonte foi persistida antes de qualquer chamada a IA. */
+export interface IngestionAccepted {
+  readonly raw_input_id: Uuid;
+  readonly demand_id: Uuid;
+  readonly source_type: RawInputSource;
+  readonly previous_attempt_id: Uuid | null;
+  readonly status: "RECEBIDA";
+  readonly created_at: IsoDateTime;
+}
 
 /**
  * Demanda bruta. `original_content` e o texto exatamente como chegou e nunca e
@@ -684,6 +702,7 @@ export interface StructuredCourse {
 export interface StructuringRequest {
   readonly demand_id: string;
   readonly text: string;
+  readonly source_ids?: readonly Uuid[];
   readonly prompt_version?: string;
 }
 
