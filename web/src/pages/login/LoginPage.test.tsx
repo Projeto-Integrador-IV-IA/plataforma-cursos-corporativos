@@ -22,6 +22,26 @@ afterEach(() => {
 });
 
 describe('tela de login', () => {
+  it('permite mostrar e ocultar a senha sem enviar o formulario', async () => {
+    const fetchDouble = vi.fn();
+    vi.stubGlobal('fetch', fetchDouble);
+    const user = userEvent.setup();
+    renderRoute(PATHS.login, { authenticated: false });
+
+    const password = screen.getByLabelText('Senha') as HTMLInputElement;
+    await user.type(password, 'senha-de-teste');
+    expect(password.type).toBe('password');
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar senha' }));
+    expect(password.type).toBe('text');
+    expect(password.value).toBe('senha-de-teste');
+
+    await user.click(screen.getByRole('button', { name: 'Ocultar senha' }));
+    expect(password.type).toBe('password');
+    expect(password.value).toBe('senha-de-teste');
+    expect(fetchDouble).not.toHaveBeenCalled();
+  });
+
   it('valida os dois campos obrigatorios antes de chamar o gateway', async () => {
     const fetchDouble = vi.fn();
     vi.stubGlobal('fetch', fetchDouble);
@@ -58,22 +78,29 @@ describe('tela de login', () => {
       }
 
       return Promise.resolve(
-        new Response(JSON.stringify({ items: [], total: 0, page: 1, size: 20 }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        new Response(
+          JSON.stringify({ items: [], total: 0, page: 1, size: 20 }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
       );
     });
     const user = userEvent.setup();
     renderRoute('/demandas?status=ABERTA', { authenticated: false });
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Entrar' })).toBeDefined();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Entrar' }),
+    ).toBeDefined();
     await user.type(screen.getByLabelText(/E-mail/), 'operadora@example.com');
     await user.type(screen.getByLabelText(/Senha/), 'senha-forte');
     await user.click(screen.getByRole('button', { name: 'Entrar' }));
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: 'Demandas' })).toBeDefined(),
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Demandas' }),
+      ).toBeDefined(),
     );
   });
 });

@@ -14,7 +14,7 @@
  * mantem ao trocar de pagina porque quem ordena e o servidor. Quando o contrato
  * passar a aceitar ordenacao, ela entra na URL ao lado de `pagina`.
  *
- * Estado na URL. Pagina, situacao e cliente vivem em query string: o operador
+ * Estado na URL. Pagina, etapa, situacao, cliente e responsavel vivem em query string: o operador
  * volta pelo botao do navegador, recarrega a aba e envia o link da busca para
  * um colega sem perder o recorte. Trocar filtro volta para a primeira pagina,
  * senao a pagina 3 de um filtro vira uma lista vazia no filtro seguinte.
@@ -225,7 +225,6 @@ export function DemandList() {
             ))}
           </select>
         </div>
-
         <div className="form__field">
           <label className="form__label" htmlFor={statusFieldId}>
             Situacao

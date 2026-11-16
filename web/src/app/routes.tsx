@@ -22,23 +22,24 @@
  * devolve o operador a esse caminho depois de autenticar.
  */
 
-import { Navigate, type RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from "react-router-dom";
 
-import { App } from '@/app/App';
-import { PATHS } from '@/app/paths';
-import { RequireSession } from '@/features/auth/RequireSession';
-import { ArtifactVersionsPage } from '@/pages/artifact-versions/ArtifactVersionsPage';
-import { ClientDetailPage } from '@/pages/client-detail/ClientDetailPage';
-import { ClientNewPage } from '@/pages/client-new/ClientNewPage';
-import { ClientsPage } from '@/pages/clients/ClientsPage';
-import { DemandDetailPage } from '@/pages/demand-detail/DemandDetailPage';
-import { DemandIngestionPage } from '@/pages/demand-ingestion/DemandIngestionPage';
-import { DemandStructuringPage } from '@/pages/demand-structuring/DemandStructuringPage';
-import { DemandNewPage } from '@/pages/demand-new/DemandNewPage';
-import { DemandsPage } from '@/pages/demands/DemandsPage';
-import { LoginPage } from '@/pages/login/LoginPage';
-import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
-import { PipelinePage } from '@/pages/pipeline/PipelinePage';
+import { App } from "@/app/App";
+import { PATHS } from "@/app/paths";
+import { RequireSession } from "@/features/auth/RequireSession";
+import { ArtifactVersionsPage } from "@/pages/artifact-versions/ArtifactVersionsPage";
+import { ClientDetailPage } from "@/pages/client-detail/ClientDetailPage";
+import { ClientNewPage } from "@/pages/client-new/ClientNewPage";
+import { ClientsPage } from "@/pages/clients/ClientsPage";
+import { DemandDetailPage } from "@/pages/demand-detail/DemandDetailPage";
+import { DemandIngestionPage } from "@/pages/demand-ingestion/DemandIngestionPage";
+import { DemandStructuringPage } from "@/pages/demand-structuring/DemandStructuringPage";
+import { DemandNewPage } from "@/pages/demand-new/DemandNewPage";
+import { DemandsPage } from "@/pages/demands/DemandsPage";
+import { LoginPage } from "@/pages/login/LoginPage";
+import { HomePage } from "@/pages/home/HomePage";
+import { NotFoundPage } from "@/pages/not-found/NotFoundPage";
+import { PipelinePage } from "@/pages/pipeline/PipelinePage";
 
 export const routes: RouteObject[] = [
   {
@@ -46,14 +47,15 @@ export const routes: RouteObject[] = [
     element: <LoginPage />,
   },
   {
-    path: '/',
+    path: "/",
     element: (
       <RequireSession>
         <App />
       </RequireSession>
     ),
     children: [
-      { index: true, element: <Navigate to={PATHS.pipeline} replace /> },
+      { index: true, element: <Navigate to={PATHS.home} replace /> },
+      { path: PATHS.home, element: <HomePage /> },
       { path: PATHS.clients, element: <ClientsPage /> },
       { path: PATHS.clientNew, element: <ClientNewPage /> },
       { path: PATHS.clientDetail, element: <ClientDetailPage /> },
@@ -64,7 +66,7 @@ export const routes: RouteObject[] = [
       { path: PATHS.demandIngestion, element: <DemandIngestionPage /> },
       { path: PATHS.demandStructuring, element: <DemandStructuringPage /> },
       { path: PATHS.artifactVersions, element: <ArtifactVersionsPage /> },
-      { path: '*', element: <NotFoundPage /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ];
