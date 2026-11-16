@@ -331,7 +331,10 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao(`?execucao=${JOB_ID}`);
 
-    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    // A mesma execucao e lida tanto pelo bloco de processamento quanto pela
+    // tela (para o resultado aparecer antes de existir artefato) - duas
+    // consultas ao mesmo recurso, nao uma chamada duplicada por engano.
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
 
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
@@ -345,7 +348,7 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao(`?execucao=${JOB_ID}`);
     await screen.findByRole('status', { name: 'Estado da execucao' });
 
-    const reenviar = screen.getByRole('button', { name: 'Reenviar a estruturacao' });
+    const reenviar = screen.getByRole('button', { name: 'Fazer o curso novamente com IA' });
     await waitFor(() => expect(reenviar.hasAttribute('disabled')).toBe(true));
     expect(textoDaTela()).toContain('Reenvio bloqueado enquanto houver execucao em curso');
   });
@@ -363,7 +366,7 @@ describe('revisao da estruturacao', () => {
     expect(textoDaTela()).toContain('Tempo total: 12,4 s');
     expect(screen.getByRole('link', { name: 'Abrir tela de revisao' })).toBeDefined();
 
-    const reenviar = screen.getByRole('button', { name: 'Reenviar a estruturacao' });
+    const reenviar = screen.getByRole('button', { name: 'Fazer o curso novamente com IA' });
     await waitFor(() => expect(reenviar.hasAttribute('disabled')).toBe(false));
   });
 
@@ -386,15 +389,16 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(getStructuringJob).not.toHaveBeenCalled();
-    expect(textoDaTela()).toContain('Nenhuma execucao acompanhada nesta tela.');
+    expect(textoDaTela()).toContain('Ainda nao ha uma geracao em andamento.');
 
-    await usuario.click(screen.getByRole('button', { name: 'Estruturar com IA' }));
+    await usuario.click(screen.getByRole('button', { name: 'Fazer o curso com IA' }));
 
     await waitFor(() => expect(submitStructuringJob).toHaveBeenCalledTimes(1));
     // O texto enviado e o da fonte captada, nunca um resumo escrito pela tela.
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
       text: FONTE.original_content,
+      source_ids: [FONTE_ID],
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
@@ -410,8 +414,10 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao();
 
-    expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
-    expect(screen.queryByRole('button', { name: 'Estruturar com IA' })).toBeNull();
+    expect(textoDaTela()).toContain('Esta demanda não tem nenhuma fonte captada.');
+    expect(screen.getByRole('button', { name: 'Fazer o curso com IA' }).hasAttribute('disabled')).toBe(
+      true,
+    );
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {

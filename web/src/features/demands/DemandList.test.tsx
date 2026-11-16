@@ -10,11 +10,15 @@
  * parou.
  */
 
-import { screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Providers } from '@/app/providers';
+import { DemandList } from '@/features/demands/DemandList';
 import { ApiError } from '@/services/api';
+import { PIPELINE_STAGES } from '@/types/api';
 import type { Client, DemandRead, DemandListParams, Page } from '@/types/api';
 
 vi.mock('@/services/clients', () => ({ listClients: vi.fn() }));
@@ -38,10 +42,36 @@ const ALFA: Client = {
   updated_at: '2026-09-01T10:00:00-03:00',
 };
 
-const BETA: Client = { ...ALFA, id: '22222222-2222-4222-8222-222222222222', name: 'Comercio Beta' };
+const BETA: Client = {
+  ...ALFA,
+  id: '22222222-2222-4222-8222-222222222222',
+  name: 'Comercio Beta',
+};
 
 const TOTAL_DE_DEMANDAS = 25;
 const TAMANHO_DA_PAGINA = 20;
+
+function LocationProbe() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output aria-label="URL atual">{location.search}</output>
+      <button onClick={() => navigate(-1)}>Voltar na busca</button>
+    </>
+  );
+}
+
+function renderFilters(search: string) {
+  return render(
+    <Providers>
+      <MemoryRouter initialEntries={[`/demandas${search}`]}>
+        <DemandList />
+        <LocationProbe />
+      </MemoryRouter>
+    </Providers>,
+  );
+}
 
 function criarDemanda(numero: number, parcial: Partial<DemandRead> = {}): DemandRead {
   const rotulo = String(numero).padStart(2, '0');
@@ -63,8 +93,9 @@ function criarDemanda(numero: number, parcial: Partial<DemandRead> = {}): Demand
 
 /** Recorte do servidor: itens ja ordenados, `total` contado antes do corte. */
 function paginaDe(offset: number): Page<DemandRead> {
-  const items = Array.from({ length: TOTAL_DE_DEMANDAS }, (_, indice) => criarDemanda(indice + 1))
-    .slice(offset, offset + TAMANHO_DA_PAGINA);
+  const items = Array.from({ length: TOTAL_DE_DEMANDAS }, (_, indice) =>
+    criarDemanda(indice + 1),
+  ).slice(offset, offset + TAMANHO_DA_PAGINA);
 
   return {
     items,
@@ -75,7 +106,12 @@ function paginaDe(offset: number): Page<DemandRead> {
 }
 
 function comPagina(itens: readonly DemandRead[], total = itens.length) {
-  vi.mocked(listDemands).mockResolvedValue({ items: itens, total, page: 1, size: TAMANHO_DA_PAGINA });
+  vi.mocked(listDemands).mockResolvedValue({
+    items: itens,
+    total,
+    page: 1,
+    size: TAMANHO_DA_PAGINA,
+  });
 }
 
 function ultimosFiltros(): DemandListParams {
@@ -117,7 +153,9 @@ describe('listagem de demandas', () => {
     ]);
     renderRoute('/demandas');
 
-    const linha = await screen.findByRole('row', { name: /Treinamento de NR-12/ });
+    const linha = await screen.findByRole('row', {
+      name: /Treinamento de NR-12/,
+    });
 
     expect(linha.textContent).toContain('Comercio Beta');
     expect(linha.textContent).toContain('Estruturacao');
@@ -201,7 +239,10 @@ describe('listagem de demandas', () => {
     const usuario = userEvent.setup();
     const owner = 'aabbccdd-1111-4111-8111-111111111111';
     vi.mocked(listDemands).mockImplementation(async () => ({
-      items: [criarDemanda(1, { owner_id: owner })], total: 1, page: 1, size: 20,
+      items: [criarDemanda(1, { owner_id: owner })],
+      total: 1,
+      page: 1,
+      size: 20,
     }));
     renderRoute('/demandas?pagina=2');
     await screen.findByRole('row', { name: /Demanda 01/ });
@@ -229,12 +270,14 @@ describe('listagem de demandas', () => {
     const ownerB = 'aabbccdd-2222-4222-8222-222222222222';
     vi.mocked(listDemands).mockImplementation(async (params: DemandListParams = {}) =>
       params.owner_id === ownerA
-        ? { items: [criarDemanda(1, { owner_id: ownerA })], total: 1, page: 1, size: 20 }
+        ? {
+            items: [criarDemanda(1, { owner_id: ownerA })],
+            total: 1,
+            page: 1,
+            size: 20,
+          }
         : {
-            items: [
-              criarDemanda(1, { owner_id: ownerA }),
-              criarDemanda(2, { owner_id: ownerB }),
-            ],
+            items: [criarDemanda(1, { owner_id: ownerA }), criarDemanda(2, { owner_id: ownerB })],
             total: 2,
             page: 1,
             size: 20,
@@ -250,7 +293,9 @@ describe('listagem de demandas', () => {
     // precisa continuar oferecendo o outro responsavel ja visto, senao o
     // operador so consegue trocar de responsavel limpando o filtro primeiro.
     expect(
-      within(screen.getByLabelText('Responsavel')).getByRole('option', { name: ownerB }),
+      within(screen.getByLabelText('Responsavel')).getByRole('option', {
+        name: ownerB,
+      }),
     ).toBeDefined();
   });
 
@@ -318,5 +363,87 @@ describe('listagem de demandas', () => {
     await screen.findByRole('row', { name: /Demanda 01/ });
 
     expect(screen.getByRole('link', { name: 'Abrir nova demanda' })).toBeDefined();
+  });
+
+  it.each(PIPELINE_STAGES)('restaura a etapa %s da URL e envia ao servico', async (stage) => {
+    renderRoute(`/demandas?etapa=${stage}`);
+    await screen.findByRole('row', { name: /Demanda 01/ });
+    expect(ultimosFiltros().stage).toBe(stage);
+    expect(screen.getByLabelText<HTMLSelectElement>('Etapa').value).toBe(stage);
+  });
+
+  it('combina os quatro filtros, reinicia a pagina e restaura a busca ao voltar', async () => {
+    const usuario = userEvent.setup();
+    const owner = 'aabbccdd-1111-4111-8111-111111111111';
+    const search = `?pagina=2&cliente=${ALFA.id}&responsavel=${owner}&situacao=ABERTA`;
+    renderFilters(search);
+    await screen.findByRole('row', { name: /Demanda 21/ });
+
+    await usuario.selectOptions(screen.getByLabelText('Etapa'), 'PROPOSTA');
+    await waitFor(() =>
+      expect(ultimosFiltros()).toMatchObject({
+        stage: 'PROPOSTA',
+        status: 'ABERTA',
+        client_id: ALFA.id,
+        owner_id: owner,
+        offset: 0,
+      }),
+    );
+    const url = new URLSearchParams(screen.getByLabelText('URL atual').textContent ?? '');
+    expect(url.get('etapa')).toBe('PROPOSTA');
+    expect(url.has('pagina')).toBe(false);
+    expect(url.get('cliente')).toBe(ALFA.id);
+    expect(url.get('responsavel')).toBe(owner);
+
+    await usuario.selectOptions(screen.getByLabelText('Situacao'), 'GANHA');
+    await waitFor(() =>
+      expect(ultimosFiltros()).toMatchObject({
+        stage: 'PROPOSTA',
+        status: 'GANHA',
+      }),
+    );
+    expect(screen.getByLabelText('URL atual').textContent).toContain('situacao=GANHA');
+    await usuario.click(screen.getByRole('button', { name: 'Voltar na busca' }));
+    await waitFor(() => expect(ultimosFiltros().status).toBe('ABERTA'));
+    expect(screen.getByLabelText<HTMLSelectElement>('Etapa').value).toBe('PROPOSTA');
+  });
+
+  it('remove somente a etapa ao selecionar Todas e limpa os quatro filtros juntos', async () => {
+    const usuario = userEvent.setup();
+    renderFilters(
+      `?etapa=PROPOSTA&situacao=GANHA&cliente=${ALFA.id}&responsavel=owner&extra=manter`,
+    );
+    await screen.findByRole('row', { name: /Demanda 01/ });
+    await usuario.selectOptions(screen.getByLabelText('Etapa'), '');
+    await waitFor(() => expect(ultimosFiltros().stage).toBeUndefined());
+    expect(ultimosFiltros().status).toBe('GANHA');
+    expect(screen.getByLabelText('URL atual').textContent).not.toContain('etapa=');
+    await usuario.selectOptions(screen.getByLabelText('Etapa'), 'PRODUTO');
+    await usuario.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('URL atual').textContent).toBe('?extra=manter'),
+    );
+    expect(ultimosFiltros()).toMatchObject({
+      stage: undefined,
+      status: undefined,
+      client_id: undefined,
+      owner_id: undefined,
+      offset: 0,
+    });
+  });
+
+  it('ignora etapa e situacao desconhecidas sem enviar valores invalidos ao servico', async () => {
+    renderRoute('/demandas?etapa=INVALIDA&situacao=INVALIDA');
+    await screen.findByRole('row', { name: /Demanda 01/ });
+    expect(ultimosFiltros().stage).toBeUndefined();
+    expect(ultimosFiltros().status).toBeUndefined();
+    expect(screen.getByLabelText<HTMLSelectElement>('Etapa').value).toBe('');
+  });
+
+  it('mostra estado vazio filtrado quando apenas a etapa esta selecionada', async () => {
+    comPagina([]);
+    renderRoute('/demandas?etapa=ESTRUTURACAO');
+    expect(await screen.findByText('Nenhuma demanda atende a este filtro.')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Limpar filtros' })).toBeDefined();
   });
 });

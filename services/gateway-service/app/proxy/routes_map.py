@@ -1,17 +1,17 @@
-"""Mapa de roteamento do gateway.
+"""Whitelist de recursos de negocio encaminhados pelo gateway."""
 
-Declara qual prefixo de caminho pertence a qual microsservico interno. Fica em
-um unico lugar para que a topologia seja legivel e para que adicionar um
-servico novo (evolucao futura, RNF13) nao exija caçar rotas pelo codigo.
+from app.core.config import Settings
 
-Mapa previsto:
-    /api/v1/clients      -> pipeline-service
-    /api/v1/demands      -> pipeline-service
-    /api/v1/artifacts    -> pipeline-service
-    /api/v1/ingestion    -> ingestion-service
-    /api/v1/structuring  -> ai-structuring-service
 
-As URLs de destino vem de variavel de ambiente (RNF11).
-
-TODO(scaffolding): implementar o mapa.
-"""
+def service_for_resource(resource: str, settings: Settings) -> str | None:
+    """Resolve o recurso conhecido para a URL interna do microsservico dono."""
+    routes = {
+        "clients": settings.pipeline_service_url,
+        "demands": settings.pipeline_service_url,
+        "pipeline": settings.pipeline_service_url,
+        "artifacts": settings.pipeline_service_url,
+        "raw-inputs": settings.pipeline_service_url,
+        "ingestion": settings.ingestion_service_url,
+        "structuring": settings.ai_structuring_service_url,
+    }
+    return routes.get(resource)

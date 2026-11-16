@@ -29,15 +29,25 @@
  * demandas, e nao como estado local que o operador nao consegue compartilhar.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
-import { PATHS } from '@/app/paths';
-import { demandCount } from '@/features/pipeline/PipelineBoardLabels';
-import { PipelineStageColumn } from '@/features/pipeline/PipelineStageColumn';
-import { isApiError } from '@/services/api';
-import { getPipelineBoard } from '@/services/pipeline';
-import type { PipelineBoardParams } from '@/types/api';
+import { PATHS } from "@/app/paths";
+import { demandCount } from "@/features/pipeline/PipelineBoardLabels";
+import { PipelineStageColumn } from "@/features/pipeline/PipelineStageColumn";
+import { isApiError } from "@/services/api";
+import { getPipelineBoard } from "@/services/pipeline";
+import {
+  advancePipelineDemand,
+  rollbackPipelineDemand,
+} from "@/services/pipeline";
+import type {
+  PipelineBoardParams,
+  PipelineCardRead,
+  PipelineStage,
+} from "@/types/api";
+import { useFeedback } from "@/hooks/useFeedback";
 
 /**
  * Cartoes carregados por coluna. E o padrao do contrato, declarado aqui para
@@ -47,17 +57,58 @@ const CARDS_PER_STAGE = 20;
 
 const BOARD_PARAMS: PipelineBoardParams = { limit: CARDS_PER_STAGE };
 
-const GENERIC_FAILURE = 'Nao foi possivel carregar o pipeline. Tente novamente.';
+const GENERIC_FAILURE =
+  "Nao foi possivel carregar o pipeline. Tente novamente.";
 
 function errorMessage(error: unknown): string {
   return isApiError(error) ? error.message : GENERIC_FAILURE;
 }
 
 export function PipelineBoardView() {
+  const queryClient = useQueryClient();
+  const { showError, showSuccess } = useFeedback();
+  const [draggedCard, setDraggedCard] = useState<PipelineCardRead | null>(null);
   const board = useQuery({
-    queryKey: ['pipeline', 'board', BOARD_PARAMS],
+    queryKey: ["pipeline", "board", BOARD_PARAMS],
     queryFn: ({ signal }) => getPipelineBoard(BOARD_PARAMS, { signal }),
   });
+
+  async function moveCard(toStage: PipelineStage) {
+    const card = draggedCard;
+    setDraggedCard(null);
+    if (!card || !board.data) return;
+    const currentStage = board.data.stages.find((group) =>
+      group.items.some((item) => item.id === card.id),
+    )?.stage;
+    if (!currentStage || currentStage === toStage) return;
+    const currentIndex = board.data.stages.findIndex(
+      (group) => group.stage === currentStage,
+    );
+    const targetIndex = board.data.stages.findIndex(
+      (group) => group.stage === toStage,
+    );
+    try {
+      if (targetIndex === currentIndex + 1) {
+        await advancePipelineDemand(card.id);
+      } else if (targetIndex < currentIndex) {
+        const reason = window.prompt(
+          "Informe a justificativa para voltar esta demanda:",
+        );
+        if (!reason?.trim()) return;
+        await rollbackPipelineDemand(card.id, toStage, reason.trim());
+      } else {
+        showError("A demanda só pode avançar uma etapa por vez.");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["pipeline"] });
+      await queryClient.invalidateQueries({ queryKey: ["demands"] });
+      showSuccess("Etapa da demanda atualizada.");
+    } catch (error) {
+      showError(
+        isApiError(error) ? error.message : "Não foi possível mover a demanda.",
+      );
+    }
+  }
 
   return (
     <section className="pipeline-board">
@@ -68,9 +119,16 @@ export function PipelineBoardView() {
       ) : null}
 
       {board.isError ? (
-        <div className="pipeline-board__state pipeline-board__state--error" aria-live="assertive">
+        <div
+          className="pipeline-board__state pipeline-board__state--error"
+          aria-live="assertive"
+        >
           <p>{errorMessage(board.error)}</p>
-          <button type="button" className="button" onClick={() => void board.refetch()}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => void board.refetch()}
+          >
             Tentar novamente
           </button>
         </div>
@@ -80,8 +138,10 @@ export function PipelineBoardView() {
         <>
           {board.data.total === 0 ? (
             <p className="pipeline-board__state" aria-live="polite">
-              Nenhuma demanda no pipeline ate agora.{' '}
-              <Link to={PATHS.demandNew}>Abra a primeira negociacao</Link>.
+              Nenhuma demanda no pipeline até agora.
+              <Link className="button" to={PATHS.demandNew}>
+                Abrir primeira negociação
+              </Link>
             </p>
           ) : null}
 
@@ -98,15 +158,22 @@ export function PipelineBoardView() {
           >
             <ol className="pipeline-board__columns">
               {board.data.stages.map((group) => (
-                <PipelineStageColumn key={group.stage} group={group} />
+                <PipelineStageColumn
+                  key={group.stage}
+                  group={group}
+                  dragging={draggedCard !== null}
+                  onCardDragStart={setDraggedCard}
+                  onCardDragEnd={() => setDraggedCard(null)}
+                  onDrop={moveCard}
+                />
               ))}
             </ol>
           </div>
 
           <p className="pipeline-board__summary" aria-live="polite">
-            {demandCount(board.data.total)} no pipeline. Cada coluna carrega ate{' '}
-            {CARDS_PER_STAGE} cartoes; o numero no topo da coluna e o total da etapa.{' '}
-            <Link to={PATHS.demands}>Ver tudo em lista</Link>
+            {demandCount(board.data.total)} no pipeline. Cada coluna carrega ate{" "}
+            {CARDS_PER_STAGE} cartoes; o numero no topo da coluna e o total da
+            etapa. <Link to={PATHS.demands}>Ver tudo em lista</Link>
           </p>
         </>
       ) : null}
