@@ -41,5 +41,13 @@ _RESOURCES = (
 _METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 for _resource in _RESOURCES:
     _endpoint = make_proxy_endpoint(_resource)
-    router.add_api_route(f"/{_resource}", _endpoint, methods=_METHODS)
-    router.add_api_route(f"/{_resource}/{{path:path}}", _endpoint, methods=_METHODS)
+    # Uma chamada de `add_api_route` por metodo, nunca uma lista de metodos
+    # na mesma chamada: o FastAPI guarda `route.methods` como `set`, e o
+    # `operation_id` default usa o primeiro item dela - com mais de um
+    # metodo por rota, a ordem do set varia a cada processo (hash
+    # aleatorio do Python), e o `operationId` de GET, POST etc. mudava de
+    # nome a cada subida, quebrando o contrato publicado (RNF02) sem
+    # nenhuma mudanca de codigo.
+    for _method in _METHODS:
+        router.add_api_route(f"/{_resource}", _endpoint, methods=[_method])
+        router.add_api_route(f"/{_resource}/{{path:path}}", _endpoint, methods=[_method])

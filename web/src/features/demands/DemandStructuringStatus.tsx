@@ -94,9 +94,20 @@ interface DemandStructuringStatusProps {
   demandId: Uuid;
   /** Fonte captada mais recente; `undefined` quando a demanda nao tem nenhuma. */
   source: DemandRawInputRead | undefined;
+  /**
+   * Avisa quem renderizou este componente sobre o resultado mais recente da
+   * execucao consultada aqui. Usado pela tela de revisao
+   * (`DemandStructuringView`), que precisa de `result.course` antes de existir
+   * artefato salvo, sem abrir uma segunda consulta ao mesmo recurso.
+   */
+  onExecucaoChange?: (execucao: StructuringJobRead | undefined) => void;
 }
 
-export function DemandStructuringStatus({ demandId, source }: DemandStructuringStatusProps) {
+export function DemandStructuringStatus({
+  demandId,
+  source,
+  onExecucaoChange,
+}: DemandStructuringStatusProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useFeedback();
@@ -112,6 +123,10 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
         ? 2_000
         : false,
   });
+
+  useEffect(() => {
+    onExecucaoChange?.(execucao.data);
+  }, [execucao.data, onExecucaoChange]);
 
   useEffect(() => {
     if (execucao.data?.status !== 'CONCLUIDA') {

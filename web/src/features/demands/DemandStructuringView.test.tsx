@@ -392,6 +392,7 @@ describe('revisao da estruturacao', () => {
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
       text: FONTE.original_content,
+      source_ids: [FONTE_ID],
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
@@ -407,8 +408,10 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao();
 
-    expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
-    expect(screen.queryByRole('button', { name: 'Fazer o curso com IA' })).toBeNull();
+    expect(textoDaTela()).toContain('Esta demanda não tem nenhuma fonte captada.');
+    expect(
+      screen.getByRole('button', { name: 'Fazer o curso com IA' }).hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {

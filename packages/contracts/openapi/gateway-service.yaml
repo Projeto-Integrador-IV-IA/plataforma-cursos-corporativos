@@ -72,6 +72,1112 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
       - HTTPBearer: []
+  /api/v1/clients:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients_put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients_options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients_patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/clients/{path}:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients__path__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients__path__put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients__path__post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients__path__delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients__path__options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_clients__path__patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/demands:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands_put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands_options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands_patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/demands/{path}:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands__path__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands__path__put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands__path__post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands__path__delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands__path__options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_demands__path__patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/pipeline:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline_put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline_options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline_patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/pipeline/{path}:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline__path__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline__path__put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline__path__post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline__path__delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline__path__options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_pipeline__path__patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/artifacts:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts_put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts_options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts_patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/artifacts/{path}:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts__path__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts__path__put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts__path__post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts__path__delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts__path__options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_artifacts__path__patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/raw-inputs:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs_put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs_options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs_patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/raw-inputs/{path}:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs__path__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs__path__put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs__path__post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs__path__delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs__path__options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_raw_inputs__path__patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/ingestion:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion_put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion_options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion_patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/ingestion/{path}:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion__path__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion__path__put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion__path__post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion__path__delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion__path__options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_ingestion__path__patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/structuring:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring_put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring_delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring_options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring_patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+  /api/v1/structuring/{path}:
+    get:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring__path__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    put:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring__path__put
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    post:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring__path__post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    delete:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring__path__delete
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    options:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring__path__options
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - proxy
+      summary: Proxy Resource
+      operationId: proxy_resource_api_v1_structuring__path__patch
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+      security:
+      - HTTPBearer: []
 components:
   schemas:
     ErrorBody:
