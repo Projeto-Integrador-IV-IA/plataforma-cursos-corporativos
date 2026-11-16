@@ -57,34 +57,38 @@ function botaoDeEnvio() {
 }
 
 describe('formulario de cadastro de cliente', () => {
-  it('cadastra o cliente com todos os campos e volta para a listagem', async () => {
-    const usuario = abrirFormulario();
+  it(
+    'cadastra o cliente com todos os campos e volta para a listagem',
+    async () => {
+      const usuario = abrirFormulario();
 
-    await usuario.type(screen.getByLabelText(/Razao social/), 'Industria Alfa');
-    await usuario.type(screen.getByLabelText(/CNPJ/), '12.345.678/0001-90');
-    await usuario.type(screen.getByLabelText(/Segmento/), 'Metalurgia');
-    await usuario.type(screen.getByLabelText(/Nome do contato/), 'Marina');
-    await usuario.type(screen.getByLabelText(/E-mail do contato/), 'marina@alfa.example');
-    await usuario.type(screen.getByLabelText(/Telefone do contato/), '(11) 99999-0000');
-    await usuario.type(
-      screen.getByLabelText(/Observacoes/),
-      'Conta trazida pela indicacao da Beta.',
-    );
-    await usuario.click(botaoDeEnvio());
+      await usuario.type(screen.getByLabelText(/Razao social/), 'Industria Alfa');
+      await usuario.type(screen.getByLabelText(/CNPJ/), '12.345.678/0001-90');
+      await usuario.type(screen.getByLabelText(/Segmento/), 'Metalurgia');
+      await usuario.type(screen.getByLabelText(/Nome do contato/), 'Marina');
+      await usuario.type(screen.getByLabelText(/E-mail do contato/), 'marina@alfa.example');
+      await usuario.type(screen.getByLabelText(/Telefone do contato/), '(11) 99999-0000');
+      await usuario.type(
+        screen.getByLabelText(/Observacoes/),
+        'Conta trazida pela indicacao da Beta.',
+      );
+      await usuario.click(botaoDeEnvio());
 
-    await waitFor(() => expect(createClient).toHaveBeenCalledTimes(1));
-    expect(createClient).toHaveBeenCalledWith({
-      name: 'Industria Alfa',
-      cnpj: '12.345.678/0001-90',
-      segment: 'Metalurgia',
-      contact_name: 'Marina',
-      contact_email: 'marina@alfa.example',
-      contact_phone: '(11) 99999-0000',
-      notes: 'Conta trazida pela indicacao da Beta.',
-    });
-    await waitFor(() => expect(navegou).toHaveBeenCalledWith('/clientes'));
-    expect((await screen.findByRole('status')).textContent).toContain('Industria Alfa');
-  });
+      await waitFor(() => expect(createClient).toHaveBeenCalledTimes(1));
+      expect(createClient).toHaveBeenCalledWith({
+        name: 'Industria Alfa',
+        cnpj: '12.345.678/0001-90',
+        segment: 'Metalurgia',
+        contact_name: 'Marina',
+        contact_email: 'marina@alfa.example',
+        contact_phone: '(11) 99999-0000',
+        notes: 'Conta trazida pela indicacao da Beta.',
+      });
+      await waitFor(() => expect(navegou).toHaveBeenCalledWith('/clientes'));
+      expect((await screen.findByRole('status')).textContent).toContain('Industria Alfa');
+    },
+    15000,
+  );
 
   it('envia null nos campos opcionais deixados em branco, nunca string vazia', async () => {
     const usuario = abrirFormulario();

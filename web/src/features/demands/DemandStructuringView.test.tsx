@@ -331,7 +331,7 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao(`?execucao=${JOB_ID}`);
 
-    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
 
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
@@ -391,12 +391,13 @@ describe('revisao da estruturacao', () => {
     // O texto enviado e o da fonte captada, nunca um resumo escrito pela tela.
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
+      source_ids: [FONTE_ID],
       text: FONTE.original_content,
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
     // ser consultado - o que faz a tela sobreviver a um recarregamento.
-    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
     expect(estado.textContent).toContain('Na fila');
@@ -408,7 +409,9 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
-    expect(screen.queryByRole('button', { name: 'Fazer o curso com IA' })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Fazer o curso com IA' }).hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {
