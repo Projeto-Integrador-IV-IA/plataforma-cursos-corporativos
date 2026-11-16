@@ -1,69 +1,29 @@
-import { createContext, type ReactNode, useContext, useSyncExternalStore } from 'react';
+import { type ReactNode, useSyncExternalStore } from 'react';
 import { Navigate } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { AuthSessionContext, hasPermission, useSession, type Permission } from '@/features/auth/permissions';
 import { getAuthSession, subscribeAuthSession, type AuthSession } from '@/services/auth';
-
-export const PERMISSIONS = {
-  clientsRead: 'clients.read',
-  clientsManage: 'clients.manage',
-  pipelineRead: 'pipeline.read',
-  demandsRead: 'demands.read',
-  demandsManage: 'demands.manage',
-  ingestionCreate: 'ingestion.create',
-  structuringReview: 'structuring.review',
-  artifactsRead: 'artifacts.read',
-} as const;
-
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
-
-const ALL_PERMISSIONS = Object.values(PERMISSIONS);
-
-/**
- * O backend do MVP so emite OPERADOR. Papeis futuros nao recebem acesso ate
- * que a matriz oficial de autorizacao por operacao seja publicada.
- */
-const ROLE_PERMISSIONS: ReadonlyMap<string, ReadonlySet<Permission>> = new Map([
-  ['OPERADOR', new Set<Permission>(ALL_PERMISSIONS)],
-]);
-
-const AuthSessionContext = createContext<AuthSession | null | undefined>(undefined);
 
 interface AuthSessionProviderProps {
   readonly session: AuthSession | null;
   readonly children: ReactNode;
 }
 
-/** Sobrescreve a sessao externa em testes e renderizadores isolados. */
+/**
+ * Sobrescreve a sessao externa em testes e renderizadores isolados.
+ *
+ * Uma sessao real iniciada durante o proprio teste (por exemplo, um login
+ * feito pela interface) tem prioridade sobre a sessao fixa passada aqui: sem
+ * isso, o restante da arvore ficaria congelado na sessao de antes do login.
+ */
 export function AuthSessionProvider({ session, children }: AuthSessionProviderProps) {
-  return <AuthSessionContext.Provider value={session}>{children}</AuthSessionContext.Provider>;
-}
+  const liveSession = useSyncExternalStore(subscribeAuthSession, getAuthSession, () => null);
 
-function useSession(): AuthSession | null {
-  const providedSession = useContext(AuthSessionContext);
-  const storedSession = useSyncExternalStore(
-    subscribeAuthSession,
-    getAuthSession,
-    () => null,
-  );
-
-  return providedSession === undefined ? storedSession : providedSession;
-}
-
-export function useAuthorization() {
-  const session = useSession();
-
-  return {
-    role: session?.operator.role ?? null,
-    can: (permission: Permission) => hasPermission(session?.operator.role, permission),
-  };
-}
-
-export function hasPermission(role: string | null | undefined, permission: Permission): boolean {
   return (
-    role !== null &&
-    role !== undefined &&
-    (ROLE_PERMISSIONS.get(role)?.has(permission) ?? false)
+    <AuthSessionContext.Provider value={liveSession ?? session}>
+      {children}
+    </AuthSessionContext.Provider>
   );
 }
 

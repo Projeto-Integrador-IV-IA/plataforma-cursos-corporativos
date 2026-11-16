@@ -13,7 +13,8 @@
 import { Link, useParams } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
-import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { ClientDetailView } from '@/features/clients/ClientDetailView';
 
 export function ClientDetailPage() {

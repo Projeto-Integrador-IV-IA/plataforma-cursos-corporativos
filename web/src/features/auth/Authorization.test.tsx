@@ -1,12 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  AuthSessionProvider,
-  hasPermission,
-  PermissionGate,
-  PERMISSIONS,
-} from '@/features/auth/Authorization';
+import { AuthSessionProvider, PermissionGate } from '@/features/auth/Authorization';
+import { hasPermission, PERMISSIONS } from '@/features/auth/permissions';
 import { login, logout, type AuthSession } from '@/services/auth';
 import { renderRoute } from '@/test/renderRoute';
 

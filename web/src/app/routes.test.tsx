@@ -21,8 +21,8 @@ describe('mapa de rotas', () => {
     [PATHS.pipeline, 'Pipeline'],
     [PATHS.demands, 'Demandas'],
     ['/demandas/abc-123', 'Detalhe da demanda'],
-    ['/demandas/abc-123/ingestao', 'Ingestao da demanda'],
-    ['/demandas/abc-123/estruturacao', 'Revisao da estruturacao'],
+    ['/demandas/abc-123/ingestao', 'Adicionar texto para o curso com IA'],
+    ['/demandas/abc-123/estruturacao', 'Fazer o curso com IA'],
     ['/artefatos/abc-123/versoes', 'Versoes do artefato'],
   ];
 
@@ -32,10 +32,10 @@ describe('mapa de rotas', () => {
     expect(screen.getByRole('heading', { level: 1, name: titulo })).toBeDefined();
   });
 
-  it('redireciona a raiz para a lista de clientes', () => {
+  it('redireciona a raiz para a visao geral', () => {
     renderRoute('/');
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Clientes' })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: 'Visão geral' })).toBeDefined();
   });
 
   it('cai na tela de rota inexistente para caminho desconhecido', () => {

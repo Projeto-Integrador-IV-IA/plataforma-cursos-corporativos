@@ -26,16 +26,17 @@
  * primeira pagina.
  */
 
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
-import { PATHS } from '@/app/paths';
-import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
-import { ClientListPager } from '@/features/clients/ClientListPager';
-import { ClientListTable } from '@/features/clients/ClientListTable';
-import { isApiError } from '@/services/api';
-import { listClients } from '@/services/clients';
+import { PATHS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
+import { ClientListPager } from "@/features/clients/ClientListPager";
+import { ClientListTable } from "@/features/clients/ClientListTable";
+import { isApiError } from "@/services/api";
+import { listClients } from "@/services/clients";
 
 /** Clientes por pagina. O contrato admite ate 100; 20 e o padrao dele. */
 const PAGE_SIZE = 20;
@@ -44,9 +45,10 @@ const PAGE_SIZE = 20;
  * Nome do parametro de busca. Fica em portugues como as rotas
  * (`/clientes/novo`), porque URL e texto que o operador ve e compartilha.
  */
-const PARAM = { page: 'pagina' } as const;
+const PARAM = { page: "pagina" } as const;
 
-const GENERIC_FAILURE = 'Nao foi possivel carregar os clientes. Tente novamente.';
+const GENERIC_FAILURE =
+  "Nao foi possivel carregar os clientes. Tente novamente.";
 
 function errorMessage(error: unknown): string {
   return isApiError(error) ? error.message : GENERIC_FAILURE;
@@ -68,7 +70,7 @@ export function ClientList() {
   const params = useMemo(() => ({ page, size: PAGE_SIZE }), [page]);
 
   const clients = useQuery({
-    queryKey: ['clients', params],
+    queryKey: ["clients", params],
     queryFn: ({ signal }) => listClients(params, { signal }),
     // Mantem a pagina anterior na tela enquanto a proxima chega: a tabela nao
     // pisca em branco a cada clique no paginador.
@@ -108,9 +110,16 @@ export function ClientList() {
       ) : null}
 
       {clients.isError ? (
-        <div className="client-list__state client-list__state--error" aria-live="assertive">
+        <div
+          className="client-list__state client-list__state--error"
+          aria-live="assertive"
+        >
           <p>{errorMessage(clients.error)}</p>
-          <button type="button" className="button" onClick={() => void clients.refetch()}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => void clients.refetch()}
+          >
             Tentar novamente
           </button>
         </div>
@@ -121,15 +130,21 @@ export function ClientList() {
           {beyondEnd ? (
             <>
               <p>Esta pagina nao tem clientes.</p>
-              <button type="button" className="button" onClick={() => goToPage(1)}>
+              <button
+                type="button"
+                className="button"
+                onClick={() => goToPage(1)}
+              >
                 Voltar para a primeira pagina
               </button>
             </>
           ) : (
             <p>
-              Nenhum cliente cadastrado ate agora.{' '}
+              Nenhum cliente cadastrado ate agora.{" "}
               <PermissionGate permission={PERMISSIONS.clientsManage}>
-                <Link to={PATHS.clientNew}>Cadastre o primeiro cliente</Link>.
+                <Link className="button" to={PATHS.clientNew}>
+                  Cadastrar primeiro cliente
+                </Link>
               </PermissionGate>
             </p>
           )}

@@ -22,25 +22,27 @@
  * devolve o operador a esse caminho depois de autenticar.
  */
 
-import { Navigate, type RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from "react-router-dom";
 
-import { App } from '@/app/App';
-import { PATHS } from '@/app/paths';
-import { PERMISSIONS, RequirePermission } from '@/features/auth/Authorization';
-import { RequireSession } from '@/features/auth/RequireSession';
-import { AccessDeniedPage } from '@/pages/access-denied/AccessDeniedPage';
-import { ArtifactVersionsPage } from '@/pages/artifact-versions/ArtifactVersionsPage';
-import { ClientDetailPage } from '@/pages/client-detail/ClientDetailPage';
-import { ClientNewPage } from '@/pages/client-new/ClientNewPage';
-import { ClientsPage } from '@/pages/clients/ClientsPage';
-import { DemandDetailPage } from '@/pages/demand-detail/DemandDetailPage';
-import { DemandIngestionPage } from '@/pages/demand-ingestion/DemandIngestionPage';
-import { DemandStructuringPage } from '@/pages/demand-structuring/DemandStructuringPage';
-import { DemandNewPage } from '@/pages/demand-new/DemandNewPage';
-import { DemandsPage } from '@/pages/demands/DemandsPage';
-import { LoginPage } from '@/pages/login/LoginPage';
-import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
-import { PipelinePage } from '@/pages/pipeline/PipelinePage';
+import { App } from "@/app/App";
+import { PATHS } from "@/app/paths";
+import { RequirePermission } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
+import { RequireSession } from "@/features/auth/RequireSession";
+import { AccessDeniedPage } from "@/pages/access-denied/AccessDeniedPage";
+import { ArtifactVersionsPage } from "@/pages/artifact-versions/ArtifactVersionsPage";
+import { ClientDetailPage } from "@/pages/client-detail/ClientDetailPage";
+import { ClientNewPage } from "@/pages/client-new/ClientNewPage";
+import { ClientsPage } from "@/pages/clients/ClientsPage";
+import { DemandDetailPage } from "@/pages/demand-detail/DemandDetailPage";
+import { DemandIngestionPage } from "@/pages/demand-ingestion/DemandIngestionPage";
+import { DemandStructuringPage } from "@/pages/demand-structuring/DemandStructuringPage";
+import { DemandNewPage } from "@/pages/demand-new/DemandNewPage";
+import { DemandsPage } from "@/pages/demands/DemandsPage";
+import { LoginPage } from "@/pages/login/LoginPage";
+import { HomePage } from "@/pages/home/HomePage";
+import { NotFoundPage } from "@/pages/not-found/NotFoundPage";
+import { PipelinePage } from "@/pages/pipeline/PipelinePage";
 
 export const routes: RouteObject[] = [
   {
@@ -48,14 +50,22 @@ export const routes: RouteObject[] = [
     element: <LoginPage />,
   },
   {
-    path: '/',
+    path: "/",
     element: (
       <RequireSession>
         <App />
       </RequireSession>
     ),
     children: [
-      { index: true, element: <Navigate to={PATHS.clients} replace /> },
+      { index: true, element: <Navigate to={PATHS.home} replace /> },
+      {
+        path: PATHS.home,
+        element: (
+          <RequirePermission permission={PERMISSIONS.pipelineRead}>
+            <HomePage />
+          </RequirePermission>
+        ),
+      },
       {
         path: PATHS.accessDenied,
         element: <AccessDeniedPage />,
@@ -140,7 +150,7 @@ export const routes: RouteObject[] = [
           </RequirePermission>
         ),
       },
-      { path: '*', element: <NotFoundPage /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ];

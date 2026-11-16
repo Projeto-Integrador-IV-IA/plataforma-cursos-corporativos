@@ -15,7 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { buildPath, PATHS } from '@/app/paths';
-import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { clientDemandsKey } from '@/features/clients/ClientDetailQueryKeys';
 import {
   formatarDataHora,

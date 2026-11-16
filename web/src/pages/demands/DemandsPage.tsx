@@ -1,5 +1,5 @@
 /**
- * Lista de demandas com filtro por situacao e cliente (RF02, RF03).
+ * Lista de demandas com filtros por etapa, situacao, cliente e responsavel (RF02, RF03).
  *
  * A tela e a moldura: titulo, o acesso a abertura de negociacao (RF02, que ja
  * existe em `/demandas/nova`) e a listagem em si, que mora em
@@ -12,7 +12,8 @@
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
-import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { DemandList } from '@/features/demands/DemandList';
 
 export function DemandsPage() {

@@ -6,10 +6,10 @@
  * do roteador e nao de estado local duplicado.
  */
 
-import { NavLink } from 'react-router-dom';
+import { NavLink } from "react-router-dom";
 
-import { PATHS } from '@/app/paths';
-import { PERMISSIONS, hasPermission, useAuthorization } from '@/features/auth/Authorization';
+import { PATHS } from "@/app/paths";
+import { PERMISSIONS, hasPermission, useAuthorization } from "@/features/auth/permissions";
 
 interface NavItem {
   to: string;
@@ -18,9 +18,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { to: PATHS.clients, label: 'Clientes', permission: PERMISSIONS.clientsRead },
-  { to: PATHS.pipeline, label: 'Pipeline', permission: PERMISSIONS.pipelineRead },
-  { to: PATHS.demands, label: 'Demandas', permission: PERMISSIONS.demandsRead },
+  { to: PATHS.home, label: "Visão geral", permission: PERMISSIONS.pipelineRead },
+  { to: PATHS.clients, label: "Clientes", permission: PERMISSIONS.clientsRead },
+  { to: PATHS.pipeline, label: "Pipeline", permission: PERMISSIONS.pipelineRead },
+  { to: PATHS.demands, label: "Demandas", permission: PERMISSIONS.demandsRead },
 ];
 
 export function AppNav() {
@@ -34,7 +35,9 @@ export function AppNav() {
           <li key={item.to}>
             <NavLink
               to={item.to}
-              className={({ isActive }) => (isActive ? 'nav__link nav__link--active' : 'nav__link')}
+              className={({ isActive }) =>
+                isActive ? "nav__link nav__link--active" : "nav__link"
+              }
             >
               {item.label}
             </NavLink>

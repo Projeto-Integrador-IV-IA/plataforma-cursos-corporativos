@@ -11,27 +11,38 @@
  * operacoes de transicao estiverem publicadas no contrato.
  */
 
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
-import { PATHS } from '@/app/paths';
-import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
-import { PipelineBoardView } from '@/features/pipeline/PipelineBoardView';
+import { PATHS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
+import { PipelineBoardView } from "@/features/pipeline/PipelineBoardView";
+
+import "./pipeline.css";
 
 export function PipelinePage() {
   return (
     <section className="page page--wide">
-      <header className="page__header">
-        <h1 className="page__title">Pipeline</h1>
-        <p className="page__requirements">
-          <span className="tag">RF05</span>
-        </p>
+      <header className="pipeline-page__header">
+        <div>
+          <h1 className="page__title">Pipeline</h1>
+          <p className="page__description">
+            Acompanhe cada negociação pelas etapas do processo.
+          </p>
+        </div>
+        <div className="pipeline-page__actions">
+          <PermissionGate permission={PERMISSIONS.demandsRead}>
+            <Link className="button button--secondary" to={PATHS.demands}>
+              Ver em lista
+            </Link>
+          </PermissionGate>
+          <PermissionGate permission={PERMISSIONS.demandsManage}>
+            <Link className="button" to={PATHS.demandNew}>
+              <span aria-hidden="true">+</span> Nova demanda
+            </Link>
+          </PermissionGate>
+        </div>
       </header>
-      <p className="page__description">
-        Demandas distribuidas pelas etapas, na ordem em que o pipeline as percorre.{' '}
-        <PermissionGate permission={PERMISSIONS.demandsRead}>
-          <Link to={PATHS.demands}>Ver a mesma carteira em lista</Link>
-        </PermissionGate>
-      </p>
       <PipelineBoardView />
     </section>
   );

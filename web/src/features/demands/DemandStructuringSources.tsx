@@ -16,7 +16,8 @@
 import { Link } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
-import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { formatarDataHora } from '@/features/demands/DemandDetailLabels';
 import { rotuloDaFonte } from '@/features/demands/DemandStructuringLabels';
 import type { ArtifactSourceRead, DemandRawInputRead, Uuid } from '@/types/api';

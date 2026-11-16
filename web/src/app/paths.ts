@@ -7,18 +7,19 @@
  */
 
 export const PATHS = {
-  login: '/login',
-  accessDenied: '/acesso-negado',
-  clients: '/clientes',
-  clientNew: '/clientes/novo',
-  clientDetail: '/clientes/:clientId',
-  pipeline: '/pipeline',
-  demands: '/demandas',
-  demandNew: '/demandas/nova',
-  demandDetail: '/demandas/:demandId',
-  demandIngestion: '/demandas/:demandId/ingestao',
-  demandStructuring: '/demandas/:demandId/estruturacao',
-  artifactVersions: '/artefatos/:artifactId/versoes',
+  login: "/login",
+  home: "/inicio",
+  accessDenied: "/acesso-negado",
+  clients: "/clientes",
+  clientNew: "/clientes/novo",
+  clientDetail: "/clientes/:clientId",
+  pipeline: "/pipeline",
+  demands: "/demandas",
+  demandNew: "/demandas/nova",
+  demandDetail: "/demandas/:demandId",
+  demandIngestion: "/demandas/:demandId/ingestao",
+  demandStructuring: "/demandas/:demandId/estruturacao",
+  artifactVersions: "/artefatos/:artifactId/versoes",
 } as const;
 
 /**
@@ -31,14 +32,17 @@ export const PATHS = {
  * operador sem saber se ainda ha algo em curso.
  */
 export const QUERY_PARAMS = {
-  structuringJob: 'execucao',
+  structuringJob: "execucao",
 } as const;
 
 /** Constroi o caminho de uma tela que depende de identificador. */
 export const buildPath = {
   clientDetail: (clientId: string): string => `/clientes/${clientId}`,
   demandDetail: (demandId: string): string => `/demandas/${demandId}`,
-  demandIngestion: (demandId: string): string => `/demandas/${demandId}/ingestao`,
-  demandStructuring: (demandId: string): string => `/demandas/${demandId}/estruturacao`,
-  artifactVersions: (artifactId: string): string => `/artefatos/${artifactId}/versoes`,
+  demandIngestion: (demandId: string): string =>
+    `/demandas/${demandId}/ingestao`,
+  demandStructuring: (demandId: string): string =>
+    `/demandas/${demandId}/estruturacao`,
+  artifactVersions: (artifactId: string): string =>
+    `/artefatos/${artifactId}/versoes`,
 } as const;

@@ -10,7 +10,8 @@
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
-import { PermissionGate, PERMISSIONS } from '@/features/auth/Authorization';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { ClientForm } from '@/features/clients/ClientForm';
 
 export function ClientNewPage() {
