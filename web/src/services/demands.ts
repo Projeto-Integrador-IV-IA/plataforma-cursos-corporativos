@@ -20,6 +20,7 @@ import type {
   DemandRead,
   DemandUpdate,
   Page,
+  SourceSegmentRead,
   Uuid,
 } from '@/types/api';
 
@@ -36,6 +37,14 @@ export function createDemand(
   context: RequestContext = {},
 ): Promise<DemandRead> {
   return api.post<DemandRead, DemandCreate>(RESOURCE, payload, context);
+}
+
+/** Lista os trechos citaveis persistidos para todos os textos da demanda. */
+export function listDemandSegments(
+  demandId: Uuid,
+  context: RequestContext = {},
+): Promise<readonly SourceSegmentRead[]> {
+  return api.get<readonly SourceSegmentRead[]>(`${RESOURCE}/${demandId}/segments`, context);
 }
 
 /**
