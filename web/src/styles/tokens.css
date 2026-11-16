@@ -1,0 +1,16 @@
+:root {
+  --brand-forest: #173e36;
+  --brand-forest-deep: #102e29;
+  --brand-forest-hover: #245548;
+  --brand-lime: #d9ee9a;
+  --brand-ivory: #f7f8f2;
+  --brand-paper: #ffffff;
+  --brand-ink: #203a33;
+  --brand-muted: #64756e;
+  --brand-line: #dce3da;
+  --brand-danger: #a52b35;
+  --brand-focus: #426d51;
+  --brand-font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --brand-radius-control: 12px;
+  --brand-radius-panel: 24px;
+}

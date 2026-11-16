@@ -148,11 +148,19 @@ describe('detalhe da demanda', () => {
       '#demanda-contexto',
       '#demanda-cliente',
       '#demanda-etapa',
+      '#demanda-curso-ia',
       '#demanda-fontes',
       '#demanda-artefatos',
     ]);
 
-    for (const titulo of ['Contexto', 'Cliente', 'Etapa e situacao', 'Fontes captadas', 'Artefatos']) {
+    for (const titulo of [
+      'Contexto',
+      'Cliente',
+      'Etapa e situacao',
+      'Curso com IA',
+      'Fontes captadas',
+      'Artefatos',
+    ]) {
       expect(screen.getByRole('heading', { level: 2, name: titulo })).toBeDefined();
     }
   });
@@ -164,15 +172,15 @@ describe('detalhe da demanda', () => {
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    expect(destino(/Registrar uma fonte/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
-    expect(destino(/Revisar a estruturacao/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
+    expect(destino(/Registrar texto da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
+    expect(destino(/Ver curso e revisar/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
 
-  it('avisa quando a demanda ainda nao tem fontes captadas', async () => {
+  it('avisa que ainda falta registrar o texto para gerar o curso com IA', async () => {
     await abrirDetalhe();
 
-    expect(textoDaTela()).toContain('Nenhuma fonte captada foi registrada nesta demanda.');
+    expect(textoDaTela()).toContain('Ainda falta registrar o texto recebido do cliente');
   });
 
   it('avisa quando a demanda ainda nao tem artefato', async () => {

@@ -7,17 +7,18 @@
  */
 
 export const PATHS = {
-  login: '/login',
-  clients: '/clientes',
-  clientNew: '/clientes/novo',
-  clientDetail: '/clientes/:clientId',
-  pipeline: '/pipeline',
-  demands: '/demandas',
-  demandNew: '/demandas/nova',
-  demandDetail: '/demandas/:demandId',
-  demandIngestion: '/demandas/:demandId/ingestao',
-  demandStructuring: '/demandas/:demandId/estruturacao',
-  artifactVersions: '/artefatos/:artifactId/versoes',
+  login: "/login",
+  home: "/inicio",
+  clients: "/clientes",
+  clientNew: "/clientes/novo",
+  clientDetail: "/clientes/:clientId",
+  pipeline: "/pipeline",
+  demands: "/demandas",
+  demandNew: "/demandas/nova",
+  demandDetail: "/demandas/:demandId",
+  demandIngestion: "/demandas/:demandId/ingestao",
+  demandStructuring: "/demandas/:demandId/estruturacao",
+  artifactVersions: "/artefatos/:artifactId/versoes",
 } as const;
 
 /**
@@ -29,16 +30,20 @@ export const PATHS = {
  * e do trecho tambem permitem abrir diretamente uma evidencia.
  */
 export const QUERY_PARAMS = {
-  structuringJob: 'execucao',
-  sourceId: 'fonte',
-  sourceSegmentId: 'trecho',
+  structuringJob: "execucao",
+  sourceId: "fonte",
+  sourceSegmentId: "trecho",
 } as const;
 
 /** Constroi o caminho de uma tela que depende de identificador. */
 export const buildPath = {
   clientDetail: (clientId: string): string => `/clientes/${clientId}`,
   demandDetail: (demandId: string): string => `/demandas/${demandId}`,
-  demandEvidence: (demandId: string, sourceId: string, segmentId: string): string => {
+  demandEvidence: (
+    demandId: string,
+    sourceId: string,
+    segmentId: string,
+  ): string => {
     const query = new URLSearchParams({
       [QUERY_PARAMS.sourceId]: sourceId,
       [QUERY_PARAMS.sourceSegmentId]: segmentId,
@@ -46,7 +51,10 @@ export const buildPath = {
 
     return `/demandas/${demandId}?${query.toString()}#source-evidence`;
   },
-  demandIngestion: (demandId: string): string => `/demandas/${demandId}/ingestao`,
-  demandStructuring: (demandId: string): string => `/demandas/${demandId}/estruturacao`,
-  artifactVersions: (artifactId: string): string => `/artefatos/${artifactId}/versoes`,
+  demandIngestion: (demandId: string): string =>
+    `/demandas/${demandId}/ingestao`,
+  demandStructuring: (demandId: string): string =>
+    `/demandas/${demandId}/estruturacao`,
+  artifactVersions: (artifactId: string): string =>
+    `/artefatos/${artifactId}/versoes`,
 } as const;

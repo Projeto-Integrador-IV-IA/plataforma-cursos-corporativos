@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
-import { buildPath } from '@/app/paths';
-import { DemandSourceEvidence } from '@/features/ingestion/DemandSourceEvidence';
-import { formatarDataHora } from '@/features/demands/DemandDetailLabels';
-import { rotuloDaFonte } from '@/features/demands/DemandStructuringLabels';
-import type { DemandRawInputRead, SourceSegmentRead, Uuid } from '@/types/api';
+import { buildPath } from "@/app/paths";
+import { formatarDataHora } from "@/features/demands/DemandDetailLabels";
+import { rotuloDaFonte } from "@/features/demands/DemandStructuringLabels";
+import { DemandSourceEvidence } from "@/features/ingestion/DemandSourceEvidence";
+import type { DemandRawInputRead, SourceSegmentRead, Uuid } from "@/types/api";
 
 interface DemandDetailSourcesProps {
   readonly demandId: Uuid;
@@ -23,24 +23,31 @@ export function DemandDetailSources({
   selectedSegmentId,
   returnTo,
 }: DemandDetailSourcesProps) {
-  const evidenceRequested = selectedSourceId !== null || selectedSegmentId !== null;
+  const evidenceRequested =
+    selectedSourceId !== null || selectedSegmentId !== null;
 
   if (rawInputs.length === 0) {
     return (
       <>
         <p className="demand-detail__empty">
           {evidenceRequested
-            ? 'A fonte ou o trecho citado nao foi encontrado nesta demanda.'
-            : 'Nenhuma fonte captada foi registrada nesta demanda.'}
+            ? "A fonte ou o trecho citado nao foi encontrado nesta demanda."
+            : "Ainda falta registrar o texto recebido do cliente para gerar o curso com IA."}
         </p>
         {evidenceRequested ? (
           <p className="page__description">
             <Link to={returnTo}>Voltar para a revisao</Link>
           </p>
-        ) : null}
-        <p className="page__description">
-          <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
-        </p>
+        ) : (
+          <div className="demand-detail__actions">
+            <Link
+              className="button button--secondary"
+              to={buildPath.demandIngestion(demandId)}
+            >
+              Registrar o texto da demanda
+            </Link>
+          </div>
+        )}
       </>
     );
   }
@@ -85,8 +92,8 @@ export function DemandDetailSources({
           {rawInputs.map((source) => (
             <li className="demand-detail__source" key={source.id}>
               <p className="demand-detail__source-title">
-                <span className="tag">{rotuloDaFonte(source.source)}</span> Captada em{' '}
-                {formatarDataHora(source.created_at)}
+                <span className="tag">{rotuloDaFonte(source.source)}</span>{" "}
+                Captada em {formatarDataHora(source.created_at)}
               </p>
               {source.truncated ? (
                 <p className="demand-detail__source-notice">
@@ -95,15 +102,22 @@ export function DemandDetailSources({
               ) : null}
               <details>
                 <summary>Ver o texto completo</summary>
-                <p className="demand-detail__source-content">{source.original_content}</p>
+                <p className="demand-detail__source-content">
+                  {source.original_content}
+                </p>
               </details>
             </li>
           ))}
         </ul>
       )}
-      <p className="page__description">
-        <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
-      </p>
+      <div className="demand-detail__actions">
+        <Link
+          className="button button--secondary"
+          to={buildPath.demandIngestion(demandId)}
+        >
+          Adicionar outra fonte
+        </Link>
+      </div>
     </>
   );
 }

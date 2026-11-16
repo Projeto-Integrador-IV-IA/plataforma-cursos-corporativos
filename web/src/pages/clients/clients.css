@@ -1,0 +1,66 @@
+.clients-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.clients-page__header .page__description {
+  margin: 0.45rem 0 0;
+}
+
+.clients-page__create {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  white-space: nowrap;
+  text-decoration: none !important;
+}
+
+.clients-page__create > span {
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.client-table__client a {
+  color: var(--brand-forest);
+  text-decoration: none;
+}
+
+.client-table__client a:hover {
+  color: var(--brand-forest-hover);
+  text-decoration: underline;
+}
+
+.client-table__client a:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--brand-focus);
+  outline-offset: 3px;
+}
+
+.client-list__pager .button {
+  min-width: 150px;
+}
+
+.client-list__pager .button:disabled {
+  opacity: 0.48;
+}
+
+.client-list__state--error .button {
+  margin-top: 0.75rem;
+}
+
+.client-list__state > p .button {
+  margin: 0.75rem 0 0;
+}
+
+@media (max-width: 620px) {
+  .clients-page__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
