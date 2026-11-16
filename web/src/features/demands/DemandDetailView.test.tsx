@@ -171,17 +171,7 @@ describe('detalhe da demanda', () => {
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    // "Registrar texto da demanda" tambem aparece como escape do bloco de
-    // estruturacao sem fonte captada (demanda-curso-ia); aqui o interesse e
-    // o link da propria secao de fontes (demanda-fontes).
-    const secaoDeFontes = screen.getByRole('region', { name: 'Fontes captadas' });
-    expect(
-      within(secaoDeFontes)
-        .getByRole('link', { name: /Registrar texto da demanda/ })
-        .getAttribute('href'),
-    ).toBe(`/demandas/${DEMANDA.id}/ingestao`);
-    // "Fazer o curso com IA" e sempre um botao de envio, nunca um link - quem
-    // navega para a revisao da estruturacao e "Ver curso e revisar".
+    expect(destino(/Registrar a primeira fonte da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
     expect(destino(/Ver curso e revisar/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });

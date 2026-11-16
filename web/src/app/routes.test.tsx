@@ -31,7 +31,7 @@ describe('mapa de rotas', () => {
     expect(screen.getByRole('heading', { level: 1, name: titulo })).toBeDefined();
   });
 
-  it('redireciona a raiz para o painel geral', () => {
+  it('redireciona a raiz para a visao geral', () => {
     renderRoute('/');
 
     expect(screen.getByRole('heading', { level: 1, name: 'Visão geral' })).toBeDefined();

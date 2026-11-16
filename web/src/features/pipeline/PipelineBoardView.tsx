@@ -138,9 +138,9 @@ export function PipelineBoardView() {
         <>
           {board.data.total === 0 ? (
             <p className="pipeline-board__state" aria-live="polite">
-              Nenhuma demanda no pipeline ate agora.{' '}
+              Nenhuma demanda no pipeline até agora.
               <Link className="button" to={PATHS.demandNew}>
-                Abra a primeira negociacao
+                Abrir primeira negociação
               </Link>
             </p>
           ) : null}
