@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -48,9 +48,11 @@ describe('historico de versoes do artefato', () => {
     const user = userEvent.setup();
     renderRoute(`/artefatos/${ARTIFACT_ID}/versoes`);
 
-    expect(await screen.findByRole('heading', { name: 'Versao 2' })).toBeDefined();
-    expect(screen.getByText(`Autor: ${AUTHOR_ID}`)).toBeDefined();
-    expect(screen.getByText(/Criada em/)).toBeDefined();
+    const currentHeading = await screen.findByRole('heading', { name: 'Versao 2' });
+    expect(currentHeading).toBeDefined();
+    const currentItem = within(currentHeading.closest('li')!);
+    expect(currentItem.getByText(`Autor: ${AUTHOR_ID}`)).toBeDefined();
+    expect(currentItem.getByText(/Criada em/)).toBeDefined();
 
     await user.click(screen.getAllByRole('button', { name: 'Ver conteudo' })[1]!);
 

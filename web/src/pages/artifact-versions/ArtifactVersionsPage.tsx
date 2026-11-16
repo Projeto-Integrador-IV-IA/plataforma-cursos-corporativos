@@ -123,8 +123,9 @@ export function ArtifactVersionsPage() {
                     {isCurrent ? <span className="tag">Vigente</span> : null}
                   </div>
                   <p className="artifact-versions__meta">
-                    Autor: {autorDaVersao(version)} · Origem: {rotuloDaOrigem(version.origin)} ·
-                    Criada em {formatarDataHora(version.created_at)}
+                    <span>Autor: {autorDaVersao(version)}</span> · Origem:{' '}
+                    {rotuloDaOrigem(version.origin)} · Criada em{' '}
+                    {formatarDataHora(version.created_at)}
                   </p>
                   <div className="form__actions">
                     <button

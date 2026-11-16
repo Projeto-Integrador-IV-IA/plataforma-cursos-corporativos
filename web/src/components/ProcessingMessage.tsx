@@ -6,7 +6,13 @@ interface ProcessingMessageProps {
 
 export function ProcessingMessage({ operation }: ProcessingMessageProps) {
   return (
-    <p className="processing-message" role="status" aria-live="polite" aria-busy="true">
+    <p
+      className="processing-message"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label={`Processando: ${operation}…`}
+    >
       <span className="processing-message__mark" aria-hidden="true">
         …
       </span>
