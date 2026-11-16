@@ -15,6 +15,7 @@ class RawInputCreate(BaseModel):
 
     original_content: str = Field(min_length=1)
     source: RawInputSource
+    previous_attempt_id: UUID | None = None
 
     @field_validator("original_content")
     @classmethod
@@ -34,6 +35,7 @@ class RawInputRead(BaseModel):
     received_order: int = Field(ge=1)
     original_content: str
     normalized_content: str | None
+    previous_attempt_id: UUID | None
     source: RawInputSource
     author_id: UUID
     truncated: bool

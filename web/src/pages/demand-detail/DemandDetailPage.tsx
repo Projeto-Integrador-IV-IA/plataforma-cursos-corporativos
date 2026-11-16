@@ -10,22 +10,23 @@
  * operacoes de pipeline forem publicadas.
  */
 
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from "react-router-dom";
 
-import { PATHS } from '@/app/paths';
-import { DemandDetailView } from '@/features/demands/DemandDetailView';
+import { PATHS } from "@/app/paths";
+import { DemandDetailView } from "@/features/demands/DemandDetailView";
+
+import "./demand-detail.css";
 
 export function DemandDetailPage() {
   const { demandId } = useParams<{ demandId: string }>();
 
   return (
-    <section className="page">
-      <header className="page__header">
+    <section className="page page--wide">
+      <header className="demand-detail-page__header">
         <h1 className="page__title">Detalhe da demanda</h1>
-        <p className="page__requirements">
-          <span className="tag">RF02</span>
-          <span className="tag">RF04</span>
-        </p>
+        <Link className="demand-detail-page__back" to={PATHS.demands}>
+          ← Voltar para demandas
+        </Link>
       </header>
 
       {demandId === undefined ? (
@@ -33,10 +34,6 @@ export function DemandDetailPage() {
       ) : (
         <DemandDetailView demandId={demandId} />
       )}
-
-      <p className="page__description">
-        <Link to={PATHS.demands}>Voltar para a lista de demandas</Link>
-      </p>
     </section>
   );
 }

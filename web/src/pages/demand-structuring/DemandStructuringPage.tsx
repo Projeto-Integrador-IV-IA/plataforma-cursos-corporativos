@@ -23,17 +23,14 @@ export function DemandStructuringPage() {
   return (
     <section className="page">
       <header className="page__header">
-        <h1 className="page__title">Revisao da estruturacao</h1>
+        <h1 className="page__title">Fazer o curso com IA</h1>
         <p className="page__requirements">
-          <span className="tag">RF19</span>
-          <span className="tag">RF15</span>
-          <span className="tag">RF24</span>
-          <span className="tag">RF14</span>
+          <span className="tag">Geracao</span>
+          <span className="tag">Revisao humana</span>
         </p>
         <p className="page__description">
-          A estrutura abaixo foi gerada pela IA e vale como proposta de trabalho, nunca como
-          palavra final: confira cada campo contra as fontes antes de levar qualquer coisa ao
-          cliente.
+          A IA organiza os requisitos e propoe uma ementa a partir do texto captado. Depois, confira
+          o resultado e as fontes antes de usar o material com o cliente.
         </p>
       </header>
 

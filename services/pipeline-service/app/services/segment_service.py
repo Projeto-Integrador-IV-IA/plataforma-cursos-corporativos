@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models import Demand, RawInput, SourceSegment
 from app.repositories.segment_repository import SourceSegmentRepository
 from app.schemas.segment import SourceSegmentBatchCreate
@@ -22,12 +22,21 @@ class SourceSegmentService:
         raw_input_id: UUID,
         data: SourceSegmentBatchCreate,
     ) -> list[SourceSegment]:
-        if self.session.get(RawInput, raw_input_id) is None:
+        raw_input = self.session.get(RawInput, raw_input_id)
+        if raw_input is None:
             raise NotFoundError(
                 code="RAW_INPUT_NOT_FOUND",
                 message="Fonte bruta nao encontrada.",
                 details={"raw_input_id": str(raw_input_id)},
             )
+
+        for item in data.segments:
+            if item.original_end_offset > len(raw_input.original_content):
+                raise ValidationError(
+                    code="SOURCE_SEGMENT_OFFSET_OUT_OF_RANGE",
+                    message="O intervalo do trecho ultrapassa o conteudo original da fonte.",
+                    details={"segment_id": str(item.id)},
+                )
 
         collisions = self.repository.find_collisions(
             raw_input_id,
@@ -50,6 +59,8 @@ class SourceSegmentService:
                         raw_input_id=raw_input_id,
                         position=item.position,
                         content=item.content,
+                        original_start_offset=item.original_start_offset,
+                        original_end_offset=item.original_end_offset,
                     )
                 )
                 continue
@@ -58,6 +69,8 @@ class SourceSegmentService:
                 or existing.raw_input_id != raw_input_id
                 or existing.position != item.position
                 or existing.content != item.content
+                or existing.original_start_offset != item.original_start_offset
+                or existing.original_end_offset != item.original_end_offset
             ):
                 raise ConflictError(
                     code="SOURCE_SEGMENT_CONFLICT",

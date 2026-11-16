@@ -14,9 +14,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.v1.routes.ingestion import get_pipeline_client
+from app.core.config import DEFAULT_SOURCE_TEXT_MAX_LENGTH
 from app.core.exceptions import UpstreamError
 from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
 from app.main import create_app
+from app.schemas.ingestion import SOURCE_TEXT_MIN_CONTENT_LENGTH
 
 TEXTO = "Oi! Queremos formar 25 tecnicos na NR-12 ate marco.\n-- enviado do meu celular"
 
@@ -166,11 +168,37 @@ def test_failure_to_persist_is_reported_and_not_swallowed(status: int, code: str
     assert resposta.json()["error"]["code"] == code
 
 
-@pytest.mark.parametrize("texto", ["", "   ", "\n\t "])
-def test_blank_text_is_refused_without_touching_the_pipeline(
-    api: TestClient, pipeline: PipelineDublado, texto: str
+@pytest.mark.parametrize(
+    ("text", "issue_type", "message_part"),
+    [
+        ("", "source_text_too_short", "pelo menos 10 caracteres nao brancos"),
+        ("   \n\t ", "source_text_too_short", "pelo menos 10 caracteres nao brancos"),
+        ("curso", "source_text_too_short", "pelo menos 10 caracteres nao brancos"),
+        (123, "source_text_invalid_format", "deve ser enviado como texto"),
+        (
+            "a" * (DEFAULT_SOURCE_TEXT_MAX_LENGTH + 1),
+            "source_text_too_long",
+            "no maximo 50000 caracteres",
+        ),
+    ],
+    ids=["empty", "whitespace", "too-short", "not-text", "too-long"],
+)
+def test_invalid_text_is_described_and_refused_without_touching_the_pipeline(
+    api: TestClient,
+    pipeline: PipelineDublado,
+    text: object,
+    issue_type: str,
+    message_part: str,
 ) -> None:
-    assert captar(api, text=texto).status_code == 422
+    response = captar(api, text=text)
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    assert response.json()["error"]["message"] == "A fonte recebida e invalida."
+    issue = response.json()["error"]["details"]["issues"][0]
+    assert issue["location"] == ["body", "text"]
+    assert issue["type"] == issue_type
+    assert message_part in issue["message"]
     assert pipeline.chamadas == []
 
 
@@ -178,7 +206,94 @@ def test_blank_text_is_refused_without_touching_the_pipeline(
 def test_unknown_source_is_refused_without_touching_the_pipeline(
     api: TestClient, pipeline: PipelineDublado, source: str
 ) -> None:
-    assert captar(api, source=source).status_code == 422
+    response = captar(api, source=source)
+
+    assert response.status_code == 422
+    issue = response.json()["error"]["details"]["issues"][0]
+    assert issue == {
+        "location": ["body", "source_type"],
+        "message": (
+            "O formato da fonte e invalido. Use um de: "
+            "EMAIL, TRANSCRICAO, MENSAGENS, ANOTACAO, OUTRO."
+        ),
+        "type": "source_type_invalid",
+    }
+    assert pipeline.chamadas == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        " " + ("a" * SOURCE_TEXT_MIN_CONTENT_LENGTH) + "\n",
+        "a" * DEFAULT_SOURCE_TEXT_MAX_LENGTH,
+    ],
+    ids=["minimum-content", "maximum-size"],
+)
+def test_boundary_source_text_is_preserved_exactly(
+    api: TestClient, pipeline: PipelineDublado, text: str
+) -> None:
+    response = captar(api, text=text)
+
+    assert response.status_code == 201, response.text
+    assert pipeline.chamadas[0][0].text == text
+
+
+@pytest.mark.parametrize("limit", [10, 100, 60_000])
+def test_environment_limit_controls_capture_and_openapi(
+    monkeypatch: pytest.MonkeyPatch,
+    api: TestClient,
+    pipeline: PipelineDublado,
+    limit: int,
+) -> None:
+    monkeypatch.setenv("SOURCE_TEXT_MAX_LENGTH", str(limit))
+    text = "á" * limit if limit == 10 else "á" * (limit - 1) + "\n"
+    accepted = captar(api, text=text)
+    assert accepted.status_code == 201, accepted.text
+    assert pipeline.chamadas[0][0].text == text
+
+    rejected = api.post(
+        "/api/v1/ingestion",
+        json={"text": text + "x", "demand_id": str(uuid4())},
+        headers={"X-User-ID": str(uuid4()), "X-Request-ID": "rnf13-limit"},
+    )
+    assert rejected.status_code == 422
+    error = rejected.json()["error"]
+    assert error["code"] == "VALIDATION_ERROR"
+    assert error["request_id"] == "rnf13-limit"
+    assert error["details"]["issues"] == [
+        {
+            "location": ["body", "text"],
+            "type": "source_text_too_long",
+            "message": f"A fonte deve conter no maximo {limit} caracteres.",
+        }
+    ]
+    assert len(pipeline.chamadas) == 1
+    assert len(pipeline.sanitizacoes) == 1
+    schema = api.get("/openapi.json").json()["components"]["schemas"]["IngestionCreate"]
+    assert schema["properties"]["text"]["maxLength"] == limit
+
+
+def test_oversized_whitespace_is_rejected_by_size_first(
+    monkeypatch: pytest.MonkeyPatch, api: TestClient, pipeline: PipelineDublado
+) -> None:
+    monkeypatch.setenv("SOURCE_TEXT_MAX_LENGTH", "10")
+    response = captar(api, text=" " * 11)
+    assert response.status_code == 422
+    assert response.json()["error"]["details"]["issues"][0]["type"] == "source_text_too_long"
+    assert pipeline.chamadas == []
+
+
+def test_validation_error_keeps_request_correlation(
+    api: TestClient, pipeline: PipelineDublado
+) -> None:
+    response = api.post(
+        "/api/v1/ingestion",
+        json={"text": "curto", "source_type": "OUTRO", "demand_id": str(uuid4())},
+        headers={"X-User-ID": str(uuid4()), "X-Request-ID": "rf12-invalid-source"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["request_id"] == "rf12-invalid-source"
     assert pipeline.chamadas == []
 
 

@@ -391,7 +391,7 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao(`?execucao=${JOB_ID}`);
     await screen.findByRole('status', { name: 'Estado da execucao' });
 
-    const reenviar = screen.getByRole('button', { name: 'Reenviar a estruturacao' });
+    const reenviar = screen.getByRole('button', { name: 'Fazer o curso novamente com IA' });
     await waitFor(() => expect(reenviar.hasAttribute('disabled')).toBe(true));
     expect(textoDaTela()).toContain('Reenvio bloqueado enquanto houver execucao em curso');
   });
@@ -407,7 +407,7 @@ describe('revisao da estruturacao', () => {
     expect(estado.textContent).toContain('Concluida');
     expect(textoDaTela()).toContain('Tempo total: 12,4 s');
 
-    const reenviar = screen.getByRole('button', { name: 'Reenviar a estruturacao' });
+    const reenviar = screen.getByRole('button', { name: 'Fazer o curso novamente com IA' });
     await waitFor(() => expect(reenviar.hasAttribute('disabled')).toBe(false));
   });
 
@@ -429,9 +429,9 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(getStructuringJob).not.toHaveBeenCalled();
-    expect(textoDaTela()).toContain('Nenhuma execucao acompanhada nesta tela.');
+    expect(textoDaTela()).toContain('Ainda nao ha uma geracao em andamento.');
 
-    await usuario.click(screen.getByRole('button', { name: 'Estruturar com IA' }));
+    await usuario.click(screen.getByRole('button', { name: 'Fazer o curso com IA' }));
 
     await waitFor(() => expect(submitStructuringJob).toHaveBeenCalledTimes(1));
     // O texto enviado e o da fonte captada, nunca um resumo escrito pela tela.
@@ -454,7 +454,7 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
-    expect(screen.queryByRole('button', { name: 'Estruturar com IA' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Fazer o curso com IA' })).toBeNull();
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {

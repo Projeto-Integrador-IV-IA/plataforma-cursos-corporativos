@@ -1,3 +1,5 @@
+@import './tokens.css';
+
 /*
  * Estilos globais.
  *
@@ -83,38 +85,6 @@ body {
 .layout__logout:focus-visible {
   outline: 2px solid var(--cor-destaque);
   outline-offset: 2px;
-}
-
-.login-page {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: calc(var(--espaco) * 1.5);
-}
-
-.login-card {
-  width: min(100%, 28rem);
-  padding: calc(var(--espaco) * 2);
-  border: 1px solid var(--cor-borda);
-  border-radius: calc(var(--raio) * 2);
-  background: var(--cor-superficie);
-  box-shadow: var(--sombra);
-}
-
-.login-card__brand {
-  margin: 0 0 calc(var(--espaco) * 1.5);
-  color: var(--cor-destaque);
-  font-weight: 600;
-}
-
-.login-card__title {
-  margin: 0;
-  font-size: 1.75rem;
-}
-
-.login-card__description {
-  margin: 0.5rem 0 calc(var(--espaco) * 1.5);
-  color: var(--cor-texto-suave);
 }
 
 .layout__body {
@@ -1470,4 +1440,101 @@ body {
   background: var(--cor-fundo);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.home-page { max-width: 76rem; }
+.home-header { display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; margin-bottom:1.5rem; }
+.home-kicker,.home-panel__eyebrow { margin:0 0 .45rem; color:var(--brand-muted); font-size:.75rem; font-weight:600; letter-spacing:.08em; }
+.home-intro { margin:.5rem 0 0; color:var(--cor-texto-suave); }
+.home-header__action { text-decoration:none; }
+.home-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
+.home-metric { display:flex; flex-direction:column; gap:.5rem; padding:1.25rem; border:1px solid var(--brand-line); border-radius:var(--brand-radius-panel); background:var(--brand-paper); color:var(--brand-ink); text-decoration:none; }
+.home-metric:hover { border-color:#9eaf9d; }
+.home-metric > span { color:var(--brand-muted); font-size:.9rem; }
+.home-metric strong { font-size:2.3rem; font-weight:600; line-height:1.1; }
+.home-metric small { color:var(--brand-muted); font-size:.85rem; }
+.home-metric--attention strong { color:var(--brand-forest); }
+.home-panels { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:1rem; margin-top:1rem; }
+.home-panel { min-width:0; padding:1.25rem; border:1px solid var(--brand-line); border-radius:var(--brand-radius-panel); background:var(--brand-paper); }
+.home-panel__header { display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:1.25rem; }
+.home-panel__header h2 { margin:0; font-size:1.15rem; font-weight:600; }
+.home-panel__header > a { color:var(--brand-forest); font-size:.85rem; text-decoration:none; white-space:nowrap; }
+.home-panel__header > a:hover { text-decoration:underline; }
+.home-stage { margin-top:1rem; }
+.home-stage__label { display:flex; justify-content:space-between; gap:.75rem; margin-bottom:.45rem; font-size:.9rem; }
+.home-stage__label strong { font-weight:600; }
+.home-stage__track { height:7px; overflow:hidden; border-radius:6px; background:#e9ede6; }
+.home-stage__track span { display:block; height:100%; border-radius:inherit; background:var(--brand-forest); }
+.home-recent__list { list-style:none; padding:0; margin:0; }
+.home-recent__list li { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.85rem 0; border-top:1px solid var(--brand-line); }
+.home-recent__list li:first-child { border-top:0; }
+.home-recent__list li a { min-width:0; display:flex; flex-direction:column; gap:.3rem; color:var(--brand-ink); text-decoration:none; }
+.home-recent__title { overflow:hidden; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }
+.home-recent__client { color:var(--brand-muted); font-size:.85rem; }
+.home-recent__list time { flex:none; color:var(--brand-muted); font-size:.8rem; }
+.home-state,.home-error { padding:.8rem; color:var(--cor-texto-suave); }
+.home-error { border:1px solid var(--cor-erro); border-radius:var(--raio); background:var(--cor-erro-fundo); color:var(--cor-erro); }
+@media (max-width:850px) { .home-panels { grid-template-columns:1fr; } }
+@media (max-width:620px) { .home-header { align-items:flex-start; flex-direction:column; } .home-metrics { grid-template-columns:1fr; } .home-metric { padding:1rem; } }
+
+/* Aplicacao da identidade visual Cursos Corporativos às telas internas. */
+:root {
+  --cor-fundo: var(--brand-ivory);
+  --cor-superficie: var(--brand-paper);
+  --cor-borda: var(--brand-line);
+  --cor-texto: var(--brand-ink);
+  --cor-texto-suave: var(--brand-muted);
+  --cor-destaque: var(--brand-forest);
+  --cor-sucesso: #315f45;
+  --cor-sucesso-fundo: #e7efe4;
+  --cor-erro: #963c3c;
+  --cor-erro-fundo: #f7e9e5;
+  --cor-atencao: #795c2e;
+  --cor-atencao-fundo: #f3eedf;
+  --raio: 10px;
+  --sombra: 0 8px 24px rgb(30 54 44 / 7%);
+}
+body { background:var(--brand-ivory); color:var(--brand-ink); }
+.layout { min-height:100vh; background:var(--brand-ivory); }
+.layout__header { min-height:70px; padding:0 clamp(20px,4vw,64px); background:var(--brand-forest-deep); border:0; color:var(--brand-ivory); }
+.layout__brand { display:flex; align-items:center; gap:12px; color:var(--brand-ivory); font-size:17px; letter-spacing:-.3px; }
+.layout__brand::before { content:'CC'; display:grid; place-items:center; width:36px; height:36px; border:1px solid #668273; border-radius:4px; color:var(--brand-lime); font-size:11px; letter-spacing:.5px; }
+.layout__logout { padding:9px 16px; border:1px solid #668273; border-radius:8px; background:transparent; color:var(--brand-ivory); }
+.layout__logout:hover { border-color:var(--brand-lime); background:rgb(255 255 255 / 5%); }
+.layout__logout:focus-visible { outline:2px solid var(--brand-lime); outline-offset:3px; }
+.layout__body { min-height:calc(100vh - 70px); }
+.layout__sidebar { flex:none; width:232px; padding:30px 18px; background:#f0f2e9; border-right:1px solid var(--brand-line); }
+.layout__content { min-width:0; padding:clamp(24px,4vw,52px); }
+.nav__list { gap:6px; }
+.nav__link { display:flex; align-items:center; min-height:44px; padding:10px 14px; border-radius:9px; color:#53665b; font-size:14px; font-weight:500; transition:background 140ms,color 140ms; }
+.nav__link:hover { background:#e5e9df; color:var(--brand-forest); }
+.nav__link--active { background:var(--brand-forest); color:white; }
+.nav__link--active:hover { background:var(--brand-forest-hover); color:white; }
+.page { max-width:68rem; }
+.page--wide { max-width:80rem; }
+.page__title { color:var(--brand-ink); font-size:clamp(28px,3vw,36px); font-weight:550; letter-spacing:-1px; }
+.page__header { margin-bottom:8px; }
+.page__description { margin-top:10px; color:var(--brand-muted); line-height:1.65; }
+.page__requirements { gap:6px; }
+.tag { padding:4px 9px; border-color:#d5ded1; border-radius:20px; background:#edf1e8; color:#51654f; font-size:11px; }
+.page__pending { border-color:var(--brand-line); border-radius:12px; background:var(--brand-paper); }
+.layout a:not(.nav__link):not(.button):not(.pipeline-card):not(.home-metric) { text-underline-offset:3px; }
+.feedback { border-radius:12px; box-shadow:0 12px 30px rgb(20 40 32 / 13%); }
+.form { gap:1.15rem; }
+.form__label { color:var(--brand-ink); font-size:14px; }
+.form__control { min-height:44px; border-color:var(--brand-line); border-radius:9px; }
+.form__control:focus-visible { outline-color:var(--brand-focus); }
+.button { min-height:42px; padding:10px 18px; border-color:var(--brand-forest); border-radius:9px; background:var(--brand-forest); font-weight:600; }
+.button:hover:not(:disabled) { border-color:var(--brand-forest-hover); background:var(--brand-forest-hover); }
+.button:focus-visible { outline-color:var(--brand-focus); }
+.demand-table,.client-table { border:1px solid var(--brand-line); border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgb(30 54 44 / 4%); }
+.demand-table thead th,.client-table thead th { background:#eef1e9; color:#4e6255; font-weight:600; }
+.demand-table th,.demand-table td,.client-table th,.client-table td { padding:14px 16px; border-color:#e8ece4; }
+.pipeline-stage { border-radius:14px; }
+@media (max-width:760px) {
+ .layout__header { min-height:62px; padding-inline:18px; }
+ .layout__body { flex-direction:column; }
+ .layout__sidebar { width:auto; padding:10px 14px; border-right:0; border-bottom:1px solid var(--brand-line); }
+ .nav__list { flex-direction:row; overflow-x:auto; }
+ .nav__link { white-space:nowrap; }
+ .layout__content { padding:22px 16px; }
 }

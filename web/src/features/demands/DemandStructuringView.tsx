@@ -31,26 +31,31 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
-import { buildPath } from '@/app/paths';
+import { buildPath, QUERY_PARAMS } from '@/app/paths';
 import { formatarDataHora, rotuloDaOrigem } from '@/features/demands/DemandDetailLabels';
 import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import { DemandStructuringCourse } from '@/features/demands/DemandStructuringCourse';
 import { DemandStructuringGapList } from '@/features/demands/DemandStructuringGaps';
-import { demandArtifactsKey } from '@/features/demands/DemandStructuringQueryKeys';
+import {
+  demandArtifactsKey,
+  structuringJobKey,
+} from '@/features/demands/DemandStructuringQueryKeys';
 import { DemandStructuringSources } from '@/features/demands/DemandStructuringSources';
 import { DemandStructuringStatus } from '@/features/demands/DemandStructuringStatus';
 import { lerCursoEstruturado } from '@/features/demands/StructuredCourseContent';
 import { isApiError } from '@/services/api';
 import { listArtifacts } from '@/services/artifacts';
 import { getDemand, listDemandSegments } from '@/services/demands';
+import { getStructuringJob } from '@/services/structuring';
 import type {
   ArtifactResultRead,
   ArtifactResultVersionRead,
   ArtifactType,
   DemandDetail,
   DemandRawInputRead,
+  JsonObject,
   Uuid,
 } from '@/types/api';
 
@@ -114,6 +119,9 @@ interface DemandStructuringViewProps {
 }
 
 export function DemandStructuringView({ demandId }: DemandStructuringViewProps) {
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get(QUERY_PARAMS.structuringJob) ?? '';
+
   const demanda = useQuery({
     queryKey: demandDetailKey(demandId),
     queryFn: ({ signal }) => getDemand(demandId, { signal }),
@@ -130,6 +138,19 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     queryKey: ['demand-segments', demandId],
     queryFn: ({ signal }) => listDemandSegments(demandId, { signal }),
     enabled: demandId !== '',
+  });
+
+  // O resultado do job chega antes de existir um artefato. Ler o mesmo
+  // recurso acompanhado pelo bloco de processamento evita declarar vazio um
+  // curso que a API ja devolveu como concluido.
+  const execucao = useQuery({
+    queryKey: structuringJobKey(jobId),
+    queryFn: ({ signal }) => getStructuringJob(jobId, { signal }),
+    enabled: jobId !== '',
+    refetchInterval: (query) =>
+      query.state.data?.status === 'PENDENTE' || query.state.data?.status === 'PROCESSANDO'
+        ? 2_000
+        : false,
   });
 
   if (demanda.isPending || artefatos.isPending || trechos.isPending) {
@@ -150,7 +171,14 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
 
   const artefato = artefatoEmRevisao(artefatos.data);
   const versao = artefato === undefined ? undefined : versaoCorrente(artefato);
-  const curso = versao === undefined ? undefined : lerCursoEstruturado(versao.structured_content);
+  const cursoSalvo =
+    versao === undefined ? undefined : lerCursoEstruturado(versao.structured_content);
+  const cursoDaExecucao = execucao.data?.result?.course;
+  const curso =
+    cursoSalvo ??
+    (cursoDaExecucao === undefined
+      ? undefined
+      : lerCursoEstruturado(JSON.parse(JSON.stringify(cursoDaExecucao)) as JsonObject));
 
   return (
     <div className="structuring">
@@ -189,23 +217,27 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
         <h2 className="demand-detail__section-title" id="estrutura-gerada">
           Estrutura gerada
         </h2>
-        {artefato === undefined || versao === undefined || curso === undefined ? (
+        {curso === undefined ? (
           <p className="demand-detail__empty">
-            Nenhuma estrutura foi anexada a esta demanda ate agora. Ela aparece aqui depois que a
-            estruturacao por IA concluir.
+            {execucao.data?.status === 'CONCLUIDA'
+              ? 'A execucao foi concluida, mas a API nao devolveu o curso no resultado.'
+              : 'Nenhuma estrutura foi anexada a esta demanda ate agora. Ela aparece aqui depois que a estruturacao por IA concluir.'}
           </p>
         ) : (
           <>
             <p className="structuring__meta">
-              {artefato.title ?? 'Requisitos extraidos'}: versao {versao.number} (
-              {rotuloDaOrigem(versao.origin)}) gerada em {formatarDataHora(versao.created_at)}.
+              {versao !== undefined && artefato !== undefined
+                ? `${artefato.title ?? 'Requisitos extraidos'}: versao ${versao.number} (${rotuloDaOrigem(versao.origin)}) gerada em ${formatarDataHora(versao.created_at)}.`
+                : 'Resultado recebido da execucao da IA. Ele ainda nao aparece no historico de versoes da demanda.'}
             </p>
             <DemandStructuringCourse course={curso} segments={trechos.data} />
-            <p className="page__description">
-              <Link to={buildPath.artifactVersions(artefato.id)}>
-                Ver o historico de versoes ({artefato.versions.length})
-              </Link>
-            </p>
+            {artefato === undefined ? null : (
+              <p className="page__description">
+                <Link to={buildPath.artifactVersions(artefato.id)}>
+                  Ver o historico de versoes ({artefato.versions.length})
+                </Link>
+              </p>
+            )}
           </>
         )}
       </section>
