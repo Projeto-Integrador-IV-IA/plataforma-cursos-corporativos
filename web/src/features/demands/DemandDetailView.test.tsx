@@ -171,8 +171,17 @@ describe('detalhe da demanda', () => {
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    expect(destino(/Registrar texto da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
-    expect(destino(/Fazer o curso com IA/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
+    // A secao de fontes e a secao do curso com IA oferecem o mesmo atalho de
+    // captacao quando nao ha fonte; o teste confere a da secao de fontes.
+    const secaoFontes = screen
+      .getByRole('heading', { level: 2, name: 'Fontes captadas' })
+      .closest('section') as HTMLElement;
+    expect(
+      within(secaoFontes)
+        .getByRole('link', { name: /Registrar texto da demanda/ })
+        .getAttribute('href'),
+    ).toBe(`/demandas/${DEMANDA.id}/ingestao`);
+    expect(destino(/Ver curso e revisar/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
 

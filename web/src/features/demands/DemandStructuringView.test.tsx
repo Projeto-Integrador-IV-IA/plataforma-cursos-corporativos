@@ -331,7 +331,11 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao(`?execucao=${JOB_ID}`);
 
-    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    // A tela e o indicador de estado consultam a mesma execucao de forma
+    // independente (um usa o resultado para a estrutura, o outro para o
+    // bloqueio de reenvio): a chamada ao servico se repete, sempre para o
+    // mesmo identificador.
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(2));
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
 
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
@@ -389,9 +393,12 @@ describe('revisao da estruturacao', () => {
 
     await waitFor(() => expect(submitStructuringJob).toHaveBeenCalledTimes(1));
     // O texto enviado e o da fonte captada, nunca um resumo escrito pela tela.
+    // O identificador da fonte acompanha o envio (RF27), para preservar a
+    // referencia ao trecho original.
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
       text: FONTE.original_content,
+      source_ids: [FONTE_ID],
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
@@ -407,8 +414,12 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao();
 
-    expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
-    expect(screen.queryByRole('button', { name: 'Fazer o curso com IA' })).toBeNull();
+    expect(textoDaTela()).toContain('Esta demanda não tem nenhuma fonte captada.');
+    // O botao continua visivel, porem desabilitado: diz por que o envio nao e
+    // possivel, em vez de some-lo e deixar quem usa leitor de tela sem pista.
+    expect(
+      screen.getByRole('button', { name: 'Fazer o curso com IA' }).hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {

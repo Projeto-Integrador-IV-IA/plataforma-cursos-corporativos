@@ -205,8 +205,8 @@ describe('quadro do pipeline', () => {
     withBoard(createBoard({}));
     renderRoute('/pipeline');
 
-    expect(await screen.findByText(/Nenhuma demanda no pipeline ate agora/)).toBeDefined();
-    expect(screen.getByRole('link', { name: 'Abra a primeira negociacao' })).toBeDefined();
+    expect(await screen.findByText(/Nenhuma demanda no pipeline até agora/)).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Abrir primeira negociação' })).toBeDefined();
     expect(columnTitles()).toEqual(STAGE_TITLES);
   });
 
