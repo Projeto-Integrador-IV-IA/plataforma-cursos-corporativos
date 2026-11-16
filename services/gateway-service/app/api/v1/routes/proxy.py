@@ -41,5 +41,17 @@ _RESOURCES = (
 _METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 for _resource in _RESOURCES:
     _endpoint = make_proxy_endpoint(_resource)
-    router.add_api_route(f"/{_resource}", _endpoint, methods=_METHODS)
-    router.add_api_route(f"/{_resource}/{{path:path}}", _endpoint, methods=_METHODS)
+    _slug = _resource.replace("-", "_")
+    for _suffix, _suffix_slug in (("", ""), ("/{path:path}", "_path")):
+        for _method in _METHODS:
+            # Uma rota por metodo: registrar todos os metodos numa unica
+            # chamada faz o FastAPI gerar o mesmo operation_id para todos
+            # eles, escolhido de forma nao deterministica (route.methods e
+            # um set) a cada geracao do schema - o que quebra o contrato
+            # versionado (RNF02) de forma intermitente.
+            router.add_api_route(
+                f"/{_resource}{_suffix}",
+                _endpoint,
+                methods=[_method],
+                operation_id=f"proxy_resource_api_v1_{_slug}{_suffix_slug}_{_method.lower()}",
+            )

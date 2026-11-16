@@ -331,7 +331,10 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao(`?execucao=${JOB_ID}`);
 
-    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    // Chamado ao menos uma vez: o estado "PROCESSANDO" reagenda a consulta a
+    // cada 2s (RF24), entao uma maquina lenta pode ver mais de uma chamada
+    // antes desta asserção rodar - o que importa aqui e o identificador usado.
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
 
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
@@ -392,6 +395,7 @@ describe('revisao da estruturacao', () => {
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
       text: FONTE.original_content,
+      source_ids: [FONTE_ID],
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
@@ -408,7 +412,12 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
-    expect(screen.queryByRole('button', { name: 'Fazer o curso com IA' })).toBeNull();
+    // O botao continua visivel, so que desabilitado - mesma convencao do
+    // bloqueio de reenvio em execucao (nenhuma acao de envio desaparece da
+    // tela, so perde a capacidade de ser acionada).
+    expect(
+      screen.getByRole('button', { name: 'Fazer o curso com IA' }).hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {
