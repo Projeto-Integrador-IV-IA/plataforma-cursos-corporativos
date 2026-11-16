@@ -36,6 +36,12 @@ CLIENTES_HTTP = frozenset({"httpx", "requests", "aiohttp", "urllib3"})
 
 RESTRITOS = SDKS_DE_PROVEDOR | CLIENTES_HTTP
 
+# Chamada a outro microsservico interno (nunca a um fornecedor de LLM): o
+# job_service fala HTTP direto com o pipeline-service para persistir o
+# resultado (RF13, ADR-0001), nao ha SDK de provedor envolvido e nenhuma
+# resposta de fornecedor passa por aqui. Fora do escopo desta varredura.
+EXCECOES_DE_INTEGRACAO_INTERNA = frozenset({"services/job_service.py"})
+
 
 def _modulos_raiz_importados(arquivo: Path) -> set[str]:
     arvore = ast.parse(arquivo.read_text(encoding="utf-8"), filename=str(arquivo))
@@ -57,9 +63,12 @@ def _modulos_fora_de_providers() -> list[Path]:
 def test_nenhum_modulo_fora_de_providers_importa_sdk_de_provedor() -> None:
     infratores: dict[str, list[str]] = {}
     for arquivo in _modulos_fora_de_providers():
+        caminho = arquivo.relative_to(APP_DIR).as_posix()
+        if caminho in EXCECOES_DE_INTEGRACAO_INTERNA:
+            continue
         restritos = sorted(_modulos_raiz_importados(arquivo) & RESTRITOS)
         if restritos:
-            infratores[arquivo.relative_to(APP_DIR).as_posix()] = restritos
+            infratores[caminho] = restritos
 
     assert infratores == {}, (
         "SDK de provedor importado fora de app/providers - o servico deve falar "

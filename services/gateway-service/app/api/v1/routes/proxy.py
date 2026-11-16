@@ -41,5 +41,15 @@ _RESOURCES = (
 _METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 for _resource in _RESOURCES:
     _endpoint = make_proxy_endpoint(_resource)
-    router.add_api_route(f"/{_resource}", _endpoint, methods=_METHODS)
-    router.add_api_route(f"/{_resource}/{{path:path}}", _endpoint, methods=_METHODS)
+    # Fora do schema (RNF02): o contrato publico do gateway cobre so
+    # autenticacao; o contrato de cada recurso proxied e o do microsservico
+    # de destino, ja publicado no respectivo arquivo em packages/contracts.
+    router.add_api_route(
+        f"/{_resource}", _endpoint, methods=_METHODS, include_in_schema=False
+    )
+    router.add_api_route(
+        f"/{_resource}/{{path:path}}",
+        _endpoint,
+        methods=_METHODS,
+        include_in_schema=False,
+    )
