@@ -65,7 +65,7 @@ mesmos tipos, qualquer que seja o texto devolvido pelo provedor:
   falha, nao e aceita como "quase certa" (ADR-0006);
 - ``CHAVES_OBRIGATORIAS`` sao as chaves que a resposta precisa trazer, ainda
   que com valor nulo. Sao exatamente as que o prompt ativo
-  ``extract-requirements.v3`` manda devolver: chave que some da resposta e
+  ``extract-requirements.v6`` manda devolver: chave que some da resposta e
   violacao de contrato, nao campo ausente. Os tres campos que aquele prompt
   ainda nao pede (``nicho``, ``numero_participantes`` e ``formato``) ficam
   opcionais ate existir prompt que os produza - e a forma da saida nao muda

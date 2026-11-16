@@ -43,11 +43,11 @@ def get_ingestion_service(
     responses={
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
-            "description": "Demanda ou operador inexistente.",
+            "description": "Demanda, operador ou tentativa anterior inexistente.",
         },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
-            "description": "Referencia removida durante a persistencia.",
+            "description": "Referencia removida ou tentativa anterior de outra demanda.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ErrorResponse,

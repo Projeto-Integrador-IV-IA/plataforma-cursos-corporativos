@@ -77,9 +77,9 @@ describe('modulos de dominio', () => {
 
     await createRawInput(DEMAND_ID, { original_content: 'texto como chegou', source: 'EMAIL' });
 
-    expect(lastCall().url).toBe(`${BASE_URL}/ingestion/demands/${DEMAND_ID}/raw-inputs`);
+    expect(lastCall().url).toBe(`${BASE_URL}/ingestion`);
     expect(lastCall().init?.body).toBe(
-      JSON.stringify({ original_content: 'texto como chegou', source: 'EMAIL' }),
+      JSON.stringify({ demand_id: DEMAND_ID, text: 'texto como chegou', source_type: 'EMAIL' }),
     );
   });
 

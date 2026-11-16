@@ -1,0 +1,15 @@
+.button.button--secondary {
+  border-color: var(--brand-line);
+  background: var(--brand-paper);
+  color: var(--brand-ink);
+}
+
+.button.button--secondary:hover:not(:disabled) {
+  border-color: #bdcbbd;
+  background: #edf1e9;
+  color: var(--brand-forest-deep);
+}
+
+.button.button--secondary:focus-visible {
+  outline-color: var(--brand-focus);
+}

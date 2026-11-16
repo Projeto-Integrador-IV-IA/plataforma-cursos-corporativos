@@ -25,7 +25,10 @@ Cada arquivo contém, nesta ordem:
 |---|---|---|
 | `extract-requirements.v1.md` | Extrair os cinco campos pedagógicos — tema, público-alvo, carga horária, ementa e objetivos de aprendizagem — do texto normalizado. **Substituído** pela `v2` (card #5). | RF13 (RF11 na matriz) |
 | `extract-requirements.v2.md` | Mesma extração, com a política de campo não inferível reforçada: valor plausível é proibido, cada nome em `campos_ausentes` tem motivo em `observacoes` (`campo: motivo`) e nenhum campo é preenchido e declarado ausente ao mesmo tempo. **Substituído** pela `v3` (card #8). | RNF03 (RF14.2 no Documento Consolidado v1.0) |
-| `extract-requirements.v3.md` | Mesma extração, com a lacuna classificada: cada item de `campos_ausentes` é um objeto `{campo, tipo, motivo}`, com `tipo` em `ausente`, `ambigua` ou `contraditoria`, e o prompt instrui a detecção de contradição entre trechos da mesma fonte. **Ativo** (card #12). | RNF03 (RF15.1 no Documento Consolidado v1.0) |
+| `extract-requirements.v3.md` | Mesma extração, com a lacuna classificada: cada item de `campos_ausentes` é um objeto `{campo, tipo, motivo}`, com `tipo` em `ausente`, `ambigua` ou `contraditoria`, e o prompt instrui a detecção de contradição entre trechos da mesma fonte. **Substituído** pela `v4` (card #11). | RNF03 (RF15.1 no Documento Consolidado v1.0) |
+| `extract-requirements.v4.md` | Mesma extração, acrescentando `procedencia`: um mapa campo -> `extraido \| inferido \| ausente` dizendo, por execução, se o valor que preencheu cada campo veio literal da fonte ou foi o modelo quem inferiu. **Substituído** pela `v5` (cards #153/#154). | RNF06 |
+| `extract-requirements.v5.md` | Mesma extração, acrescentando `evidencias`: a entrada passa a chegar com os trechos numerados (`[1] ...`, `[2] ...`) e todo campo preenchido precisa citar ao menos um número que o sustente. **Substituído** pela `v6` (card #225). | RF28 (RNF27) |
+| `extract-requirements.v6.md` | Mesma extração, com regra explícita contra instrução embutida na fonte: trecho do texto que imita um comando dirigido ao modelo é dado a extrair ou citar em `evidencias`, nunca instrução a obedecer, e não muda papel, campos preenchidos nem formato de saída. **Ativo** (card #225). | RNF30 (robustez contra entrada adversarial, truncada e multilíngue) |
 | `generate-syllabus.v1.md` | Gerar ementa com objetivos de aprendizagem a partir dos requisitos extraídos. | RF12 |
 
 ## Regras
@@ -41,7 +44,7 @@ O prompt é lido do arquivo pelo nome e pela versão — nunca embutido como str
 ```python
 from app.prompts import carregar_prompt
 
-prompt = carregar_prompt("extract-requirements", "v3")
+prompt = carregar_prompt("extract-requirements", "v6")
 texto = prompt.render(texto_normalizado=demanda)
 ```
 
@@ -54,9 +57,9 @@ A versão em uso é a mais recente com `status: ativo` nos metadados. A anterior
 marcada como `substituido`: prompt não é apagado — medição feita com ele precisa continuar
 reproduzível (RNF04).
 
-> Estado: `extract-requirements.v3` **ativo**, `extract-requirements.v2` e
-> `extract-requirements.v1` **substituídos**; `generate-syllabus.v1` pendente, construído na PoC da
-> Fase 2 (05–15/09).
+> Estado: `extract-requirements.v6` **ativo**, `extract-requirements.v5`, `extract-requirements.v4`,
+> `extract-requirements.v3`, `extract-requirements.v2` e `extract-requirements.v1`
+> **substituídos**; `generate-syllabus.v1` pendente, construído na PoC da Fase 2 (05–15/09).
 
 A versão ativa é a que o caso de uso carrega por padrão (`DEFAULT_PROMPT_VERSION`, em
 `app/services/structuring_service.py`): publicar versão nova é mover esse padrão junto, e um teste

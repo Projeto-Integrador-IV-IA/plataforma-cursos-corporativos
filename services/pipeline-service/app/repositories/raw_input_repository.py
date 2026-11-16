@@ -26,6 +26,16 @@ class RawInputRepository:
         )
         return (last or 0) + 1
 
+    def list_reprocessed_from(self, attempt_ids: list[UUID]) -> list[RawInput]:
+        if not attempt_ids:
+            return []
+        statement = (
+            sa.select(RawInput)
+            .where(RawInput.previous_attempt_id.in_(attempt_ids))
+            .order_by(RawInput.received_order)
+        )
+        return list(self.session.scalars(statement).all())
+
     def update_normalization(self, raw_input: RawInput, normalized_content: str) -> RawInput:
         raw_input.normalized_content = normalized_content
         self.session.flush()

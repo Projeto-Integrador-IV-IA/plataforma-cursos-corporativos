@@ -1,39 +1,68 @@
-/**
- * Fontes captadas da demanda (RF09), vistas a partir do detalhe.
- *
- * A secao existe, mas vazia de proposito: nao ha nenhuma operacao de
- * `raw_inputs` declarada em `packages/contracts/openapi/` ate agora. Inventar
- * aqui uma chamada para uma rota que o contrato nao declara iria contra RNF02
- * e quebraria no primeiro ambiente com servico de verdade.
- *
- * Esconder a secao seria pior que mostra-la vazia: quem opera precisa saber
- * que a demanda ainda nao tem fonte registrada - e que o texto de contexto
- * acima nao e a fonte, e sim o resumo escrito pelo proprio operador.
- *
- * TODO(RF09): listar as fontes captadas (`raw_inputs`) da demanda, com
- * procedencia, data e o indicador de conteudo truncado, assim que a operacao
- * de captacao for publicada no contrato.
- */
+import { Link } from "react-router-dom";
 
-import { Link } from 'react-router-dom';
-
-import { buildPath } from '@/app/paths';
-import type { Uuid } from '@/types/api';
+import { buildPath } from "@/app/paths";
+import { formatarDataHora } from "@/features/demands/DemandDetailLabels";
+import { rotuloDaFonte } from "@/features/demands/DemandStructuringLabels";
+import type { DemandRawInputRead, Uuid } from "@/types/api";
 
 interface DemandDetailSourcesProps {
   demandId: Uuid;
+  sources: readonly DemandRawInputRead[];
 }
 
-export function DemandDetailSources({ demandId }: DemandDetailSourcesProps) {
+const TAMANHO_PREVIA = 280;
+
+export function DemandDetailSources({
+  demandId,
+  sources,
+}: DemandDetailSourcesProps) {
+  if (sources.length === 0) {
+    return (
+      <>
+        <p className="demand-detail__empty">
+          Ainda falta registrar o texto recebido do cliente para gerar o curso
+          com IA.
+        </p>
+        <div className="demand-detail__actions">
+          <Link
+            className="button button--secondary"
+            to={buildPath.demandIngestion(demandId)}
+          >
+            Registrar texto da demanda
+          </Link>
+        </div>
+      </>
+    );
+  }
+
   return (
-    <>
-      <p className="demand-detail__empty">
-        A listagem das fontes captadas ainda nao esta disponivel: o servico nao publicou a operacao
-        que as devolve.
-      </p>
-      <p className="page__description">
-        <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
-      </p>
-    </>
+    <ul className="demand-detail__artifacts">
+      {sources.map((source) => (
+        <li className="demand-detail__artifact" key={source.id}>
+          <h3 className="demand-detail__artifact-title">
+            {rotuloDaFonte(source.source)} ·{" "}
+            {formatarDataHora(source.created_at)}
+          </h3>
+          <p className="demand-detail__artifact-meta">
+            {source.original_content.length > TAMANHO_PREVIA
+              ? `${source.original_content.slice(0, TAMANHO_PREVIA).trimEnd()}…`
+              : source.original_content}
+          </p>
+          {source.truncated ? (
+            <p className="demand-detail__artifact-meta">
+              O texto original foi marcado como truncado na captação.
+            </p>
+          ) : null}
+        </li>
+      ))}
+      <li>
+        <Link
+          className="button button--secondary"
+          to={buildPath.demandIngestion(demandId)}
+        >
+          Adicionar outra fonte
+        </Link>
+      </li>
+    </ul>
   );
 }

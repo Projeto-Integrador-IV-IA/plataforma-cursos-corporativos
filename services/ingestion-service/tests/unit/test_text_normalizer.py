@@ -2,8 +2,14 @@
 
 from uuid import UUID, uuid4
 
+import pytest
+
 from app.domain.raw_demand import SourceKind
-from app.normalizers.text_normalizer import normalize_text, segment_text
+from app.normalizers.text_normalizer import (
+    concatenate_normalized_sources,
+    normalize_text,
+    segment_text,
+)
 
 
 def test_removes_email_headers_signature_html_and_redundant_spacing() -> None:
@@ -65,6 +71,31 @@ def test_keeps_plain_semantic_content_unchanged() -> None:
     assert normalize_text(original, SourceKind.OUTRO) == original
 
 
+def test_concatenates_normalized_sources_in_received_order() -> None:
+    sources = (
+        normalize_text("[10:31] Ana: Tema: LGPD", SourceKind.MENSAGENS),
+        normalize_text("# Publico\n- Gestores", SourceKind.ANOTACAO),
+        normalize_text("Carga horaria: 4 horas", SourceKind.OUTRO),
+    )
+
+    assert concatenate_normalized_sources(sources) == (
+        "Tema: LGPD\n\nPublico\nGestores\n\nCarga horaria: 4 horas"
+    )
+
+
+def test_common_text_requires_at_least_one_nonblank_normalized_source() -> None:
+    with pytest.raises(ValueError, match="at least one"):
+        concatenate_normalized_sources(())
+
+    with pytest.raises(ValueError, match="position 2"):
+        concatenate_normalized_sources(("Tema: LGPD", "  \n"))
+
+
+def test_common_text_rejects_source_outside_normalized_boundary_format() -> None:
+    with pytest.raises(ValueError, match="position 1"):
+        concatenate_normalized_sources((" Tema: LGPD ",))
+
+
 def test_segments_each_nonblank_logical_line_in_original_order() -> None:
     source_id = UUID("b46f05f7-2394-43a5-a864-38f62ce2e8f4")
     original = (
@@ -80,6 +111,17 @@ def test_segments_each_nonblank_logical_line_in_original_order() -> None:
         (4, "Formato presencial"),
     ]
     assert all(segment.source_id == source_id for segment in segments)
+
+
+def test_noisy_message_segment_points_to_the_untouched_original_text() -> None:
+    source_id = uuid4()
+    original = "[20/09/2026 10:31] Ana: Precisamos treinar 25 pessoas."
+
+    (segment,) = segment_text(original, SourceKind.MENSAGENS, source_id=source_id)
+
+    assert segment.text == "Precisamos treinar 25 pessoas."
+    assert original[segment.original_start_offset : segment.original_end_offset] == segment.text
+    assert segment.original_start_offset == original.index(segment.text)
 
 
 def test_reprocessing_the_same_source_produces_the_same_segment_ids() -> None:

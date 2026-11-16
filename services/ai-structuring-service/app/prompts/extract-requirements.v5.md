@@ -1,6 +1,7 @@
 ---
 versao: 5
-status: ativo
+status: substituido
+substituido_por: extract-requirements.v6
 requisito: RF28, RNF27
 modelo_alvo: qualquer modelo com saída em JSON; avaliação comparativa na PoC (Fase 2)
 autor: equipe de IA

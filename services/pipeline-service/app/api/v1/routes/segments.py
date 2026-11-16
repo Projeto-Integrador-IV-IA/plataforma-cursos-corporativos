@@ -37,7 +37,7 @@ router = APIRouter(tags=["source-segments"])
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": SourceSegmentErrorResponse,
-            "description": "Lote ou identificador invalido.",
+            "description": "Lote, identificador ou intervalo original invalido.",
         },
     },
 )

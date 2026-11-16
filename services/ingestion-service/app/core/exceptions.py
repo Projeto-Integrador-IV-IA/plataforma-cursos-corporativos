@@ -24,7 +24,7 @@ class PlatformError(Exception):
 
 
 class UpstreamError(PlatformError):
-    """Falha explicita do pipeline-service ou da comunicacao com ele."""
+    """Falha explicita de um servico a jusante ou da comunicacao com ele."""
 
 
 def _error_content(request: Request, exc: PlatformError) -> dict[str, Any]:
@@ -37,6 +37,8 @@ def _error_content(request: Request, exc: PlatformError) -> dict[str, Any]:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    """Traduz erros esperados para o envelope unico da plataforma."""
+
     @app.exception_handler(PlatformError)
     async def handle_platform_error(request: Request, exc: PlatformError) -> JSONResponse:
         return JSONResponse(status_code=exc.status_code, content=_error_content(request, exc))
@@ -48,7 +50,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         error = PlatformError(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             code="VALIDATION_ERROR",
-            message="Os dados informados sao invalidos.",
+            message="A fonte recebida e invalida.",
             details={
                 "issues": [
                     {
