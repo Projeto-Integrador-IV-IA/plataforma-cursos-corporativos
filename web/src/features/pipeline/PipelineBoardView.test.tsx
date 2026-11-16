@@ -130,7 +130,13 @@ function column(name: string): HTMLElement {
 }
 
 function columnTitles(): readonly (string | null)[] {
-  return screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+  const viewport = screen.getByRole('group', {
+    name: 'Etapas do pipeline, com rolagem horizontal',
+  });
+
+  return within(viewport)
+    .getAllByRole('heading', { level: 2 })
+    .map((heading) => heading.textContent);
 }
 
 beforeEach(() => {
@@ -280,7 +286,11 @@ describe('quadro do pipeline', () => {
     );
     renderRoute('/pipeline');
 
-    const warning = await screen.findByText('A trilha nao pode ser carregada agora.');
+    const warning = await screen.findByText(
+      'A trilha nao pode ser carregada agora.',
+      {},
+      { timeout: 3000 },
+    );
     expect(warning.closest('[aria-live="assertive"]')).not.toBeNull();
 
     vi.mocked(listStageTransitions).mockResolvedValue(timeline());

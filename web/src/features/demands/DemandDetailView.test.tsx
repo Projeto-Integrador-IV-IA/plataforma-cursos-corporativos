@@ -157,6 +157,7 @@ describe('detalhe da demanda', () => {
       '#demanda-cliente',
       '#demanda-etapa',
       '#demanda-historico',
+      '#demanda-curso-ia',
       '#demanda-fontes',
       '#demanda-artefatos',
     ]);
@@ -166,6 +167,7 @@ describe('detalhe da demanda', () => {
       'Cliente',
       'Etapa e situacao',
       'Historico de etapas',
+      'Curso com IA',
       'Fontes captadas',
       'Artefatos',
     ]) {
@@ -199,7 +201,9 @@ describe('detalhe da demanda', () => {
       DEMANDA.id,
       expect.objectContaining({ signal: expect.anything() }),
     );
-    expect(textoDaTela()).toContain('Mudanca de etapa: Captacao para Estruturacao');
+    expect(
+      await screen.findByText('Mudanca de etapa: Captacao para Estruturacao'),
+    ).toBeDefined();
     expect(textoDaTela()).toContain('Marina Prado');
     expect(textoDaTela()).toContain('Escopo validado com o cliente');
     expect(document.querySelector('time')?.getAttribute('datetime')).toBe(
@@ -214,15 +218,15 @@ describe('detalhe da demanda', () => {
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    expect(destino(/Registrar uma fonte/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
-    expect(destino(/Revisar a estruturacao/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
+    expect(destino(/Registrar texto da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
+    expect(destino(/Fazer o curso com IA/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
 
-  it('avisa que as fontes captadas ainda nao estao disponiveis', async () => {
+  it('avisa que ainda falta registrar o texto para gerar o curso com IA', async () => {
     await abrirDetalhe();
 
-    expect(textoDaTela()).toContain('A listagem das fontes captadas ainda nao esta disponivel');
+    expect(textoDaTela()).toContain('Ainda falta registrar o texto recebido do cliente');
   });
 
   it('avisa quando a demanda ainda nao tem artefato', async () => {

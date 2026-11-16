@@ -9,22 +9,21 @@
  * em `pipeline-service.yaml`.
  */
 
-import { api, type RequestContext } from '@/services/api';
+import { api, type RequestContext } from "@/services/api";
 import type {
   DemandRead,
   PipelineBoard,
   PipelineBoardParams,
   PipelineStage,
-  StageTransition,
   StageTransitionCreate,
   StageTransitionTimeline,
   Uuid,
-} from '@/types/api';
+} from "@/types/api";
 
-const RESOURCE = '/demands';
+const RESOURCE = "/demands";
 
 /** Recurso do quadro. Nao e subrecurso de demanda: a visao e do pipeline. */
-const BOARD_RESOURCE = '/pipeline';
+const BOARD_RESOURCE = "/pipeline";
 
 /**
  * Demandas agrupadas por etapa, para o quadro do pipeline (RF05).
@@ -75,6 +74,33 @@ export function moveDemandStage(
   );
 }
 
+/** Avança para a etapa seguinte usando a operação publicada pelo pipeline-service. */
+export function advancePipelineDemand(
+  demandId: Uuid,
+  reason?: string,
+  context: RequestContext = {},
+): Promise<DemandRead> {
+  return api.post<DemandRead, { reason?: string | null }>(
+    `${RESOURCE}/${demandId}/advance`,
+    { reason: reason ?? null },
+    context,
+  );
+}
+
+/** Retrocede para uma etapa anterior; o serviço exige justificativa. */
+export function rollbackPipelineDemand(
+  demandId: Uuid,
+  toStage: PipelineStage,
+  reason: string,
+  context: RequestContext = {},
+): Promise<DemandRead> {
+  return api.post<DemandRead, { to_stage: PipelineStage; reason: string }>(
+    `${RESOURCE}/${demandId}/rollback`,
+    { to_stage: toStage, reason },
+    context,
+  );
+}
+
 /** Avanca a demanda para a etapa informada. Justificativa e opcional (RF05). */
 export function advanceDemandStage(
   demandId: Uuid,
@@ -82,7 +108,11 @@ export function advanceDemandStage(
   reason?: string,
   context: RequestContext = {},
 ): Promise<DemandRead> {
-  return moveDemandStage(demandId, { to_stage: toStage, reason: reason ?? null }, context);
+  return moveDemandStage(
+    demandId,
+    { to_stage: toStage, reason: reason ?? null },
+    context,
+  );
 }
 
 /** Retrocede a demanda. A justificativa e obrigatoria no retrocesso (RF06). */
