@@ -168,7 +168,7 @@ describe('listagem de clientes', () => {
 
     expect(await screen.findByText(/Nenhum cliente cadastrado ate agora/)).toBeDefined();
     expect(screen.queryByRole('table')).toBeNull();
-    expect(screen.getByRole('link', { name: 'Cadastre o primeiro cliente' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Cadastrar primeiro cliente' })).toBeDefined();
   });
 
   it('oferece a volta quando a URL aponta para uma pagina alem do fim', async () => {

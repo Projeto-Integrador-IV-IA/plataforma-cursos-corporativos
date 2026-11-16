@@ -171,8 +171,16 @@ describe('detalhe da demanda', () => {
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    expect(destino(/Registrar texto da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
-    expect(destino(/Fazer o curso com IA/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
+    // O convite para registrar o texto aparece tanto em "Curso com IA" quanto
+    // em "Fontes captadas" (RF09 e RF14 avisam, cada um na sua secao, que
+    // falta a mesma fonte) - por isso o escopo pela secao de fontes.
+    const fontes = screen.getByRole('region', { name: 'Fontes captadas' });
+    expect(
+      within(fontes).getByRole('link', { name: /Registrar texto da demanda/ }).getAttribute('href'),
+    ).toBe(`/demandas/${DEMANDA.id}/ingestao`);
+    // Sem fonte captada (RF09), o botao "Fazer o curso com IA" fica
+    // desabilitado - quem leva a estruturacao e o link sempre presente.
+    expect(destino(/Ver curso e revisar/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
 

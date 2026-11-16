@@ -41,5 +41,10 @@ _RESOURCES = (
 _METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 for _resource in _RESOURCES:
     _endpoint = make_proxy_endpoint(_resource)
-    router.add_api_route(f"/{_resource}", _endpoint, methods=_METHODS)
-    router.add_api_route(f"/{_resource}/{{path:path}}", _endpoint, methods=_METHODS)
+    for _method in _METHODS:
+        # Uma chamada por metodo: com varios metodos numa unica rota, o
+        # operationId default do FastAPI usa o primeiro item de route.methods
+        # (um set, sem ordem garantida) - o id sairia diferente a cada
+        # processo. Registrar separadamente mantem o id estavel e correto.
+        router.add_api_route(f"/{_resource}", _endpoint, methods=[_method])
+        router.add_api_route(f"/{_resource}/{{path:path}}", _endpoint, methods=[_method])

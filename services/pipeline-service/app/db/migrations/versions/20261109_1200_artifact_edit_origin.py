@@ -1,7 +1,7 @@
 """Vincula edicoes humanas a versao IA de origem (RF19.1).
 
 Revision ID: 20261109_1200
-Revises: 20261101_1300
+Revises: 20261112_1200
 
 Versoes existentes permanecem intactas. No SQLite, o batch recria a tabela;
 os gatilhos append-only precisam ser reinstalados apos upgrade e downgrade.
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "20261109_1200"
-down_revision: str | None = "20261101_1300"
+down_revision: str | None = "20261112_1200"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
