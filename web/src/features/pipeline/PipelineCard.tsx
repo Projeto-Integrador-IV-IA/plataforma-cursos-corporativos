@@ -24,24 +24,38 @@
  * do lado esquerdo. Cor, forma e texto dizem a mesma coisa.
  */
 
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
-import { buildPath } from '@/app/paths';
-import { STATUS_LABELS } from '@/features/demands/DemandListLabels';
-import type { PipelineCardRead } from '@/types/api';
+import { buildPath } from "@/app/paths";
+import { STATUS_LABELS } from "@/features/demands/DemandListLabels";
+import type { PipelineCardRead } from "@/types/api";
 
 interface PipelineCardProps {
   readonly card: PipelineCardRead;
+  readonly onDragStart?: (card: PipelineCardRead) => void;
+  readonly onDragEnd?: () => void;
 }
 
-export function PipelineCard({ card }: PipelineCardProps) {
+export function PipelineCard({
+  card,
+  onDragStart,
+  onDragEnd,
+}: PipelineCardProps) {
   // Sem responsavel ninguem conduz a negociacao: e o que o quadro precisa
   // destacar para o operador agir.
   const needsAttention = card.owner === null;
-  const className = needsAttention ? 'pipeline-card pipeline-card--attention' : 'pipeline-card';
+  const className = needsAttention
+    ? "pipeline-card pipeline-card--attention"
+    : "pipeline-card";
 
   return (
-    <Link className={className} to={buildPath.demandDetail(card.id)}>
+    <Link
+      className={className}
+      to={buildPath.demandDetail(card.id)}
+      draggable={Boolean(onDragStart)}
+      onDragStart={() => onDragStart?.(card)}
+      onDragEnd={onDragEnd}
+    >
       <span className="pipeline-card__client">{card.client.name}</span>
       <span className="pipeline-card__title">{card.title}</span>
       <span className="pipeline-card__meta">

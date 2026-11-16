@@ -5,16 +5,30 @@
  * (packages/contracts/openapi/). Tipos de entrada e saida vivem em `src/types`
  * e derivam do mesmo contrato (RNF02).
  *
- * Estado do contrato: `ingestion-service.yaml` ainda e esqueleto. Os caminhos
- * abaixo usam o prefixo `/ingestion` acordado em
- * docs/02-arquitetura/contratos-api.md e os campos seguem o dicionario de
- * dados; serao CONFIRMADOS quando o contrato for publicado.
+ * A captacao publica usa `POST /ingestion`. O servico de ingestao valida o
+ * texto e o persiste no pipeline antes de confirmar a resposta.
  */
 
 import { api, type RequestContext } from '@/services/api';
-import type { Page, PageParams, RawInput, RawInputCreate, Uuid } from '@/types/api';
+import type {
+  IngestionAccepted,
+  IngestionCreateRequest,
+  Page,
+  PageParams,
+  RawInput,
+  RawInputCreate,
+  Uuid,
+} from '@/types/api';
 
 const RESOURCE = '/ingestion';
+
+/** Persiste a fonte original antes de iniciar qualquer processamento por IA. */
+export function captureRawText(
+  payload: IngestionCreateRequest,
+  context: RequestContext = {},
+): Promise<IngestionAccepted> {
+  return api.post<IngestionAccepted, IngestionCreateRequest>(RESOURCE, payload, context);
+}
 
 /**
  * Registra a demanda bruta em texto livre (RF09).
@@ -26,10 +40,13 @@ export function createRawInput(
   demandId: Uuid,
   payload: RawInputCreate,
   context: RequestContext = {},
-): Promise<RawInput> {
-  return api.post<RawInput, RawInputCreate>(
-    `${RESOURCE}/demands/${demandId}/raw-inputs`,
-    payload,
+): Promise<IngestionAccepted> {
+  return captureRawText(
+    {
+      demand_id: demandId,
+      text: payload.original_content,
+      source_type: payload.source,
+    },
     context,
   );
 }

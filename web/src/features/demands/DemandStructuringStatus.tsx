@@ -26,15 +26,18 @@
  * mas nenhuma operacao publicada a expoe - quando expuser, e ela que entra
  * aqui.
  *
- * TODO(#107): consultar o estado periodicamente ate o desfecho. Hoje a
- * transicao aparece quando o operador pede para atualizar.
+ * Enquanto a execucao estiver pendente ou processando, a tela consulta o
+ * estado automaticamente e relê os artefatos quando a IA concluir.
  */
+
+import { useEffect } from 'react';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { buildPath, QUERY_PARAMS } from '@/app/paths';
 import { formatarDataHora } from '@/features/demands/DemandDetailLabels';
+import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import {
   explicacaoDoEstado,
   formatarDuracao,
@@ -104,7 +107,22 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
     queryKey: structuringJobKey(jobId),
     queryFn: ({ signal }) => getStructuringJob(jobId, { signal }),
     enabled: jobId !== '',
+    refetchInterval: (query) =>
+      query.state.data?.status === 'PENDENTE' || query.state.data?.status === 'PROCESSANDO'
+        ? 2_000
+        : false,
   });
+
+  useEffect(() => {
+    if (execucao.data?.status !== 'CONCLUIDA') {
+      return;
+    }
+
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: demandArtifactsKey(demandId) }),
+      queryClient.invalidateQueries({ queryKey: demandDetailKey(demandId) }),
+    ]);
+  }, [demandId, execucao.data?.status, queryClient]);
 
   const envio = useMutation({
     mutationFn: (payload: StructuringRequest) => submitStructuringJob(payload),
@@ -136,23 +154,20 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
       return;
     }
 
-    envio.mutate({ demand_id: demandId, text: source.original_content });
-  }
-
-  async function atualizar() {
-    await execucao.refetch();
-    // A estrutura aparece na tela quando o pipeline anexa o artefato (RF13):
-    // reler os artefatos e o que faz o resultado da execucao concluida chegar
-    // a secao de revisao.
-    await queryClient.invalidateQueries({ queryKey: demandArtifactsKey(demandId) });
+    envio.mutate({
+      demand_id: demandId,
+      text: source.original_content,
+      source_ids: [source.id],
+    });
   }
 
   return (
     <div className="structuring-status">
       {execucao.data === undefined ? (
-        <p className="demand-detail__empty">
-          Nenhuma execucao acompanhada nesta tela. Envie a demanda para estruturacao ou abra o
-          endereco com o identificador da execucao.
+        <p className="demand-detail__empty" aria-live="polite">
+          {jobId !== '' && execucao.isPending
+            ? 'Conectando ao processamento do curso...'
+            : 'Ainda nao ha uma geracao em andamento. O botao abaixo inicia o curso com IA.'}
         </p>
       ) : (
         <>
@@ -197,15 +212,26 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
         </p>
       ) : null}
 
+      {emCurso ? (
+        <p className="form__hint" role="status">
+          Atualizamos o andamento automaticamente enquanto a IA trabalha.
+        </p>
+      ) : null}
+
       {source === undefined ? (
         <>
           <p className="demand-detail__empty">
-            Esta demanda nao tem nenhuma fonte captada. Sem o texto do cliente nao ha o que
+            Esta demanda não tem nenhuma fonte captada. Sem o texto do cliente, não há o que
             estruturar.
           </p>
-          <p className="page__description">
-            <Link to={buildPath.demandIngestion(demandId)}>Registrar uma fonte na captacao</Link>
-          </p>
+          <div className="form__actions">
+            <button className="button" type="button" disabled>
+              Fazer o curso com IA
+            </button>
+            <Link className="button button--secondary" to={buildPath.demandIngestion(demandId)}>
+              Registrar texto da demanda
+            </Link>
+          </div>
         </>
       ) : (
         <>
@@ -219,16 +245,8 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
               {envio.isPending
                 ? 'Enviando…'
                 : jobId === ''
-                  ? 'Estruturar com IA'
-                  : 'Reenviar a estruturacao'}
-            </button>
-            <button
-              className="button button--secondary"
-              type="button"
-              disabled={jobId === '' || execucao.isFetching}
-              onClick={() => void atualizar()}
-            >
-              {execucao.isFetching ? 'Atualizando…' : 'Atualizar estado'}
+                ? 'Fazer o curso com IA'
+                : 'Fazer o curso novamente com IA'}
             </button>
           </div>
           <p className="form__hint">

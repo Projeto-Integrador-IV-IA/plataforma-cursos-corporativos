@@ -10,7 +10,10 @@ name: cursos-corporativos
 
 services:
   db:
-    image: postgres:16-alpine
+    # pgvector/pgvector, nao postgres: oficial, com a extensao "vector" (RNF28
+    # consolidado, ADR-0007) ja compilada - sem isso o CREATE EXTENSION do
+    # init script e da migration falharia por falta do binario da extensao.
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-cursos}
@@ -67,6 +70,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       INGESTION_PORT: ${INGESTION_PORT:-8002}
+      SOURCE_TEXT_MAX_LENGTH: ${SOURCE_TEXT_MAX_LENGTH:-50000}
       PIPELINE_SERVICE_URL: ${PIPELINE_SERVICE_URL:-http://pipeline-service:8001}
       PIPELINE_TIMEOUT_SECONDS: ${PIPELINE_TIMEOUT_SECONDS:-5}
       AI_STRUCTURING_SERVICE_URL: ${AI_STRUCTURING_SERVICE_URL:-http://ai-structuring-service:8003}
@@ -100,7 +104,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       AI_STRUCTURING_PORT: ${AI_STRUCTURING_PORT:-8003}
-      PIPELINE_SERVICE_URL: ${PIPELINE_SERVICE_URL:-http://pipeline-service:8001}
+      PIPELINE_SERVICE_URL: http://pipeline-service:${PIPELINE_PORT:-8001}
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       LLM_MODEL: ${LLM_MODEL:-mock}
       LLM_API_KEY: ${LLM_API_KEY:-}
@@ -112,6 +116,7 @@ services:
       LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
       LLM_SCHEMA_MAX_RETRIES: ${LLM_SCHEMA_MAX_RETRIES:-2}
       LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+      LLM_DAILY_TOKEN_BUDGET: ${LLM_DAILY_TOKEN_BUDGET:-}
     expose:
       - "${AI_STRUCTURING_PORT:-8003}"
     depends_on:

@@ -49,6 +49,7 @@ O serviço utiliza um arquivo `.env` na raiz do microsserviço. Copie o `.env.ex
 |---|---|---|
 | `DATABASE_URL` | String de conexão com o PostgreSQL | `postgresql://<user>:<password>@localhost:5432/db_name` |
 | `INGESTION_PORT` | Porta em que o serviço Uvicorn irá escutar | `8002` |
+| `SOURCE_TEXT_MAX_LENGTH` | Limite total da fonte original em caracteres (inteiro >= 10) | `50000` |
 
 ---
 
@@ -111,7 +112,7 @@ O remetente citado no texto nao e confundido com o operador identificado pelo
 cabecalho `X-User-ID`. Nao ha novo campo nem migration: a proveniencia reutiliza as colunas
 introduzidas no RF09. A ordenacao de recebimento pertence ao card #32.
 
-## Captacao de audio (RF30, card #164)
+## 8. Captacao de audio (RF30, card #164)
 
 `POST /api/v1/ingestion/audio` recebe `multipart/form-data` com os campos
 `file` (arquivo) e `demand_id` (UUID), mais o cabecalho obrigatorio `X-User-ID`
@@ -170,8 +171,58 @@ curl -X POST http://localhost:8002/api/v1/ingestion/audio \
 
 Testes: `python -m pytest tests/integration/test_audio_ingestion.py`.
 
-## 8. Testes
+## 9. Transcrição de Áudio e Integração STT (RF30, planejamento)
+
+Esta captacao (secao 8) apenas recebe e preserva o audio; nenhuma chamada STT
+ocorre nela. A transcricao propriamente dita e a integracao do provedor
+pertencem aos cards #165 e #166. Estimativas de custo e configuracao de
+exemplo para essa etapa futura:
+
+- **Formatos Aceitos:** `.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac`.
+- **Limites de Arquivo:** Tamanho máximo de 25 MB por arquivo e duração máxima de 60 minutos por arquivo de áudio enviado.
+- **Configuração de Variáveis (`.env`):**
+  ```env
+  STT_PROVIDER=openai
+  OPENAI_API_KEY=sua-chave-aqui
+  STT_MAX_AUDIO_MB=25
+  ```
+
+Limites de Consumo e Cota (RF30 / RNF22): O serviço aplica validações de cota para preservar a camada gratuita estudantil, limitando o processamento base a 2 horas de áudio por tenant/mês (dentro do teto global de 10h mensais do MVP).
+
+## 10. Testes
 
 ```bash
 pytest
 ```
+
+## 11. Limite configuravel da fonte (RNF13 consolidado, card #42)
+
+`SOURCE_TEXT_MAX_LENGTH` limita o campo `text` de `POST /api/v1/ingestion`
+antes da persistencia e da normalizacao. O padrao e **50.000 caracteres**:
+preserva o teto ja adotado no RF12 (#35) e acompanha o limite atual do contrato
+de estruturacao por IA. E um ponto de partida ajustavel apos as medicoes da
+PoC, sem garantia de equivalencia com tokens ou com a janela de todo modelo.
+
+A contagem inclui espacos, quebras de linha e caracteres Unicode, usando
+`len(text)`; nao mede bytes nem tokens. O minimo do RF12 continua sendo
+10 caracteres nao brancos. Valores de configuracao menores que 10, fracionarios
+ou nao numericos sao invalidos.
+
+Para reduzir o teto, exporte `SOURCE_TEXT_MAX_LENGTH=20000` no processo do
+servico ou defina esse valor no `.env` da raiz usado pelo Docker Compose.
+O arquivo `.env` isolado do servico e somente um template para exportacao.
+Reinicie o servico (ou recrie o container) depois de alterar a configuracao,
+pois ela e armazenada em cache por processo. O Compose encaminha a variavel
+ao container e o `/openapi.json` publica o `maxLength` efetivo da instancia.
+O contrato YAML versionado descreve o ambiente com o valor padrao.
+
+Uma fonte acima do teto retorna HTTP **422**, `VALIDATION_ERROR`, com
+`error.details.issues` indicando `body.text`, tipo `source_text_too_long` e
+mensagem `A fonte deve conter no maximo 20000 caracteres.` (no exemplo).
+O texto e recusado integralmente: nao e truncado, persistido nem normalizado.
+O cabecalho `X-Request-ID`, quando enviado, e preservado no envelope de erro.
+
+Aumentar esse limite permite captar fontes maiores, mas nao altera o teto
+independente de 50.000 caracteres da estruturacao por IA. Para processa-las
+nessa etapa e necessario ajustar o contrato correspondente ou segmentar a
+entrada em trabalho separado.

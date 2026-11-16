@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.artifact import Artifact, ArtifactSource
     from app.models.audio_input import AudioInput
     from app.models.demand import Demand
+    from app.models.segment_embedding import SegmentEmbedding
     from app.models.user import User
 
 
@@ -161,6 +162,10 @@ class SourceSegment(Base):
     original_end_offset: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
 
     raw_input: Mapped["RawInput"] = relationship(back_populates="segments")
+    embeddings: Mapped[list["SegmentEmbedding"]] = relationship(
+        back_populates="segment",
+        passive_deletes=True,
+    )
 
     @property
     def original_content(self) -> str | None:

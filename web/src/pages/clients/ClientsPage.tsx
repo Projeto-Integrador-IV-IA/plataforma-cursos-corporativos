@@ -9,25 +9,27 @@
  * `GET /api/v1/clients` passar a aceita-los no contrato (RNF02).
  */
 
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 
-import { PATHS } from '@/app/paths';
-import { ClientList } from '@/features/clients/ClientList';
+import { PATHS } from "@/app/paths";
+import { ClientList } from "@/features/clients/ClientList";
+
+import "./clients.css";
 
 export function ClientsPage() {
   return (
     <section className="page">
-      <header className="page__header">
-        <h1 className="page__title">Clientes</h1>
-        <p className="page__requirements">
-          <span className="tag">RF01</span>
-          <span className="tag">RF03</span>
-        </p>
+      <header className="clients-page__header">
+        <div>
+          <h1 className="page__title">Clientes</h1>
+          <p className="page__description">
+            Empresas cadastradas na plataforma.
+          </p>
+        </div>
+        <Link className="button clients-page__create" to={PATHS.clientNew}>
+          <span aria-hidden="true">+</span> Cadastrar cliente
+        </Link>
       </header>
-      <p className="page__description">
-        Empresas clientes, da mais recente para a mais antiga.{' '}
-        <Link to={PATHS.clientNew}>Cadastrar cliente</Link>
-      </p>
       <ClientList />
     </section>
   );
