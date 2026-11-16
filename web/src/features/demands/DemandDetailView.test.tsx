@@ -171,8 +171,8 @@ describe('detalhe da demanda', () => {
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    expect(destino(/Registrar texto da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
-    expect(destino(/Fazer o curso com IA/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
+    expect(destino(/Registrar a primeira fonte da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
+    expect(destino(/Ver curso e revisar/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
 
