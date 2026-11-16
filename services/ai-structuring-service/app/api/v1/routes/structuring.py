@@ -74,6 +74,7 @@ def get_structuring_service(
 def get_job_service(
     request: Request,
     service: Annotated[StructuringService, Depends(get_structuring_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> StructuringJobService:
     """Devolve o registro de execucoes da aplicacao, criando-o na primeira vez.
 
@@ -85,7 +86,10 @@ def get_job_service(
 
     existente = getattr(request.app.state, "structuring_jobs", None)
     if existente is None:
-        existente = StructuringJobService(service)
+        # Testes unitarios e de contrato exercitam o servico de IA isolado; no
+        # runtime, o resultado passa pela API do pipeline para ficar persistido.
+        pipeline_url = None if settings.environment == "test" else settings.pipeline_service_url
+        existente = StructuringJobService(service, pipeline_service_url=pipeline_url)
         request.app.state.structuring_jobs = existente
     return existente
 
