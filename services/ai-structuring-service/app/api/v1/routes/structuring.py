@@ -28,7 +28,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
 
+from app.clients.pipeline_client import PipelineServiceClient
 from app.core.config import Settings, get_settings
+from app.providers.embedding_factory import get_embedding_provider
 from app.providers.factory import get_llm_provider
 from app.schemas.jobs import StructuringJobAccepted, StructuringJobRead
 from app.schemas.structuring import StructuringRequest, StructuringResponse
@@ -66,9 +68,24 @@ def get_structuring_service(
 
     Injetado como dependencia para que o teste troque provedor e configuracao
     sem variavel de ambiente e sem tocar a rota.
+
+    Embedding e cliente do pipeline-service so entram quando
+    ``RETRIEVAL_ENABLED=true`` (cards #161/#162): sem recuperacao ligada, o
+    caso de uso nunca os usa, e criar um ``FastEmbedProvider`` sem necessidade
+    custaria o carregamento do modelo em todo processo.
     """
 
-    return StructuringService(get_llm_provider(settings), settings)
+    embedding_provider = None
+    pipeline_client = None
+    if settings.retrieval_enabled:
+        embedding_provider = get_embedding_provider(settings)
+        pipeline_client = PipelineServiceClient(settings.pipeline_service_url)
+    return StructuringService(
+        get_llm_provider(settings),
+        settings,
+        embedding_provider=embedding_provider,
+        pipeline_client=pipeline_client,
+    )
 
 
 def get_job_service(

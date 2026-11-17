@@ -8,6 +8,7 @@ abre a v2 em vez de alterar a v1 em uso.
 from fastapi import APIRouter
 
 from app.api.v1.routes.consumption import router as consumption_router
+from app.api.v1.routes.embeddings import router as embeddings_router
 from app.api.v1.routes.structuring import router as structuring_router
 
 # Cada router de ``routes/`` entra aqui com ``api_router.include_router(...)`` a
@@ -16,3 +17,4 @@ from app.api.v1.routes.structuring import router as structuring_router
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(structuring_router)
 api_router.include_router(consumption_router)
+api_router.include_router(embeddings_router)

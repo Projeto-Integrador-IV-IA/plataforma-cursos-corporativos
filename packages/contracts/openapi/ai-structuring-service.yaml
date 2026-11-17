@@ -29,6 +29,10 @@ tags:
     description: |
       Estruturacao do curso por LLM (RF11, RF12). O caminho sincrono espera o
       resultado; o assincrono aceita o pedido e devolve identificador (RF17).
+  - name: embeddings
+    description: |
+      Geracao e armazenamento dos embeddings dos trechos de uma demanda
+      (RF29, card #160), insumo da recuperacao por similaridade.
 
 security:
   - bearerAuth: []
@@ -213,6 +217,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/demands/{demand_id}/embeddings:
+    post:
+      tags:
+      - embeddings
+      summary: Gerar e armazenar os embeddings dos trechos de uma demanda
+      operationId: embed_demand_api_v1_demands__demand_id__embeddings_post
+      parameters:
+      - name: demand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Demand Id
+      responses:
+        '200':
+          description: Quantos trechos foram embeddados e com qual modelo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbeddingRunRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 
 components:
   securitySchemes:
@@ -287,6 +317,26 @@ components:
       - hibrido
       title: CourseFormat
       description: Formato de realizacao do treinamento (RF11).
+    EmbeddingRunRead:
+      properties:
+        demand_id:
+          type: string
+          title: Demand Id
+        model:
+          type: string
+          title: Model
+          description: Modelo de embedding usado nesta rodada (RNF08).
+        segments_embedded:
+          type: integer
+          title: Segments Embedded
+          description: Trechos processados. Zero quando a demanda nao tem trecho persistido.
+      type: object
+      required:
+      - demand_id
+      - model
+      - segments_embedded
+      title: EmbeddingRunRead
+      description: Desfecho de uma rodada de embeddagem, devolvido ao chamador.
     ExecutionMetadata:
       properties:
         provider:

@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     llm_schema_max_retries: int = Field(ge=0)
     llm_temperature: float = Field(ge=0, le=2)
     llm_daily_token_budget: int | None = Field(default=None, ge=1)
+    embedding_provider: str = Field(default="mock", min_length=1)
+    embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", min_length=1)
+    # RF29 (cards #161/#162): a recuperacao fica desligada por padrao - o
+    # caminho de texto completo e o unico que a suite roda ate alguem decidir
+    # medir a qualidade com recuperacao ligada (criterio de aceite do #161).
+    retrieval_enabled: bool = Field(default=False)
+    retrieval_top_k: int = Field(default=5, ge=1)
+    retrieval_min_similarity: float = Field(default=0.2, ge=-1, le=1)
+    retrieval_max_context_chars: int = Field(default=8000, ge=1)
 
     @field_validator("llm_api_key", mode="before")
     @classmethod

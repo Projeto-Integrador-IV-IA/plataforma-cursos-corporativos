@@ -116,6 +116,7 @@ from uuid import UUID, uuid4
 
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception
 
+from app.clients.pipeline_client import PipelineServiceClient
 from app.core.config import Settings
 from app.core.consumption import registrar_consumo
 from app.core.exceptions import LLMInvalidResponseError, LLMProviderError
@@ -127,6 +128,7 @@ from app.domain.course import (
 )
 from app.prompts import carregar_prompt
 from app.providers.base import CompletionParams, CompletionResult, LLMProvider
+from app.providers.embedding_base import EmbeddingProvider
 
 #: Log deste modulo. A configuracao (formato, nivel, correlacao) e do processo,
 #: nunca fixada aqui - ver ``app.core.logging``.
@@ -298,6 +300,13 @@ class StructuringService:
             retentativas e temperatura (RNF11).
         sleep: espera entre tentativas. Injetavel para que o teste exercite a
             politica de retentativa sem dormir de verdade.
+        embedding_provider: provedor de embedding para a recuperacao por
+            similaridade (RF29, cards #161/#162). ``None`` desativa a
+            recuperacao mesmo com ``RETRIEVAL_ENABLED=true`` - sem provedor
+            nao ha vetor de consulta para gerar.
+        pipeline_client: cliente do pipeline-service usado para buscar os
+            trechos mais relevantes da demanda (card #161). ``None`` desativa
+            a recuperacao pela mesma razao.
     """
 
     def __init__(
@@ -306,10 +315,14 @@ class StructuringService:
         settings: Settings,
         *,
         sleep: Sleep | None = None,
+        embedding_provider: EmbeddingProvider | None = None,
+        pipeline_client: PipelineServiceClient | None = None,
     ) -> None:
         self._provider = provider
         self._settings = settings
         self._sleep = sleep or asyncio.sleep
+        self._embedding_provider = embedding_provider
+        self._pipeline_client = pipeline_client
 
     async def structure(
         self,
@@ -488,7 +501,7 @@ class StructuringService:
 
         execution_id = execution_id or uuid4()
         prompt = carregar_prompt(EXTRACTION_PROMPT_NAME, prompt_version)
-        trechos = numerar_trechos(demand.text)
+        trechos = await self._montar_trechos(demand)
         params = self._parametros_da_extracao()
         outcome: StructuringOutcome | None = None
         curso: StructuredCourse | None = None
@@ -558,6 +571,62 @@ class StructuringService:
         if curso is None:
             return outcome
         return replace(outcome, course=curso, execution_id=execution_id)
+
+    async def _montar_trechos(self, demand: RawDemand) -> tuple[str, ...]:
+        """Decide os trechos a enviar ao provedor: recuperados ou o texto completo (RF29).
+
+        Com ``RETRIEVAL_ENABLED`` ligado e provedor de embedding mais cliente
+        do pipeline-service configurados (cards #161/#162), busca os trechos
+        mais proximos do texto da demanda e os usa no lugar do texto inteiro -
+        contexto menor, mais barato e com menos ruido para a citacao (RF28).
+
+        Volta para o texto completo (``numerar_trechos``) em qualquer um
+        destes casos, sempre em silencio para quem chamou: recuperacao
+        desligada, servico sem provedor/cliente configurado, demanda sem
+        embedding gravado ainda (nenhum resultado acima do piso de
+        similaridade) ou falha de rede ao consultar o pipeline-service. O
+        criterio de aceite do #161 pede exatamente isso - "o caminho sem
+        recuperacao continua disponivel para comparacao de qualidade": aqui
+        ele e o padrao seguro, nunca uma demanda sem resultado.
+
+        A numeracao da citacao (RF28) nao muda: os trechos recuperados entram
+        no mesmo ``numerar_trechos``-like ``[n] trecho``, numerados por
+        chamada como sempre foram - trocar a origem do trecho nao troca como
+        ele e citado.
+        """
+
+        trechos_completos = numerar_trechos(demand.text)
+        if (
+            not self._settings.retrieval_enabled
+            or self._embedding_provider is None
+            or self._pipeline_client is None
+        ):
+            return trechos_completos
+
+        try:
+            consulta = await self._embedding_provider.embed([demand.text])
+            resultados = await self._pipeline_client.search_similar_segments(
+                demand.demand_id,
+                model=consulta.model,
+                vector=list(consulta.vectors[0]),
+                top_k=self._settings.retrieval_top_k,
+                min_similarity=self._settings.retrieval_min_similarity,
+            )
+        except Exception:
+            _logger.warning(
+                "Recuperacao por similaridade falhou; usando o texto completo (demand_id=%s).",
+                demand.demand_id,
+            )
+            return trechos_completos
+
+        if not resultados:
+            return trechos_completos
+
+        # ``search_similar_segments`` ja devolve em ordem decrescente de
+        # similaridade (RNF28); truncar por tamanho aqui so precisa cortar do
+        # fim, nunca reordenar.
+        trechos_recuperados = tuple(resultado["content"] for resultado in resultados)
+        return _truncar_por_tamanho(trechos_recuperados, self._settings.retrieval_max_context_chars)
 
     def _parametros_da_extracao(self) -> CompletionParams:
         """Parametros da chamada de extracao, todos vindos do ambiente (RNF11).
@@ -648,6 +717,26 @@ def formatar_trechos_numerados(trechos: Sequence[str]) -> str:
     """
 
     return "\n".join(f"[{numero}] {trecho}" for numero, trecho in enumerate(trechos, start=1))
+
+
+def _truncar_por_tamanho(trechos: Sequence[str], limite_caracteres: int) -> tuple[str, ...]:
+    """Mantem trechos, na ordem recebida, enquanto a soma couber no limite (card #162).
+
+    Os trechos chegam ordenados por similaridade decrescente (RNF28): cortar
+    do fim descarta primeiro os menos relevantes, nunca reordena. Sempre
+    mantem ao menos o primeiro trecho, mesmo que ele sozinho exceda o limite -
+    um contexto vazio e peor que um contexto so um pouco maior que o teto.
+    """
+
+    retidos: list[str] = []
+    total = 0
+    for trecho in trechos:
+        tamanho = len(trecho)
+        if retidos and total + tamanho > limite_caracteres:
+            break
+        retidos.append(trecho)
+        total += tamanho
+    return tuple(retidos)
 
 
 def _citacoes_fora_do_intervalo(
