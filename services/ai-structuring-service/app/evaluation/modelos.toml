@@ -5,11 +5,14 @@
 # modelo so e defensavel se outra pessoa conseguir repetir a medicao com a
 # mesma lista.
 #
-# PRECO CONSULTADO EM 2026-10-27, DIRETO NA PAGINA DE CADA MODELO EM
-# openrouter.ai/<slug>/pricing. Preco de API muda; se `preco_consultado_em`
-# ficar velho (meses, nao dias), reconsultar e atualizar os tres campos juntos
-# - foi a falta de data e fonte que a revisao do levantamento de custos (card
-# #121) apontou.
+# PRECO CONSULTADO DIRETO NA API PUBLICA DO OPENROUTER
+# (https://openrouter.ai/api/v1/models, campo `pricing`, USD por token -
+# convertido para USD por milhao de tokens aqui). Preco de API muda; se
+# `preco_consultado_em` ficar velho (meses, nao dias), reconsultar e
+# atualizar os tres campos juntos - foi a falta de data e fonte que a
+# revisao do levantamento de custos (card #121) apontou. Os quatro primeiros
+# modelos foram consultados em 2026-10-27; os tres da disputa interna
+# DeepSeek (card #220), em 2026-11-04.
 #
 # Os slugs seguem a convencao vendor/modelo do OpenRouter. `google/gemini-2.0
 # -flash-001`, o terceiro candidato original, foi descontinuado pelo OpenRouter
@@ -72,3 +75,51 @@ janela_de_contexto = 131072
 usd_por_mtok_entrada = 0.10
 usd_por_mtok_saida = 0.32
 preco_consultado_em = 2026-10-27
+
+# ---------------------------------------------------------------------------
+# Disputa interna DeepSeek (card #220): tres niveis da mesma familia, para
+# medir se vale pagar mais dentro do proprio fornecedor antes de comparar
+# entre fornecedores. R1 e o unico com raciocinio em cadeia (reasoning);
+# Chat V3.1 e o padrao sem raciocinio; V4.1 Flash e o nivel mais barato do
+# catalogo inteiro - quase 10x mais barato que o R1 na entrada.
+# ---------------------------------------------------------------------------
+
+[[modelo]]
+slug = "deepseek/deepseek-r1-0528"
+apelido = "DeepSeek R1"
+justificativa = """
+Nivel com raciocinio em cadeia (reasoning) da familia DeepSeek - o mais caro \
+dos tres, mas ainda uma fracao do preco do Sonnet 4.5. Mede se o raciocinio \
+extra reduz alucinacao/citacao invalida o bastante para justificar o custo \
+mais alto dentro da propria familia.\
+"""
+janela_de_contexto = 163840
+usd_por_mtok_entrada = 0.50
+usd_por_mtok_saida = 2.15
+preco_consultado_em = 2026-11-04
+
+[[modelo]]
+slug = "deepseek/deepseek-chat-v3.1"
+apelido = "DeepSeek Chat V3.1"
+justificativa = """
+Nivel padrao (sem reasoning) da familia DeepSeek - o meio da disputa interna, \
+entre o R1 e o V4.1 Flash. Candidato mais provavel para producao se a \
+qualidade do Flash nao bastar.\
+"""
+janela_de_contexto = 163840
+usd_por_mtok_entrada = 0.25
+usd_por_mtok_saida = 0.95
+preco_consultado_em = 2026-11-04
+
+[[modelo]]
+slug = "deepseek/deepseek-v4.1-flash"
+apelido = "DeepSeek V4.1 Flash"
+justificativa = """
+Nivel mais barato da familia DeepSeek e um dos mais baratos do catalogo \
+inteiro - entrada quase 10x mais barata que o R1 da mesma familia. Testa o \
+limite inferior de custo antes de a conformidade de schema comecar a cair.\
+"""
+janela_de_contexto = 1048576
+usd_por_mtok_entrada = 0.045
+usd_por_mtok_saida = 0.50
+preco_consultado_em = 2026-11-04
