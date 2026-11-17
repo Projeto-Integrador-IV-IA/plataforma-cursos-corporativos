@@ -23,12 +23,14 @@ import { type ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { PermissionGate } from '@/features/auth/Authorization';
 import { PERMISSIONS } from '@/features/auth/permissions';
 import { ClientDetailDemands } from '@/features/clients/ClientDetailDemands';
 import { ClientDetailForm } from '@/features/clients/ClientDetailForm';
 import { clientDetailKey } from '@/features/clients/ClientDetailQueryKeys';
 import { formatarDataHora, ouSemInformacao } from '@/features/demands/DemandDetailLabels';
+import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { deactivateClient, getClient, reactivateClient } from '@/services/clients';
 import type { Uuid } from '@/types/api';
@@ -67,6 +69,7 @@ interface ClientDetailViewProps {
 export function ClientDetailView({ clientId }: ClientDetailViewProps) {
   const [editando, setEditando] = useState(false);
   const queryClient = useQueryClient();
+  const { showSuccess } = useFeedback();
 
 const alterarSituacao = useMutation({
   mutationFn: async (active: boolean) => {
@@ -77,6 +80,7 @@ const alterarSituacao = useMutation({
   onSuccess: (clienteAtualizado) => {
     queryClient.setQueryData(clientDetailKey(clientId), clienteAtualizado);
     void queryClient.invalidateQueries({ queryKey: ['clients'] });
+    showSuccess('Situacao do cliente atualizada.');
   },
 });
 
@@ -173,6 +177,7 @@ const alterarSituacao = useMutation({
                 {mensagemDeErro(alterarSituacao.error)}
               </p>
             )}
+            {alterarSituacao.isPending ? <ProcessingMessage operation="alteracao da situacao" /> : null}
             <p className="client-detail__note">
               Inativar o cliente ainda nao e possivel por esta tela: a operacao pertence ao RF01.3
               e nao foi publicada no contrato.

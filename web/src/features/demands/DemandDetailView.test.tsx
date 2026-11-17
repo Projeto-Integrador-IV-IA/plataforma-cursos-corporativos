@@ -224,6 +224,7 @@ describe('detalhe da demanda', () => {
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
 
+
   it('avisa que ainda falta registrar o texto para gerar o curso com IA', async () => {
     await abrirDetalhe();
 

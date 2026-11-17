@@ -4,13 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { ProcessingMessage } from '@/components/ProcessingMessage';
 
 describe('mensagem de processamento', () => {
-  it('sinaliza a operacao em curso', () => {
-    render(<ProcessingMessage operation="restauracao da versao" />);
+  it('sinaliza a operacao em curso para pessoa e tecnologia assistiva', () => {
+    render(<ProcessingMessage operation="salvamento do cadastro" />);
 
-    const message = screen.getByRole('status', {
-      name: 'Processando: restauracao da versao…',
-    });
+    const mensagem = screen.getByRole('status', { name: 'Processando: salvamento do cadastro…' });
 
-    expect(message.getAttribute('aria-busy')).toBe('true');
+    expect(mensagem.getAttribute('aria-busy')).toBe('true');
+    expect(mensagem.className).toContain('processing-message');
   });
 });

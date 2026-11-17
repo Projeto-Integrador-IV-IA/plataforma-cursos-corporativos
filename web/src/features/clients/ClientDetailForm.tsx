@@ -25,6 +25,7 @@ import { type FormEvent, useId, useState } from 'react';
 import { CLIENTS_KEY, clientDetailKey } from '@/features/clients/ClientDetailQueryKeys';
 import { FieldError } from '@/components/FieldError';
 import { fieldErrorsFrom, hasFieldErrors, type FieldErrors } from '@/components/fieldErrors';
+import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { updateClient } from '@/services/clients';
@@ -301,6 +302,7 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           Cancelar
         </button>
       </div>
+      {edicao.isPending ? <ProcessingMessage operation="salvamento do cadastro" /> : null}
     </form>
   );
 }

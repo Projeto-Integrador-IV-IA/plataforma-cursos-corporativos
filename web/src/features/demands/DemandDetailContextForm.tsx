@@ -21,6 +21,7 @@ import { type FormEvent, useId, useState } from 'react';
 import { DEMANDS_KEY, demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import { FieldError } from '@/components/FieldError';
 import { fieldErrorsFrom, hasFieldErrors, type FieldErrors } from '@/components/fieldErrors';
+import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { updateDemand } from '@/services/demands';
@@ -159,6 +160,7 @@ export function DemandDetailContextForm({ demand, onFinish }: DemandDetailContex
           Cancelar
         </button>
       </div>
+      {edicao.isPending ? <ProcessingMessage operation="salvamento do contexto" /> : null}
     </form>
   );
 }

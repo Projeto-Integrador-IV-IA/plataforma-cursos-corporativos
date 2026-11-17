@@ -11,6 +11,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { PATHS } from "@/app/paths";
 import { FieldError } from "@/components/FieldError";
+import { ProcessingMessage } from "@/components/ProcessingMessage";
 import { useFeedback } from "@/hooks/useFeedback";
 import { isApiError } from "@/services/api";
 import { hasAuthSession, login } from "@/services/auth";
@@ -69,7 +70,7 @@ function intendedDestination(state: unknown): string {
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showError } = useFeedback();
+  const { showSuccess, showError } = useFeedback();
   const emailId = useId();
   const passwordId = useId();
   const [email, setEmail] = useState("");
@@ -96,6 +97,7 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await login({ email: email.trim(), password });
+      showSuccess("Sessao iniciada.");
       navigate(destination, { replace: true });
     } catch (error) {
       showError(isApiError(error) ? error.message : LOGIN_FAILURE);
@@ -242,6 +244,7 @@ export function LoginPage() {
                 <span className="login-spinner" aria-hidden="true" />
               ) : null}
             </button>
+            {submitting ? <ProcessingMessage operation="autenticacao" /> : null}
           </form>
           <p className="login-card__access">
             <Icon name="lock" /> Acesso exclusivo para operadores cadastrados.

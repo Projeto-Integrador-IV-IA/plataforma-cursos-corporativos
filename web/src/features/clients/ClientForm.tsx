@@ -25,6 +25,7 @@ import { useNavigate } from 'react-router-dom';
 import { PATHS } from '@/app/paths';
 import { FieldError } from '@/components/FieldError';
 import { fieldErrorsFrom, hasFieldErrors, type FieldErrors } from '@/components/fieldErrors';
+import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { createClient } from '@/services/clients';
@@ -268,6 +269,7 @@ export function ClientForm() {
           {cadastro.isPending ? 'Cadastrando…' : 'Cadastrar cliente'}
         </button>
       </div>
+      {cadastro.isPending ? <ProcessingMessage operation="cadastro do cliente" /> : null}
     </form>
   );
 }
