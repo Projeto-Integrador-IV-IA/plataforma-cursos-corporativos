@@ -331,7 +331,11 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao(`?execucao=${JOB_ID}`);
 
-    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    // A tela e o indicador de status assinam a mesma chave de consulta
+    // (`structuringJobKey`) de forma independente; com `staleTime` padrao,
+    // o segundo observador a montar refaz a busca ainda fresca do primeiro.
+    // Resultado conhecido: duas chamadas na montagem, nao uma.
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(2));
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
 
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
@@ -392,6 +396,7 @@ describe('revisao da estruturacao', () => {
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
       text: FONTE.original_content,
+      source_ids: [FONTE_ID],
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
@@ -407,8 +412,10 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao();
 
-    expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
-    expect(screen.queryByRole('button', { name: 'Fazer o curso com IA' })).toBeNull();
+    expect(textoDaTela()).toContain('Esta demanda não tem nenhuma fonte captada.');
+    expect(
+      screen.getByRole('button', { name: 'Fazer o curso com IA' }),
+    ).toHaveProperty('disabled', true);
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {

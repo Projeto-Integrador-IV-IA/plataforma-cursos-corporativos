@@ -164,17 +164,23 @@ describe('detalhe da demanda', () => {
     }
   });
 
-  it('leva ao cliente, a captacao, a estruturacao e as versoes do artefato', async () => {
+  it('leva ao cliente, a captacao e as versoes do artefato', async () => {
     await abrirDetalhe();
 
     const destino = (nome: RegExp) =>
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    expect(destino(/Registrar texto da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
-    expect(destino(/Fazer o curso com IA/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
+    // O convite para registrar o texto aparece tambem no bloco "Curso com IA"
+    // (DemandStructuringStatus) quando ainda nao ha fonte, entao e preciso
+    // restringir a consulta ao bloco "Fontes captadas" para ter um unico link.
+    const fontes = screen.getByRole('region', { name: 'Fontes captadas' });
+    expect(
+      within(fontes).getByRole('link', { name: /Registrar texto da demanda/ }).getAttribute('href'),
+    ).toBe(`/demandas/${DEMANDA.id}/ingestao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });
+
 
   it('avisa que ainda falta registrar o texto para gerar o curso com IA', async () => {
     await abrirDetalhe();
