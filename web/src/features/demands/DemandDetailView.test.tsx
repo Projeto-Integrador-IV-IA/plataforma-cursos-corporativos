@@ -27,6 +27,7 @@ vi.mock('@/services/demands', () => ({
   createDemand: vi.fn(),
   listDemands: vi.fn(),
   getDemand: vi.fn(),
+  listDemandSegments: vi.fn(),
   updateDemand: vi.fn(),
 }));
 vi.mock('@/services/pipeline', () => ({ listStageTransitions: vi.fn() }));
@@ -85,8 +86,8 @@ const DEMANDA: DemandDetail = {
     notes: null,
     active: true,
   },
-  // A secao de fontes do detalhe continua anunciada e vazia (RF09): o que
-  // consome `raw_inputs` hoje e a revisao da estruturacao (RF19).
+  // A secao de fontes continua vazia neste fixture; a revisao consome
+  // `raw_inputs` em outro fluxo (RF19).
   raw_inputs: [],
   artifacts: [EMENTA],
 };
