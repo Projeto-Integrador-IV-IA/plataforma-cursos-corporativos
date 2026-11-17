@@ -9,6 +9,7 @@
 export const PATHS = {
   login: "/login",
   home: "/inicio",
+  accessDenied: "/acesso-negado",
   clients: "/clientes",
   clientNew: "/clientes/novo",
   clientDetail: "/clientes/:clientId",

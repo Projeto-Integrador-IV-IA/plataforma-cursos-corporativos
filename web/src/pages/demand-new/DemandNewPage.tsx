@@ -9,6 +9,8 @@
 import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { DemandForm } from '@/features/demands/DemandForm';
 
 export function DemandNewPage() {
@@ -30,7 +32,9 @@ export function DemandNewPage() {
       <DemandForm />
 
       <p className="page__description">
-        <Link to={PATHS.demands}>Voltar para a lista de demandas</Link>
+        <PermissionGate permission={PERMISSIONS.demandsRead}>
+          <Link to={PATHS.demands}>Voltar para a lista de demandas</Link>
+        </PermissionGate>
       </p>
     </section>
   );

@@ -19,5 +19,9 @@ export default defineConfig({
     globals: false,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // Formularios com varios campos combinam digitacao simulada com waitFor;
+    // sob carga (suite inteira em paralelo) isso passa perto do padrao de 5s
+    // e gera falha intermitente sem bug nenhum por tras.
+    testTimeout: 15000,
   },
 });

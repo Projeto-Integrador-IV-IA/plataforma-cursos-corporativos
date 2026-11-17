@@ -36,6 +36,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { buildPath, QUERY_PARAMS } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { formatarDataHora } from '@/features/demands/DemandDetailLabels';
 import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import {
@@ -237,16 +239,18 @@ export function DemandStructuringStatus({
       {source === undefined ? (
         <>
           <p className="demand-detail__empty">
-            Esta demanda não tem nenhuma fonte captada. Sem o texto do cliente, não há o que
+            Esta demanda nao tem nenhuma fonte captada. Sem o texto do cliente, nao ha o que
             estruturar.
           </p>
           <div className="form__actions">
             <button className="button" type="button" disabled>
               Fazer o curso com IA
             </button>
-            <Link className="button button--secondary" to={buildPath.demandIngestion(demandId)}>
-              Registrar texto da demanda
-            </Link>
+            <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+              <Link className="button button--secondary" to={buildPath.demandIngestion(demandId)}>
+                Registrar texto da demanda
+              </Link>
+            </PermissionGate>
           </div>
         </>
       ) : (

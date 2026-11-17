@@ -18,6 +18,8 @@ import {
 } from "react-router-dom";
 
 import { buildPath, PATHS, QUERY_PARAMS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { DemandDetailView } from "@/features/demands/DemandDetailView";
 
 import "./demand-detail.css";
@@ -65,9 +67,11 @@ export function DemandDetailPage() {
     <section className="page page--wide">
       <header className="demand-detail-page__header">
         <h1 className="page__title">Detalhe da demanda</h1>
-        <Link className="demand-detail-page__back" to={PATHS.demands}>
-          ← Voltar para demandas
-        </Link>
+        <PermissionGate permission={PERMISSIONS.demandsRead}>
+          <Link className="demand-detail-page__back" to={PATHS.demands}>
+            ← Voltar para demandas
+          </Link>
+        </PermissionGate>
       </header>
 
       {demandId === undefined ? (

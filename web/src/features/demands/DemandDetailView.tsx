@@ -25,6 +25,8 @@ import { type ReactNode, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { buildPath, QUERY_PARAMS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { DemandDetailArtifacts } from "@/features/demands/DemandDetailArtifacts";
 import { DemandDetailContextForm } from "@/features/demands/DemandDetailContextForm";
 import {
@@ -191,10 +193,12 @@ export function DemandDetailView({
           Contexto
         </h2>
         {editandoContexto ? (
-          <DemandDetailContextForm
-            demand={demanda}
-            onFinish={() => setEditandoContexto(false)}
-          />
+          <PermissionGate permission={PERMISSIONS.demandsManage}>
+            <DemandDetailContextForm
+              demand={demanda}
+              onFinish={() => setEditandoContexto(false)}
+            />
+          </PermissionGate>
         ) : (
           <>
             <dl className="demand-detail__fields">
@@ -207,13 +211,15 @@ export function DemandDetailView({
               </Campo>
             </dl>
             <div className="form__actions demand-detail__actions">
-              <button
-                className="button"
-                type="button"
-                onClick={() => setEditandoContexto(true)}
-              >
-                Editar contexto
-              </button>
+              <PermissionGate permission={PERMISSIONS.demandsManage}>
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => setEditandoContexto(true)}
+                >
+                  Editar contexto
+                </button>
+              </PermissionGate>
             </div>
           </>
         )}
@@ -228,7 +234,9 @@ export function DemandDetailView({
         </h2>
         <dl className="demand-detail__fields">
           <Campo termo="Empresa">
-            <Link to={buildPath.clientDetail(cliente.id)}>{cliente.name}</Link>
+            <PermissionGate permission={PERMISSIONS.clientsRead}>
+              <Link to={buildPath.clientDetail(cliente.id)}>{cliente.name}</Link>
+            </PermissionGate>
           </Campo>
           <Campo termo="CNPJ">{ouSemInformacao(cliente.cnpj)}</Campo>
           <Campo termo="Segmento">{ouSemInformacao(cliente.segment)}</Campo>
@@ -289,12 +297,14 @@ export function DemandDetailView({
           source={fonteMaisRecente(demanda.raw_inputs)}
         />
         <div className="demand-detail__actions">
-          <Link
-            className="button button--secondary"
-            to={caminhoDaRevisao}
-          >
-            Ver curso e revisar
-          </Link>
+          <PermissionGate permission={PERMISSIONS.structuringReview}>
+            <Link
+              className="button button--secondary"
+              to={caminhoDaRevisao}
+            >
+              Ver curso e revisar
+            </Link>
+          </PermissionGate>
         </div>
       </section>
 

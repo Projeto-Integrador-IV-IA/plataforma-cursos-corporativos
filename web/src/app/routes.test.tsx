@@ -15,6 +15,7 @@ import { renderRoute } from '@/test/renderRoute';
 describe('mapa de rotas', () => {
   const telas: readonly [caminho: string, titulo: string][] = [
     [PATHS.login, 'Entrar'],
+    [PATHS.accessDenied, 'Acesso nao autorizado'],
     [PATHS.clients, 'Clientes'],
     ['/clientes/abc-123', 'Detalhe do cliente'],
     [PATHS.pipeline, 'Pipeline'],
@@ -67,6 +68,13 @@ describe('mapa de rotas', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Entrar' })).toBeDefined();
     expect(screen.queryByRole('navigation', { name: 'Navegacao principal' })).toBeNull();
+  });
+
+  it('impede perfil sem permissao de acessar rota protegida diretamente', () => {
+    renderRoute(PATHS.demandNew, { role: 'REVISOR' });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Acesso nao autorizado' })).toBeDefined();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Nova demanda' })).toBeNull();
   });
 });
 

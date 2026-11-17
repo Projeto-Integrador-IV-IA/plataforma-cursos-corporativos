@@ -181,6 +181,33 @@ describe('erro da API no envelope da plataforma', () => {
     expect(erro.message).toContain('indisponivel');
   });
 
+  it('mantem visivel a recusa de permissao devolvida pelo servidor (403)', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
+    stubFetch(() =>
+      Promise.resolve(
+        jsonResponse(
+          {
+            error: {
+              code: 'FORBIDDEN',
+              message: 'Seu perfil nao pode executar esta operacao.',
+            },
+          },
+          403,
+        ),
+      ),
+    );
+
+    const erro = await request('/demands', { method: 'POST', body: {} }).catch(
+      (motivo: unknown) => motivo,
+    );
+
+    expect(firstRequest().init?.method).toBe('POST');
+    expect(isApiError(erro)).toBe(true);
+    if (!isApiError(erro)) return;
+    expect(erro.status).toBe(403);
+    expect(erro.message).toBe('Seu perfil nao pode executar esta operacao.');
+  });
+
   it('le a correlacao do cabecalho quando o corpo nao a traz (RNF09)', async () => {
     vi.stubEnv('VITE_API_BASE_URL', BASE_URL);
     stubFetch(() =>
