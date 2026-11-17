@@ -15,7 +15,9 @@
  *  - etapa e situacao aparecem, mas nao mudam por aqui - quem as move e o
  *    pipeline (RF05, RF06), que registra cada transicao na trilha exibida
  *    abaixo;
- *  - as fontes captadas chegam no agregado da demanda e aparecem nesta tela.
+ *  - as fontes captadas chegam no agregado da demanda e aparecem nesta tela;
+ *    quando a URL identifica uma evidencia, a secao apresenta o trecho citado
+ *    e seus vizinhos no lugar da listagem.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -36,8 +38,8 @@ import { DemandDetailSources } from "@/features/demands/DemandDetailSources";
 import { DemandStageTimeline } from "@/features/demands/DemandStageTimeline";
 import { DemandStructuringStatus } from "@/features/demands/DemandStructuringStatus";
 import { isApiError } from "@/services/api";
-import { getDemand } from "@/services/demands";
-import type { DemandRawInputRead, Uuid } from "@/types/api";
+import { getDemand, listDemandSegments } from "@/services/demands";
+import type { DemandRawInputRead, SourceSegmentRead, Uuid } from "@/types/api";
 
 /** Mensagem exibida quando a falha nao veio no envelope da plataforma. */
 const FALHA_GENERICA = "Nao foi possivel carregar a demanda. Tente novamente.";
@@ -86,10 +88,20 @@ function Campo({ termo, children }: CampoProps) {
 
 interface DemandDetailViewProps {
   demandId: Uuid;
+  selectedSourceId: string | null;
+  selectedSegmentId: string | null;
+  returnTo: { pathname: string; search: string; hash: string };
 }
 
-export function DemandDetailView({ demandId }: DemandDetailViewProps) {
+export function DemandDetailView({
+  demandId,
+  selectedSourceId,
+  selectedSegmentId,
+  returnTo,
+}: DemandDetailViewProps) {
   const [editandoContexto, setEditandoContexto] = useState(false);
+  const evidenciaSelecionada =
+    selectedSourceId !== null || selectedSegmentId !== null;
   const [searchParams] = useSearchParams();
   const execucao = searchParams.get(QUERY_PARAMS.structuringJob);
   const caminhoDaRevisao = `${buildPath.demandStructuring(demandId)}${
@@ -104,6 +116,12 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
     enabled: demandId !== "",
   });
 
+  const segmentos = useQuery<readonly SourceSegmentRead[]>({
+    queryKey: ["demand-segments", demandId],
+    queryFn: ({ signal }) => listDemandSegments(demandId, { signal }),
+    enabled: demandId !== "" && evidenciaSelecionada,
+  });
+
   if (detalhe.isPending) {
     return (
       <p className="page__pending" aria-live="polite">
@@ -116,6 +134,22 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
     return (
       <p className="demand-detail__failure" aria-live="polite">
         {mensagemDeErro(detalhe.error)}
+      </p>
+    );
+  }
+
+  if (evidenciaSelecionada && segmentos.isPending) {
+    return (
+      <p className="page__pending" aria-live="polite">
+        Carregando a fonte citada…
+      </p>
+    );
+  }
+
+  if (evidenciaSelecionada && segmentos.isError) {
+    return (
+      <p className="demand-detail__failure" role="alert">
+        {mensagemDeErro(segmentos.error)}
       </p>
     );
   }
@@ -271,7 +305,14 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
         <h2 className="demand-detail__section-title" id="demanda-fontes">
           Fontes captadas
         </h2>
-        <DemandDetailSources demandId={demandId} sources={demanda.raw_inputs} />
+        <DemandDetailSources
+          demandId={demandId}
+          rawInputs={demanda.raw_inputs}
+          segments={segmentos.data ?? []}
+          selectedSourceId={selectedSourceId}
+          selectedSegmentId={selectedSegmentId}
+          returnTo={returnTo}
+        />
       </section>
 
       <section

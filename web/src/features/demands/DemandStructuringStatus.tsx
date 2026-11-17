@@ -94,9 +94,15 @@ interface DemandStructuringStatusProps {
   demandId: Uuid;
   /** Fonte captada mais recente; `undefined` quando a demanda nao tem nenhuma. */
   source: DemandRawInputRead | undefined;
+  /** Ha uma estrutura pronta para a conferencia humana. */
+  reviewAvailable?: boolean;
 }
 
-export function DemandStructuringStatus({ demandId, source }: DemandStructuringStatusProps) {
+export function DemandStructuringStatus({
+  demandId,
+  source,
+  reviewAvailable = false,
+}: DemandStructuringStatusProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { showSuccess, showError } = useFeedback();
@@ -143,6 +149,7 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
   });
 
   const estado = execucao.data?.status;
+  const aguardandoRevisao = estado === 'CONCLUIDA' && reviewAvailable;
   const emCurso = estado === 'PENDENTE' || estado === 'PROCESSANDO';
   // Execucao na URL cujo estado ainda nao chegou: nao se sabe se terminou, e
   // na duvida o reenvio continua bloqueado.
@@ -172,7 +179,9 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
       ) : (
         <>
           <p
-            className={`structuring-status__state structuring-status__state--${execucao.data.status.toLowerCase()}`}
+            className={`structuring-status__state structuring-status__state--${
+              aguardandoRevisao ? 'aguardando-revisao' : execucao.data.status.toLowerCase()
+            }`}
             role="status"
             aria-live="polite"
             aria-label="Estado da execucao"
@@ -182,7 +191,7 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
             </span>
             <span>
               <strong className="structuring-status__name">
-                {rotuloDoEstado(execucao.data.status)}
+                {aguardandoRevisao ? 'Aguardando revisao' : rotuloDoEstado(execucao.data.status)}
               </strong>{' '}
               — {explicacaoDoEstado(execucao.data.status)}
             </span>
@@ -198,10 +207,17 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
               : ` Tempo total: ${formatarDuracao(execucao.data.total_elapsed_ms)}.`}
           </p>
           {execucao.data.error === null ? null : (
-            <p className="demand-detail__failure">
-              {execucao.data.error.message} (codigo {execucao.data.error.code})
-            </p>
+            <div className="structuring-status__failure">
+              <p className="demand-detail__failure">
+                Causa: {execucao.data.error.message} (codigo {execucao.data.error.code})
+              </p>
+            </div>
           )}
+          {aguardandoRevisao ? (
+            <Link className="button button--secondary" to={buildPath.demandStructuring(demandId)}>
+              Abrir tela de revisao
+            </Link>
+          ) : null}
         </>
       )}
 
@@ -244,9 +260,11 @@ export function DemandStructuringStatus({ demandId, source }: DemandStructuringS
             >
               {envio.isPending
                 ? 'Enviando…'
-                : jobId === ''
-                ? 'Fazer o curso com IA'
-                : 'Fazer o curso novamente com IA'}
+                : estado === 'ERRO'
+                  ? 'Reprocessar estrutura'
+                  : jobId === ''
+                    ? 'Fazer o curso com IA'
+                    : 'Fazer o curso novamente com IA'}
             </button>
           </div>
           <p className="form__hint">
