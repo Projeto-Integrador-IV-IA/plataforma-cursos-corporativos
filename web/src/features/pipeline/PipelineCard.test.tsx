@@ -95,6 +95,19 @@ describe('cartao da demanda no pipeline', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Detalhe da demanda' })).toBeDefined();
   });
 
+  it('oferece cada etapa como atalho para a lista filtrada', async () => {
+    const user = userEvent.setup();
+    renderRoute('/pipeline');
+
+    const stageLink = await screen.findByRole('link', { name: 'Ver demandas na etapa Captacao' });
+
+    expect(stageLink.getAttribute('href')).toBe('/demandas?etapa=CAPTACAO');
+
+    await user.click(stageLink);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Demandas' })).toBeDefined();
+  });
+
   it('distingue a demanda que exige atencao por texto, nao so por cor', async () => {
     withCard(createCard({ owner: null }));
     renderRoute('/pipeline');

@@ -23,6 +23,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useId, useState } from 'react';
 
 import { CLIENTS_KEY, clientDetailKey } from '@/features/clients/ClientDetailQueryKeys';
+import { FieldError } from '@/components/FieldError';
+import { fieldErrorsFrom, hasFieldErrors, type FieldErrors } from '@/components/fieldErrors';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { updateClient } from '@/services/clients';
@@ -68,6 +70,13 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
   const [contactEmail, setContactEmail] = useState(client.contact_email ?? '');
   const [contactPhone, setContactPhone] = useState(client.contact_phone ?? '');
   const [notes, setNotes] = useState(client.notes ?? '');
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  function clearError(field: string) {
+    if (errors[field] !== undefined) {
+      setErrors((current) => ({ ...current, [field]: undefined }));
+    }
+  }
 
   const edicao = useMutation({
     mutationFn: (payload: ClientUpdate) => updateClient(client.id, payload),
@@ -79,7 +88,11 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
       onFinish();
       await queryClient.invalidateQueries({ queryKey: CLIENTS_KEY });
     },
-    onError: (erro: unknown) => showError(mensagemDeErro(erro)),
+    onError: (erro: unknown) => {
+      const fieldErrors = fieldErrorsFrom(erro);
+      setErrors(fieldErrors);
+      if (!hasFieldErrors(fieldErrors)) showError(mensagemDeErro(erro));
+    },
   });
 
   const razaoSocialNova = name.trim();
@@ -125,16 +138,22 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           id={idRazaoSocial}
           className="form__control"
           value={name}
+          aria-invalid={errors.name !== undefined}
+          aria-describedby={errors.name === undefined ? undefined : `${idRazaoSocial}-error`}
           required
           maxLength={200}
           autoComplete="off"
-          onChange={(evento) => setName(evento.target.value)}
+          onChange={(evento) => {
+            setName(evento.target.value);
+            clearError('name');
+          }}
         />
         {razaoSocialNova === '' ? (
           <p className="form__hint form__hint--error">
             A razao social identifica a empresa e nao pode ficar vazia.
           </p>
         ) : null}
+        <FieldError id={`${idRazaoSocial}-error`} message={errors.name} />
       </div>
 
       <div className="form__field">
@@ -145,14 +164,20 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           id={idCnpj}
           className="form__control"
           value={cnpj}
+          aria-invalid={errors.cnpj !== undefined}
+          aria-describedby={errors.cnpj === undefined ? undefined : `${idCnpj}-error`}
           maxLength={18}
           autoComplete="off"
           inputMode="numeric"
-          onChange={(evento) => setCnpj(evento.target.value)}
+          onChange={(evento) => {
+            setCnpj(evento.target.value);
+            clearError('cnpj');
+          }}
         />
         <p className="form__hint">
           CNPJ ja usado por outra empresa e recusado pelo servico.
         </p>
+        <FieldError id={`${idCnpj}-error`} message={errors.cnpj} />
       </div>
 
       <div className="form__field">
@@ -163,13 +188,19 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           id={idSegmento}
           className="form__control"
           value={segment}
+          aria-invalid={errors.segment !== undefined}
+          aria-describedby={errors.segment === undefined ? undefined : `${idSegmento}-error`}
           maxLength={120}
           autoComplete="off"
-          onChange={(evento) => setSegment(evento.target.value)}
+          onChange={(evento) => {
+            setSegment(evento.target.value);
+            clearError('segment');
+          }}
         />
         <p className="form__hint">
           Ramo de atuacao da empresa. Serve de contexto para a estruturacao por IA (RF11).
         </p>
+        <FieldError id={`${idSegmento}-error`} message={errors.segment} />
       </div>
 
       <div className="form__field">
@@ -180,10 +211,16 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           id={idContato}
           className="form__control"
           value={contactName}
+          aria-invalid={errors.contact_name !== undefined}
+          aria-describedby={errors.contact_name === undefined ? undefined : `${idContato}-error`}
           maxLength={200}
           autoComplete="off"
-          onChange={(evento) => setContactName(evento.target.value)}
+          onChange={(evento) => {
+            setContactName(evento.target.value);
+            clearError('contact_name');
+          }}
         />
+        <FieldError id={`${idContato}-error`} message={errors.contact_name} />
       </div>
 
       <div className="form__field">
@@ -195,10 +232,16 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           className="form__control"
           type="email"
           value={contactEmail}
+          aria-invalid={errors.contact_email !== undefined}
+          aria-describedby={errors.contact_email === undefined ? undefined : `${idEmail}-error`}
           maxLength={200}
           autoComplete="off"
-          onChange={(evento) => setContactEmail(evento.target.value)}
+          onChange={(evento) => {
+            setContactEmail(evento.target.value);
+            clearError('contact_email');
+          }}
         />
+        <FieldError id={`${idEmail}-error`} message={errors.contact_email} />
       </div>
 
       <div className="form__field">
@@ -210,10 +253,16 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           className="form__control"
           type="tel"
           value={contactPhone}
+          aria-invalid={errors.contact_phone !== undefined}
+          aria-describedby={errors.contact_phone === undefined ? undefined : `${idTelefone}-error`}
           maxLength={40}
           autoComplete="off"
-          onChange={(evento) => setContactPhone(evento.target.value)}
+          onChange={(evento) => {
+            setContactPhone(evento.target.value);
+            clearError('contact_phone');
+          }}
         />
+        <FieldError id={`${idTelefone}-error`} message={errors.contact_phone} />
       </div>
 
       <div className="form__field">
@@ -224,13 +273,19 @@ export function ClientDetailForm({ client, onFinish }: ClientDetailFormProps) {
           id={idObservacoes}
           className="form__control"
           value={notes}
+          aria-invalid={errors.notes !== undefined}
+          aria-describedby={errors.notes === undefined ? undefined : `${idObservacoes}-error`}
           rows={4}
-          onChange={(evento) => setNotes(evento.target.value)}
+          onChange={(evento) => {
+            setNotes(evento.target.value);
+            clearError('notes');
+          }}
         />
         <p className="form__hint">
           Historico da conta, preferencias e combinados. Apagar o campo limpa a observacao do
           cadastro.
         </p>
+        <FieldError id={`${idObservacoes}-error`} message={errors.notes} />
       </div>
 
       <div className="form__actions">

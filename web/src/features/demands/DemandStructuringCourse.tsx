@@ -19,6 +19,10 @@
  * - aprovar, rejeitar ou devolver (#102). Sao cards proprios.
  */
 
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+
+import { buildPath } from '@/app/paths';
 import { SEM_INFORMACAO } from '@/features/demands/DemandDetailLabels';
 import { DemandStructuringGapNote } from '@/features/demands/DemandStructuringGaps';
 import { classesDoDestaque, lacunasDoCampo } from '@/features/demands/DemandStructuringGapStyles';
@@ -32,6 +36,7 @@ import type {
   CampoDoCurso,
   CursoEstruturadoLido,
 } from '@/features/demands/StructuredCourseContent';
+import type { FieldOrigin, SourceSegmentRead } from '@/types/api';
 
 /** Campos de valor unico, na ordem canonica do contrato. */
 const ESCALARES: readonly CampoDoCurso[] = [
@@ -65,9 +70,107 @@ function valorDoCampo(curso: CursoEstruturadoLido, campo: CampoDoCurso): string 
 
 interface DemandStructuringCourseProps {
   course: CursoEstruturadoLido;
+  segments: readonly SourceSegmentRead[];
+  demandId: string;
 }
 
-export function DemandStructuringCourse({ course }: DemandStructuringCourseProps) {
+function textoDaProcedencia(origin: FieldOrigin | undefined, hasEvidence: boolean): string {
+  if (origin === 'extraido') return 'Extraido da fonte';
+  if (origin === 'inferido') return hasEvidence ? 'Inferido pela IA' : 'Inferido sem evidencia';
+
+  return hasEvidence ? 'Procedencia nao declarada' : 'Sem valor utilizavel';
+}
+
+function classeDoCampo(course: CursoEstruturadoLido, field: CampoDoCurso, hasValue: boolean): string {
+  const evidence = course.evidencias[field] ?? [];
+  const origin = course.procedencia[field];
+
+  if (!hasValue || origin === 'ausente') return 'structuring-course__field--absent';
+  if (evidence.length === 0) return 'structuring-course__field--inferred';
+
+  return 'structuring-course__field--evidenced';
+}
+
+function EvidenceNote({
+  course,
+  field,
+  segments,
+  hasValue,
+  demandId,
+  reviewLocation,
+}: {
+  course: CursoEstruturadoLido;
+  field: CampoDoCurso;
+  segments: readonly SourceSegmentRead[];
+  hasValue: boolean;
+  demandId: string;
+  reviewLocation: { pathname: string; search: string; hash: string };
+}) {
+  const numbers = course.evidencias[field] ?? [];
+  const origin = course.procedencia[field];
+
+  return (
+    <div className={`structuring-course__evidence${numbers.length === 0 ? ' structuring-course__evidence--missing' : ''}`}>
+      <strong>{textoDaProcedencia(origin, numbers.length > 0)}</strong>
+      {hasValue && numbers.length === 0 ? <span>Sem trecho citado.</span> : null}
+      {numbers.length > 0 ? (
+        <ul>
+          {numbers.map((number) => {
+            const segment = segments[number - 1];
+
+            return (
+              <li key={number}>
+                {segment === undefined ? (
+                  <>Trecho [{number}]: trecho nao disponivel</>
+                ) : (
+                  <Link
+                    aria-label={`Abrir trecho ${number} na fonte original`}
+                    className="structuring-course__evidence-link"
+                    id={`evidence-${field}-${number}`}
+                    state={{
+                      returnTo: {
+                        ...reviewLocation,
+                        hash: `#evidence-${field}-${number}`,
+                      },
+                    }}
+                    to={buildPath.demandEvidence(
+                      demandId,
+                      segment.raw_input_id,
+                      segment.id,
+                    )}
+                  >
+                    Trecho [{number}]: {segment.content}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+export function DemandStructuringCourse({
+  course,
+  segments,
+  demandId,
+}: DemandStructuringCourseProps) {
+  const location = useLocation();
+  const reviewLocation = {
+    pathname: location.pathname,
+    search: location.search,
+    hash: location.hash,
+  };
+
+  useEffect(() => {
+    if (!location.hash) return;
+
+    document.getElementById(location.hash.slice(1))?.scrollIntoView?.({
+      block: 'center',
+    });
+  }, [location.hash]);
+
   const lacunasDosObjetivos = lacunasDoCampo(course.campos_ausentes, 'objetivos_aprendizagem');
   const lacunasDaEmenta = lacunasDoCampo(course.campos_ausentes, 'ementa');
 
@@ -80,7 +183,7 @@ export function DemandStructuringCourse({ course }: DemandStructuringCourseProps
 
           return (
             <div
-              className={`structuring-course__field${classesDoDestaque(lacunas)}`}
+              className={`structuring-course__field ${classeDoCampo(course, campo, valor !== null)}${classesDoDestaque(lacunas)}`}
               key={campo}
             >
               <dt className="structuring-course__term">{rotuloDoCampo(campo)}</dt>
@@ -89,6 +192,14 @@ export function DemandStructuringCourse({ course }: DemandStructuringCourseProps
                 {lacunas.map((lacuna, indice) => (
                   <DemandStructuringGapNote key={`${indice}-${lacuna.tipoDeclarado}`} lacuna={lacuna} />
                 ))}
+                <EvidenceNote
+                  course={course}
+                  field={campo}
+                  segments={segments}
+                  hasValue={valor !== null}
+                  demandId={demandId}
+                  reviewLocation={reviewLocation}
+                />
               </dd>
             </div>
           );
@@ -96,7 +207,7 @@ export function DemandStructuringCourse({ course }: DemandStructuringCourseProps
       </dl>
 
       <section
-        className={`structuring-course__block${classesDoDestaque(lacunasDosObjetivos)}`}
+        className={`structuring-course__block ${classeDoCampo(course, 'objetivos_aprendizagem', course.objetivos_aprendizagem.length > 0)}${classesDoDestaque(lacunasDosObjetivos)}`}
         aria-labelledby="estrutura-objetivos"
       >
         <h3 className="structuring-course__block-title" id="estrutura-objetivos">
@@ -105,6 +216,14 @@ export function DemandStructuringCourse({ course }: DemandStructuringCourseProps
         {lacunasDosObjetivos.map((lacuna, indice) => (
           <DemandStructuringGapNote key={`${indice}-${lacuna.tipoDeclarado}`} lacuna={lacuna} />
         ))}
+        <EvidenceNote
+          course={course}
+          field="objetivos_aprendizagem"
+          segments={segments}
+          hasValue={course.objetivos_aprendizagem.length > 0}
+          demandId={demandId}
+          reviewLocation={reviewLocation}
+        />
         {course.objetivos_aprendizagem.length === 0 ? (
           <p className="demand-detail__empty">
             A estrutura nao traz objetivos de aprendizagem. Confirme com o cliente o que o
@@ -120,7 +239,7 @@ export function DemandStructuringCourse({ course }: DemandStructuringCourseProps
       </section>
 
       <section
-        className={`structuring-course__block${classesDoDestaque(lacunasDaEmenta)}`}
+        className={`structuring-course__block ${classeDoCampo(course, 'ementa', course.ementa.length > 0)}${classesDoDestaque(lacunasDaEmenta)}`}
         aria-labelledby="estrutura-ementa"
       >
         <h3 className="structuring-course__block-title" id="estrutura-ementa">
@@ -129,6 +248,14 @@ export function DemandStructuringCourse({ course }: DemandStructuringCourseProps
         {lacunasDaEmenta.map((lacuna, indice) => (
           <DemandStructuringGapNote key={`${indice}-${lacuna.tipoDeclarado}`} lacuna={lacuna} />
         ))}
+        <EvidenceNote
+          course={course}
+          field="ementa"
+          segments={segments}
+          hasValue={course.ementa.length > 0}
+          demandId={demandId}
+          reviewLocation={reviewLocation}
+        />
         {course.ementa.length === 0 ? (
           <p className="demand-detail__empty">
             A estrutura nao traz modulos de ementa. O conteudo do treinamento ainda precisa ser

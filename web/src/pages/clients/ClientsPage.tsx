@@ -12,6 +12,8 @@
 import { Link } from "react-router-dom";
 
 import { PATHS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { ClientList } from "@/features/clients/ClientList";
 
 import "./clients.css";
@@ -26,9 +28,11 @@ export function ClientsPage() {
             Empresas cadastradas na plataforma.
           </p>
         </div>
-        <Link className="button clients-page__create" to={PATHS.clientNew}>
-          <span aria-hidden="true">+</span> Cadastrar cliente
-        </Link>
+        <PermissionGate permission={PERMISSIONS.clientsManage}>
+          <Link className="button clients-page__create" to={PATHS.clientNew}>
+            <span aria-hidden="true">+</span> Cadastrar cliente
+          </Link>
+        </PermissionGate>
       </header>
       <ClientList />
     </section>
