@@ -16,7 +16,14 @@
  * por elas que `campos_ausentes[].campo` encontra o campo que apontou (RF15).
  */
 
-import { GAP_KINDS, type GapKind, type JsonObject, type JsonValue } from '@/types/api';
+import {
+  FIELD_ORIGINS,
+  GAP_KINDS,
+  type FieldOrigin,
+  type GapKind,
+  type JsonObject,
+  type JsonValue,
+} from '@/types/api';
 
 /** Campos do curso apresentados na revisao, na ordem canonica do contrato. */
 export const CAMPOS_DO_CURSO = [
@@ -64,6 +71,8 @@ export interface CursoEstruturadoLido {
   readonly objetivos_aprendizagem: readonly string[];
   readonly ementa: readonly ModuloLido[];
   readonly campos_ausentes: readonly LacunaLida[];
+  readonly procedencia: Readonly<Record<string, FieldOrigin>>;
+  readonly evidencias: Readonly<Record<string, readonly number[]>>;
   readonly observacoes: readonly string[];
 }
 
@@ -157,6 +166,33 @@ function lacunas(valor: JsonValue | undefined): readonly LacunaLida[] {
     .filter((item): item is LacunaLida => item !== null);
 }
 
+function procedencia(valor: JsonValue | undefined): Readonly<Record<string, FieldOrigin>> {
+  if (!ehObjeto(valor)) return {};
+
+  return Object.fromEntries(
+    Object.entries(valor).flatMap(([campo, origem]) => {
+      const textoOrigem = texto(origem);
+
+      return textoOrigem !== null && FIELD_ORIGINS.includes(textoOrigem as FieldOrigin)
+        ? [[campo, textoOrigem as FieldOrigin]]
+        : [];
+    }),
+  );
+}
+
+function evidencias(valor: JsonValue | undefined): Readonly<Record<string, readonly number[]>> {
+  if (!ehObjeto(valor)) return {};
+
+  return Object.fromEntries(
+    Object.entries(valor).map(([campo, numeros]) => [
+      campo,
+      itens(numeros).filter(
+        (numero): numero is number => typeof numero === 'number' && Number.isInteger(numero) && numero > 0,
+      ),
+    ]),
+  );
+}
+
 /** Traduz o conteudo da versao do artefato para a forma que a tela consome. */
 export function lerCursoEstruturado(content: JsonObject): CursoEstruturadoLido {
   return {
@@ -169,6 +205,8 @@ export function lerCursoEstruturado(content: JsonObject): CursoEstruturadoLido {
     objetivos_aprendizagem: textos(content.objetivos_aprendizagem),
     ementa: modulos(content.ementa),
     campos_ausentes: lacunas(content.campos_ausentes),
+    procedencia: procedencia(content.procedencia),
+    evidencias: evidencias(content.evidencias),
     observacoes: textos(content.observacoes),
   };
 }

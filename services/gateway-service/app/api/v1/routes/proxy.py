@@ -21,12 +21,29 @@ def make_proxy_endpoint(resource: str):
         base_url = service_for_resource(resource, settings)
         if base_url is None:
             raise HTTPException(status_code=404, detail="Recurso nao encontrado")
-        prefix = f"/api/v1/{resource}"
-        path = request.url.path.removeprefix(prefix).lstrip("/")
-        upstream_path = prefix if not path else f"{prefix}/{path}"
+        upstream_path = f"/api/v1/{resource}"
         return await forward_request(request, user, base_url, upstream_path)
 
     return proxy_resource
+
+
+def make_proxy_endpoint_with_path(resource: str):
+    # ``path`` entra na assinatura so para o OpenAPI documentar o parametro de
+    # caminho declarado na rota (``{path:path}``) - sem ele, o FastAPI nao sabe
+    # que a URL tem um segmento variavel e o contrato gerado fica invalido.
+    async def proxy_resource_with_path(
+        path: str,
+        request: Request,
+        user: CurrentUser,
+        settings: Annotated[Settings, Depends(get_settings)],
+    ) -> Response:
+        base_url = service_for_resource(resource, settings)
+        if base_url is None:
+            raise HTTPException(status_code=404, detail="Recurso nao encontrado")
+        upstream_path = f"/api/v1/{resource}/{path}"
+        return await forward_request(request, user, base_url, upstream_path)
+
+    return proxy_resource_with_path
 
 
 _RESOURCES = (
@@ -41,5 +58,18 @@ _RESOURCES = (
 _METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 for _resource in _RESOURCES:
     _endpoint = make_proxy_endpoint(_resource)
-    router.add_api_route(f"/{_resource}", _endpoint, methods=_METHODS)
-    router.add_api_route(f"/{_resource}/{{path:path}}", _endpoint, methods=_METHODS)
+    _endpoint_with_path = make_proxy_endpoint_with_path(_resource)
+    _slug = _resource.replace("-", "_")
+    for _method in _METHODS:
+        router.add_api_route(
+            f"/{_resource}",
+            _endpoint,
+            methods=[_method],
+            operation_id=f"proxy_{_slug}_{_method.lower()}",
+        )
+        router.add_api_route(
+            f"/{_resource}/{{path:path}}",
+            _endpoint_with_path,
+            methods=[_method],
+            operation_id=f"proxy_{_slug}_path_{_method.lower()}",
+        )

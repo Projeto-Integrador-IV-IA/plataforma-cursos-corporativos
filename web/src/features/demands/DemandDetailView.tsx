@@ -1,11 +1,10 @@
 /**
- * Tela central da demanda (RF02): contexto da negociacao, cliente, etapa
- * corrente, fontes e artefatos em um lugar so.
+ * Tela central da demanda (RF02, RF07): contexto da negociacao, cliente, etapa
+ * corrente, trilha de transicoes, fontes e artefatos em um lugar so.
  *
- * Uma consulta so alimenta a tela inteira. `GET /api/v1/demands/{id}` devolve
- * o agregado `DemandDetail`, com cliente e artefatos aninhados - o contrato foi
- * desenhado assim justamente para esta tela nao abrir uma segunda chamada por
- * bloco.
+ * `GET /api/v1/demands/{id}` devolve o agregado `DemandDetail`, com cliente e
+ * artefatos aninhados. A trilha de etapas e carregada pelo endpoint proprio do
+ * historico, sem abrir consultas por cliente ou artefato.
  *
  * As secoes sao ancoras de verdade, nao abas: o conteudo inteiro fica no DOM e
  * o indice leva ate ele. Assim a leitura continua possivel com o teclado, a
@@ -14,8 +13,8 @@
  *
  * O que esta tela ainda nao faz, e por que:
  *  - etapa e situacao aparecem, mas nao mudam por aqui - quem as move e o
- *    pipeline (RF05, RF06), que registra a transicao e ainda nao tem operacao
- *    publicada no contrato;
+ *    pipeline (RF05, RF06), que registra cada transicao na trilha exibida
+ *    abaixo;
  *  - as fontes captadas chegam no agregado da demanda e aparecem nesta tela.
  */
 
@@ -34,6 +33,7 @@ import {
 } from "@/features/demands/DemandDetailLabels";
 import { demandDetailKey } from "@/features/demands/DemandDetailQueryKeys";
 import { DemandDetailSources } from "@/features/demands/DemandDetailSources";
+import { DemandStageTimeline } from "@/features/demands/DemandStageTimeline";
 import { DemandStructuringStatus } from "@/features/demands/DemandStructuringStatus";
 import { isApiError } from "@/services/api";
 import { getDemand } from "@/services/demands";
@@ -47,6 +47,7 @@ const SECOES: readonly { readonly id: string; readonly titulo: string }[] = [
   { id: "demanda-contexto", titulo: "Contexto" },
   { id: "demanda-cliente", titulo: "Cliente" },
   { id: "demanda-etapa", titulo: "Etapa e situacao" },
+  { id: "demanda-historico", titulo: "Historico de etapas" },
   { id: "demanda-curso-ia", titulo: "Curso com IA" },
   { id: "demanda-fontes", titulo: "Fontes captadas" },
   { id: "demanda-artefatos", titulo: "Artefatos" },
@@ -233,6 +234,13 @@ export function DemandDetailView({ demandId }: DemandDetailViewProps) {
           </Campo>
           <Campo termo="Identificador">{demanda.id}</Campo>
         </dl>
+      </section>
+
+      <section className="demand-detail__section" aria-labelledby="demanda-historico">
+        <h2 className="demand-detail__section-title" id="demanda-historico">
+          Historico de etapas
+        </h2>
+        <DemandStageTimeline demandId={demandId} />
       </section>
 
       <section

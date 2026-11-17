@@ -21,6 +21,7 @@ import type {
   DemandRawInputRead,
   JobStatus,
   JsonObject,
+  SourceSegmentRead,
   StructuringJobRead,
 } from '@/types/api';
 
@@ -28,6 +29,7 @@ vi.mock('@/services/demands', () => ({
   createDemand: vi.fn(),
   listDemands: vi.fn(),
   getDemand: vi.fn(),
+  listDemandSegments: vi.fn(),
   updateDemand: vi.fn(),
 }));
 
@@ -45,6 +47,7 @@ vi.mock('@/services/structuring', () => ({
 }));
 
 const { getDemand } = await import('@/services/demands');
+const { listDemandSegments } = await import('@/services/demands');
 const { listArtifacts } = await import('@/services/artifacts');
 const { getStructuringJob, submitStructuringJob } = await import('@/services/structuring');
 const { renderRoute } = await import('@/test/renderRoute');
@@ -153,6 +156,7 @@ function execucaoCom(status: JobStatus): StructuringJobRead {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getDemand).mockResolvedValue(DEMANDA);
+  vi.mocked(listDemandSegments).mockResolvedValue([]);
   vi.mocked(listArtifacts).mockResolvedValue([artefatoCom(CURSO)]);
   vi.mocked(getStructuringJob).mockResolvedValue(execucaoCom('CONCLUIDA'));
   vi.mocked(submitStructuringJob).mockResolvedValue({
@@ -202,6 +206,48 @@ describe('revisao da estruturacao', () => {
     const texto = textoDaTela();
     expect(texto).toContain('Versao 1');
     expect(texto).toContain('gerada pela IA');
+  });
+
+  it('mostra a evidencia de cada campo junto da procedencia', async () => {
+    vi.mocked(listArtifacts).mockResolvedValue([
+      artefatoCom({
+        ...CURSO,
+        procedencia: {
+          tema: 'extraido',
+          publico_alvo: 'inferido',
+          carga_horaria: 'ausente',
+        },
+        evidencias: { tema: [1], publico_alvo: [2] },
+      }),
+    ]);
+    const segmentos: SourceSegmentRead[] = [
+      {
+        id: '99999999-9999-4999-8999-999999999991',
+        raw_input_id: FONTE_ID,
+        demand_id: DEMAND_ID,
+        position: 1,
+        content: 'Treinamento de NR-12 para a planta 2.',
+      },
+      {
+        id: '99999999-9999-4999-8999-999999999992',
+        raw_input_id: FONTE_ID,
+        demand_id: DEMAND_ID,
+        position: 2,
+        content: 'Publico formado por tecnicos de manutencao.',
+      },
+    ];
+    vi.mocked(listDemandSegments).mockResolvedValue(segmentos);
+
+    await abrirRevisao();
+
+    expect(textoDaTela()).toContain('Extraido da fonte');
+    expect(textoDaTela()).toContain('Inferido pela IA');
+    expect(textoDaTela()).toContain('Trecho [1]: Treinamento de NR-12 para a planta 2.');
+    expect(textoDaTela()).toContain('Trecho [2]: Publico formado por tecnicos de manutencao.');
+    expect(textoDaTela()).toContain('Sem valor utilizavel');
+    expect(document.querySelector('.structuring-course__field--evidenced')).not.toBeNull();
+    expect(document.querySelector('.structuring-course__field--inferred')).not.toBeNull();
+    expect(document.querySelector('.structuring-course__field--absent')).not.toBeNull();
   });
 
   it('declara a ausencia em vez de deixar o campo em branco', async () => {
@@ -331,9 +377,8 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao(`?execucao=${JOB_ID}`);
 
-    // A mesma execucao e lida tanto pelo bloco de processamento quanto pela
-    // tela (para o resultado aparecer antes de existir artefato) - duas
-    // consultas ao mesmo recurso, nao uma chamada duplicada por engano.
+    // A tela e o resumo do estado consultam a mesma execucao de forma
+    // independente - a consulta e compartilhada entre os dois, nao unica.
     await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
 
@@ -398,12 +443,14 @@ describe('revisao da estruturacao', () => {
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
       text: FONTE.original_content,
-      source_ids: [FONTE_ID],
+      source_ids: [FONTE.id],
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
-    // ser consultado - o que faz a tela sobreviver a um recarregamento.
-    await waitFor(() => expect(getStructuringJob).toHaveBeenCalledTimes(1));
+    // ser consultado - o que faz a tela sobreviver a um recarregamento. A
+    // tela e o resumo do estado consultam a mesma execucao de forma
+    // independente, entao a chamada nao e unica.
+    await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });
     expect(estado.textContent).toContain('Na fila');
@@ -415,9 +462,9 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(textoDaTela()).toContain('Esta demanda não tem nenhuma fonte captada.');
-    expect(screen.getByRole('button', { name: 'Fazer o curso com IA' }).hasAttribute('disabled')).toBe(
-      true,
-    );
+    expect(
+      screen.getByRole('button', { name: 'Fazer o curso com IA' }).hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   it('mostra a mensagem do servico quando a consulta falha', async () => {
