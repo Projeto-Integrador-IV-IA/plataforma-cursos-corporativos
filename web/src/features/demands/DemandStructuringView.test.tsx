@@ -543,6 +543,8 @@ describe('revisao da estruturacao', () => {
     await abrirRevisao();
 
     expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
+    // O botao continua visivel, porem desabilitado: diz por que o envio nao e
+    // possivel, em vez de some-lo e deixar quem usa leitor de tela sem pista.
     expect(
       screen.getByRole<HTMLButtonElement>('button', { name: 'Fazer o curso com IA' }).disabled,
     ).toBe(true);

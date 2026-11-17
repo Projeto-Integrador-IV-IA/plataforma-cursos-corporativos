@@ -41,6 +41,7 @@ import {
   PIPELINE_STAGES,
   type Client,
   type DemandStatus,
+  type PipelineStage,
   type Uuid,
 } from '@/types/api';
 
@@ -83,6 +84,12 @@ function readStatus(params: URLSearchParams): DemandStatus | undefined {
   return DEMAND_STATUSES.find((status) => status === raw);
 }
 
+function readStage(params: URLSearchParams): PipelineStage | undefined {
+  const raw = params.get(PARAM.stage);
+
+  return PIPELINE_STAGES.find((stage) => stage === raw);
+}
+
 function readClient(params: URLSearchParams): Uuid | undefined {
   const raw = params.get(PARAM.client);
 
@@ -104,12 +111,12 @@ export function DemandList() {
 
   const page = readPage(searchParams);
   const status = readStatus(searchParams);
-  const stage = PIPELINE_STAGES.find((value) => value === searchParams.get(PARAM.stage));
+  const stage = readStage(searchParams);
   const clientId = readClient(searchParams);
   const ownerId = searchParams.get(PARAM.owner) || undefined;
 
   const filtered =
-    stage !== undefined || status !== undefined || clientId !== undefined || ownerId !== undefined;
+    status !== undefined || stage !== undefined || clientId !== undefined || ownerId !== undefined;
 
   const params = useMemo(
     () => ({
