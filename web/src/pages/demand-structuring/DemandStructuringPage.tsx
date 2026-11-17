@@ -15,6 +15,8 @@
 import { Link, useParams } from 'react-router-dom';
 
 import { buildPath, PATHS } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { DemandStructuringView } from '@/features/demands/DemandStructuringView';
 
 export function DemandStructuringPage() {
@@ -42,9 +44,13 @@ export function DemandStructuringPage() {
 
       <p className="page__description">
         {demandId === undefined ? (
-          <Link to={PATHS.demands}>Voltar para a lista de demandas</Link>
+          <PermissionGate permission={PERMISSIONS.demandsRead}>
+            <Link to={PATHS.demands}>Voltar para a lista de demandas</Link>
+          </PermissionGate>
         ) : (
-          <Link to={buildPath.demandDetail(demandId)}>Voltar para o detalhe da demanda</Link>
+          <PermissionGate permission={PERMISSIONS.demandsRead}>
+            <Link to={buildPath.demandDetail(demandId)}>Voltar para o detalhe da demanda</Link>
+          </PermissionGate>
         )}
       </p>
     </section>

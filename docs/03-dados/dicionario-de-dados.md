@@ -71,16 +71,32 @@ Definição campo a campo das tabelas descritas em [modelo-dados.md](modelo-dado
 |---|---|---|---|
 | `id` | uuid PK | não | |
 | `demand_id` | uuid FK → `demands.id` | não | |
-| `original_content` | text | **não** | Texto exatamente como chegou. **Nunca alterado** — é a garantia de RNF05. |
+| `original_content` | text | **não** | Texto exatamente como chegou. **Nunca alterado** — é a garantia de RNF05. Para `AUDIO`, vazio; os bytes originais ficam em `audio_inputs`. |
 | `received_order` | integer | não | Ordem de recebimento positiva e única por demanda (RF10, #32); atribuída no commit do original. |
 | `normalized_content` | text | sim | Resultado de RF10. Nulo enquanto não normalizado. |
-| `source` | text | não | `EMAIL`, `TRANSCRICAO`, `MENSAGENS`, `ANOTACAO`, `OUTRO`. |
+| `source` | text | não | `EMAIL`, `TRANSCRICAO`, `MENSAGENS`, `ANOTACAO`, `OUTRO`, `AUDIO` (RF30, #164). |
 | `embedding` | vector | sim | Vetor semântico (`pgvector`) para busca por similaridade (ADR-0007). |
 | `truncated` | boolean | não | Indica corte por limite de tamanho na normalização. |
 | `author_id` | uuid FK → `users.id` | não | Quem registrou. |
 | `created_at` | timestamptz | não | |
 
 ---
+
+## `audio_inputs` — arquivo original da fonte (RF30, #164)
+
+| Campo | Tipo | Nulo | Descrição |
+|---|---|---|---|
+| `raw_input_id` | uuid PK/FK → `raw_inputs.id` | não | Um arquivo por fonte; `ON DELETE RESTRICT`. A fonte registra demanda, operador, data e ordem com `source=AUDIO`. |
+| `filename` | varchar(255) | não | Nome original sem componentes de caminho. |
+| `content_type` | varchar(64) | não | MIME canônico do formato identificado. |
+| `size_bytes` | integer | não | Tamanho positivo igual a `length(content)`. |
+| `duration_seconds` | double precision | não | Duração medida no arquivo pela ingestão, positiva e finita. |
+| `sha256` | varchar(64) | não | SHA-256 calculado sobre os bytes preservados. |
+| `content` | bytea | não | Binário original, sem transcodificação; carregamento adiado pelo ORM. |
+
+Fonte e arquivo são persistidos em uma transação antes de qualquer STT.
+Triggers e guarda ORM impedem UPDATE/DELETE do arquivo original. A migration
+`20261110_1200` preserva o legado e recusa downgrade destrutivo quando há áudio.
 
 ## `source_segments` — trechos citáveis das fontes (issue #151)
 

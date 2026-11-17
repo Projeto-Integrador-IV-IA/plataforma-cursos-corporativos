@@ -17,15 +17,33 @@ import { MemoryRouter, useRoutes } from 'react-router-dom';
 
 import { Providers } from '@/app/providers';
 import { routes } from '@/app/routes';
+import { AuthSessionProvider } from '@/features/auth/Authorization';
 import { setAccessToken } from '@/services/api';
 
 function RoutedApp() {
   return useRoutes(routes);
 }
 
-export function renderRoute(initialPath: string, options: { authenticated?: boolean } = {}) {
+interface RenderRouteOptions {
+  readonly authenticated?: boolean;
+  readonly role?: string;
+}
+
+export function renderRoute(initialPath: string, options: RenderRouteOptions = {}) {
   const authenticated = options.authenticated ?? initialPath !== '/login';
   setAccessToken(authenticated ? 'test-access-token' : null);
+  const session = authenticated
+    ? {
+        accessToken: 'test-access-token',
+        expiresAt: Date.now() + 60_000,
+        operator: {
+          id: 'test-operator',
+          name: 'Operador de teste',
+          email: 'operador@example.com',
+          role: options.role ?? 'OPERADOR',
+        },
+      }
+    : null;
 
   return render(
     <Providers>
@@ -33,7 +51,9 @@ export function renderRoute(initialPath: string, options: { authenticated?: bool
         initialEntries={[initialPath]}
         future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
       >
-        <RoutedApp />
+        <AuthSessionProvider session={session}>
+          <RoutedApp />
+        </AuthSessionProvider>
       </MemoryRouter>
     </Providers>,
   );

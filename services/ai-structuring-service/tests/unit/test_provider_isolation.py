@@ -4,10 +4,10 @@ Se um modulo de caso de uso, rota ou dominio importar o SDK de um fornecedor, a
 troca de provedor deixa de ser configuracao e vira refatoracao - exatamente o
 que RNF03 e a ADR-0006 evitam. Este teste falha antes disso acontecer.
 
-``app/clients`` tem uma isencao mais estreita que ``app/providers``: pode usar
-cliente HTTP generico para falar com os outros microsservicos da propria
-plataforma (RNF01, ex.: `pipeline-service`), mas nao pode importar SDK de
-fornecedor de LLM - essa troca continua exclusiva de ``app/providers``.
+``app/clients/`` tambem fica fora da varredura: e onde moram os clientes HTTP
+para os OUTROS microsservicos da plataforma (ex.: anexar o resultado ao
+pipeline-service, RF13) - uma dependencia de infraestrutura diferente da que
+RNF03 restringe, sem o risco de acoplar a um fornecedor de LLM concreto.
 """
 
 import ast
@@ -16,6 +16,7 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parents[2] / "app"
 PROVIDERS_DIR = APP_DIR / "providers"
 CLIENTS_DIR = APP_DIR / "clients"
+DIRETORIOS_ISENTOS = (PROVIDERS_DIR, CLIENTS_DIR)
 
 # Raiz do modulo de cada SDK/cliente de fornecedor conhecido.
 SDKS_DE_PROVEDOR = frozenset(
@@ -37,9 +38,7 @@ SDKS_DE_PROVEDOR = frozenset(
 )
 
 # Cliente HTTP generico: legitimo em qualquer lugar, exceto para falar com o
-# fornecedor - por isso tambem fica restrito ao pacote de provedores. Em
-# ``app/clients`` e o que fala com os outros microsservicos da plataforma, por
-# isso essa pasta fica de fora so desta lista, nunca da de SDK de fornecedor.
+# fornecedor - por isso tambem fica restrito ao pacote de provedores.
 CLIENTES_HTTP = frozenset({"httpx", "requests", "aiohttp", "urllib3"})
 
 RESTRITOS = SDKS_DE_PROVEDOR | CLIENTES_HTTP
@@ -58,24 +57,22 @@ def _modulos_raiz_importados(arquivo: Path) -> set[str]:
 
 def _modulos_fora_de_providers() -> list[Path]:
     return [
-        arquivo for arquivo in sorted(APP_DIR.rglob("*.py")) if PROVIDERS_DIR not in arquivo.parents
+        arquivo
+        for arquivo in sorted(APP_DIR.rglob("*.py"))
+        if not any(diretorio in arquivo.parents for diretorio in DIRETORIOS_ISENTOS)
     ]
 
 
 def test_nenhum_modulo_fora_de_providers_importa_sdk_de_provedor() -> None:
     infratores: dict[str, list[str]] = {}
     for arquivo in _modulos_fora_de_providers():
-        restritos_do_arquivo = RESTRITOS
-        if CLIENTS_DIR in arquivo.parents:
-            restritos_do_arquivo = SDKS_DE_PROVEDOR
-
-        restritos = sorted(_modulos_raiz_importados(arquivo) & restritos_do_arquivo)
+        restritos = sorted(_modulos_raiz_importados(arquivo) & RESTRITOS)
         if restritos:
             infratores[arquivo.relative_to(APP_DIR).as_posix()] = restritos
 
     assert infratores == {}, (
-        "SDK de provedor importado fora de app/providers - o servico deve falar "
-        f"apenas com a abstracao LLMProvider: {infratores}"
+        "SDK de provedor importado fora de app/providers e app/clients - o servico "
+        f"deve falar apenas com a abstracao LLMProvider: {infratores}"
     )
 
 
@@ -90,15 +87,3 @@ def test_a_varredura_cobre_modulos_de_verdade() -> None:
 
 def test_contrato_do_provedor_nao_depende_de_fornecedor_concreto() -> None:
     assert not _modulos_raiz_importados(PROVIDERS_DIR / "base.py") & RESTRITOS
-
-
-def test_clientes_de_microsservico_nao_importam_sdk_de_fornecedor() -> None:
-    """``app/clients`` ganhou isencao de cliente HTTP, nunca de SDK de LLM."""
-
-    infratores: dict[str, list[str]] = {}
-    for arquivo in sorted(CLIENTS_DIR.rglob("*.py")):
-        restritos = sorted(_modulos_raiz_importados(arquivo) & SDKS_DE_PROVEDOR)
-        if restritos:
-            infratores[arquivo.relative_to(APP_DIR).as_posix()] = restritos
-
-    assert infratores == {}

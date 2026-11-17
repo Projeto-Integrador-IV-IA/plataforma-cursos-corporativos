@@ -349,7 +349,7 @@ export const RAW_INPUT_SOURCES = [
   'OUTRO',
 ] as const;
 
-export type RawInputSource = (typeof RAW_INPUT_SOURCES)[number];
+export type RawInputSource = (typeof RAW_INPUT_SOURCES)[number] | 'AUDIO';
 
 /** Corpo de `POST /api/v1/ingestion`: texto que sera preservado para a demanda. */
 export interface IngestionCreateRequest {
@@ -388,11 +388,11 @@ export interface RawInput {
 /** Registro de demanda bruta. O autor vem do token, nunca do corpo. */
 export interface RawInputCreate {
   readonly original_content: string;
-  readonly source: RawInputSource;
+  readonly source: Exclude<RawInputSource, 'AUDIO'>;
 }
 
 // ---------------------------------------------------------------------------
-// Pipeline - PREVISTO (RF05, RF06, RF07), conforme `stage_transitions`
+// Pipeline - DERIVADO de `pipeline-service.yaml` (RF05, RF06, RF07)
 // ---------------------------------------------------------------------------
 
 /** Transicao de etapa registrada. Historico append-only (RNF09). */
@@ -402,8 +402,14 @@ export interface StageTransition {
   readonly from_stage: PipelineStage | null;
   readonly to_stage: PipelineStage;
   readonly reason: string | null;
-  readonly author_id: Uuid;
+  readonly author: PipelineCardPersonRead;
   readonly occurred_at: IsoDateTime;
+}
+
+/** Linha do tempo completa de uma demanda, do mais antigo ao mais recente. */
+export interface StageTransitionTimeline {
+  readonly items: readonly StageTransition[];
+  readonly total: number;
 }
 
 /**
@@ -638,6 +644,26 @@ export interface FieldGap {
   readonly motivo: string | null;
 }
 
+/** Procedencia do valor de um campo estruturado. */
+export const FIELD_ORIGINS = ['extraido', 'inferido', 'ausente'] as const;
+
+export type FieldOrigin = (typeof FIELD_ORIGINS)[number];
+
+/**
+ * Trecho numerado da fonte que pode ser citado pela estruturacao, com o
+ * intervalo recuperavel no conteudo original para destacar a citacao.
+ */
+export interface SourceSegmentRead {
+  readonly id: Uuid;
+  readonly raw_input_id: Uuid;
+  readonly demand_id: Uuid;
+  readonly position: number;
+  readonly content: string;
+  readonly original_start_offset: number | null;
+  readonly original_end_offset: number | null;
+  readonly original_content: string | null;
+}
+
 /** Formatos de realizacao declarados pelo contrato (RF11). */
 export const COURSE_FORMATS = ['presencial', 'online', 'hibrido'] as const;
 
@@ -682,6 +708,8 @@ export interface StructuredCourse {
    * inferido (RF14). Cada item traz o campo, o tipo da lacuna e o motivo.
    */
   readonly campos_ausentes: readonly FieldGap[];
+  readonly procedencia?: Readonly<Record<string, FieldOrigin>>;
+  readonly evidencias?: Readonly<Record<string, readonly number[]>>;
   readonly observacoes: readonly string[];
 }
 

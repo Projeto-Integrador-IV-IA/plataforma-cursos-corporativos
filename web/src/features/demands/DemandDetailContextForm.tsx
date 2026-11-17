@@ -19,6 +19,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useId, useState } from 'react';
 
 import { DEMANDS_KEY, demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
+import { FieldError } from '@/components/FieldError';
+import { fieldErrorsFrom, hasFieldErrors, type FieldErrors } from '@/components/fieldErrors';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
 import { updateDemand } from '@/services/demands';
@@ -47,6 +49,13 @@ export function DemandDetailContextForm({ demand, onFinish }: DemandDetailContex
 
   const [title, setTitle] = useState(demand.title);
   const [description, setDescription] = useState(demand.description ?? '');
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  function clearError(field: string) {
+    if (errors[field] !== undefined) {
+      setErrors((current) => ({ ...current, [field]: undefined }));
+    }
+  }
 
   const edicao = useMutation({
     mutationFn: (payload: DemandUpdate) => updateDemand(demand.id, payload),
@@ -58,7 +67,11 @@ export function DemandDetailContextForm({ demand, onFinish }: DemandDetailContex
       onFinish();
       await queryClient.invalidateQueries({ queryKey: DEMANDS_KEY });
     },
-    onError: (erro: unknown) => showError(mensagemDeErro(erro)),
+    onError: (erro: unknown) => {
+      const fieldErrors = fieldErrorsFrom(erro);
+      setErrors(fieldErrors);
+      if (!hasFieldErrors(fieldErrors)) showError(mensagemDeErro(erro));
+    },
   });
 
   const tituloNovo = title.trim();
@@ -93,16 +106,22 @@ export function DemandDetailContextForm({ demand, onFinish }: DemandDetailContex
           id={idTitulo}
           className="form__control"
           value={title}
+          aria-invalid={errors.title !== undefined}
+          aria-describedby={errors.title === undefined ? undefined : `${idTitulo}-error`}
           required
           maxLength={200}
           autoComplete="off"
-          onChange={(evento) => setTitle(evento.target.value)}
+          onChange={(evento) => {
+            setTitle(evento.target.value);
+            clearError('title');
+          }}
         />
         {tituloNovo === '' ? (
           <p className="form__hint form__hint--error">
             O titulo identifica a negociacao e nao pode ficar vazio.
           </p>
         ) : null}
+        <FieldError id={`${idTitulo}-error`} message={errors.title} />
       </div>
 
       <div className="form__field">
@@ -113,12 +132,18 @@ export function DemandDetailContextForm({ demand, onFinish }: DemandDetailContex
           id={idContexto}
           className="form__control"
           value={description}
+          aria-invalid={errors.description !== undefined}
+          aria-describedby={errors.description === undefined ? undefined : `${idContexto}-error`}
           rows={6}
-          onChange={(evento) => setDescription(evento.target.value)}
+          onChange={(evento) => {
+            setDescription(evento.target.value);
+            clearError('description');
+          }}
         />
         <p className="form__hint">
           O que o cliente pediu, nas palavras dele. Apagar o campo limpa o contexto da demanda.
         </p>
+        <FieldError id={`${idContexto}-error`} message={errors.description} />
       </div>
 
       <div className="form__actions">

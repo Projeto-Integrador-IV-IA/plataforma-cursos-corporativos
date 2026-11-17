@@ -10,6 +10,7 @@ import { type FormEvent, useId, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { PATHS } from "@/app/paths";
+import { FieldError } from "@/components/FieldError";
 import { useFeedback } from "@/hooks/useFeedback";
 import { isApiError } from "@/services/api";
 import { hasAuthSession, login } from "@/services/auth";
@@ -182,14 +183,7 @@ export function LoginPage() {
                   }}
                 />
               </div>
-              {errors.email !== undefined && (
-                <p
-                  id={`${emailId}-error`}
-                  className="form__hint form__hint--error"
-                >
-                  {errors.email}
-                </p>
-              )}
+              <FieldError id={`${emailId}-error`} message={errors.email} />
             </div>
 
             <div className="form__field">
@@ -235,14 +229,7 @@ export function LoginPage() {
                   <Icon name={showPassword ? "eye-off" : "eye"} />
                 </button>
               </div>
-              {errors.password !== undefined && (
-                <p
-                  id={`${passwordId}-error`}
-                  className="form__hint form__hint--error"
-                >
-                  {errors.password}
-                </p>
-              )}
+              <FieldError id={`${passwordId}-error`} message={errors.password} />
             </div>
 
             <button

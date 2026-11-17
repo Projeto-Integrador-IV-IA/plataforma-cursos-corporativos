@@ -4,7 +4,7 @@ Interface do operador: onde clientes, demandas e o pipeline são consultados e o
 revisada antes de qualquer uso externo (RF14). Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `5173`
-- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RF26, RNF10, RNF25
+- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF07, RF14, RF17, RF23, RF26, RNF10, RNF18, RNF25
 
 ---
 
@@ -15,6 +15,7 @@ revisada antes de qualquer uso externo (RF14). Atende **RNF25** (Documento Conso
 | Login | RF26 |
 | Lista de clientes / cadastro | RF01, RF03 |
 | Lista de demandas com filtro por status, cliente e período | RF02, RF03 |
+| Painel do pipeline e atualizações recentes | RF05, RF23 |
 | Detalhe da negociação: pipeline, histórico e artefatos | RF04, RF05, RF06, RF07, RF15 |
 | Ingestão de demanda bruta (texto livre) | RF09 |
 | Revisão e edição do curso estruturado pela IA | RF12, RF14 |
@@ -53,8 +54,10 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 | Caminho | Tela | Requisitos |
 |---|---|---|
 | `/login` | Entrar | RF26 |
+| `/acesso-negado` | Perfil sem permissão | RNF18 |
 | `/clientes` | Clientes | RF01, RF03 |
 | `/clientes/:clientId` | Detalhe do cliente | RF01 |
+| `/pipeline` | Painel por etapas e atualizações recentes | RF05, RF23 |
 | `/demandas` | Demandas | RF02, RF03 |
 | `/demandas/:demandId` | Detalhe da demanda | RF04–RF07, RF15 |
 | `/demandas/:demandId/ingestao` | Ingestão da demanda | RF09, RNF05 |
@@ -66,6 +69,15 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 `/login` é rota irmã do layout: todas as demais são filhas de `App`, recebem a navegação
 lateral e passam pelo guarda de sessão. Sem sessão, o destino pretendido fica preservado no
 estado do roteador e é retomado depois da autenticação.
+
+`RequirePermission` protege rotas e `PermissionGate` oculta ações e links conforme o perfil da
+sessão. Até a matriz de RNF18 ser publicada no backend, somente `OPERADOR` tem permissões
+configuradas; perfis desconhecidos são negados por padrão. Esses controles são apenas visuais:
+o servidor continua responsável por autorizar cada operação e devolver `403` quando necessário.
+
+Na revisão da estrutura, cada evidência leva ao detalhe da demanda já focado na fonte original:
+o trecho é destacado, os segmentos vizinhos ficam visíveis e o retorno restaura o endereço da
+revisão, inclusive parâmetros de execução e a posição do campo consultado.
 
 ---
 
@@ -109,4 +121,3 @@ npm run lint    # eslint (Verifica a qualidade de código)
 
 Estado: estrutura base pronta (RNF01) — rotas, layout e providers navegáveis.
 As telas são molduras: nenhum dado é consumido do gateway ainda.
-

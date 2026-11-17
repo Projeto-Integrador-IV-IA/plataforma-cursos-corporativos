@@ -1,11 +1,20 @@
 """Contrato interno para persistir uma fonte bruta vinculada a uma demanda."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.enums import RawInputSource
+
+TextSourceKind = Literal[
+    RawInputSource.EMAIL,
+    RawInputSource.TRANSCRICAO,
+    RawInputSource.MENSAGENS,
+    RawInputSource.ANOTACAO,
+    RawInputSource.OUTRO,
+]
 
 
 class RawInputCreate(BaseModel):
@@ -14,8 +23,15 @@ class RawInputCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     original_content: str = Field(min_length=1)
-    source: RawInputSource
+    source: TextSourceKind
     previous_attempt_id: UUID | None = None
+
+    @field_validator("source")
+    @classmethod
+    def reject_audio_without_file(cls, value: RawInputSource) -> RawInputSource:
+        if value == RawInputSource.AUDIO:
+            raise ValueError("Para audio, use a rota de upload de arquivo.")
+        return value
 
     @field_validator("original_content")
     @classmethod
@@ -23,6 +39,18 @@ class RawInputCreate(BaseModel):
         if not value.strip():
             raise ValueError("original_content must not be blank")
         return value
+
+
+class AudioMetadata(BaseModel):
+    """Metadados consultaveis sem carregar o binario nas listagens."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(min_length=1, max_length=64)
+    size_bytes: int = Field(gt=0)
+    duration_seconds: float = Field(gt=0, allow_inf_nan=False)
+    sha256: str = Field(pattern="^[a-f0-9]{64}$")
 
 
 class RawInputRead(BaseModel):
@@ -40,6 +68,7 @@ class RawInputRead(BaseModel):
     author_id: UUID
     truncated: bool
     created_at: datetime
+    audio: AudioMetadata | None = None
 
 
 class RawInputNormalization(BaseModel):

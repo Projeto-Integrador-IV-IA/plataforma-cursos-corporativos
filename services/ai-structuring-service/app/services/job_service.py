@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from typing import ClassVar
 from uuid import UUID
 
-from app.clients.pipeline_client import create_artifact
+from app.clients.pipeline_client import PipelineServiceClient
 from app.core.exceptions import LLMProviderError, PlatformError
 from app.domain.jobs import JobStatus, StructuringJob
 from app.services.structuring_service import RawDemand, StructuringOutcome, StructuringService
@@ -53,6 +53,11 @@ class StructuringJobService:
         self.structuring_service = structuring_service
         self.pipeline_service_url = (
             pipeline_service_url.rstrip("/") if pipeline_service_url else None
+        )
+        self._pipeline_client = (
+            PipelineServiceClient(self.pipeline_service_url)
+            if self.pipeline_service_url is not None
+            else None
         )
         self._jobs: OrderedDict[UUID, StructuringJob] = OrderedDict()
         self._tasks: set[asyncio.Task[None]] = set()
@@ -113,7 +118,7 @@ class StructuringJobService:
                 self._registrar_falha(job, outcome.error.code, str(outcome.error))
             else:
                 try:
-                    if self.pipeline_service_url is not None:
+                    if self._pipeline_client is not None:
                         await self._persistir_resultado(job, outcome)
                 except Exception as erro:
                     _logger.exception(
@@ -158,8 +163,8 @@ class StructuringJobService:
                 "elapsed_ms": outcome.elapsed_ms,
             },
         }
-        assert self.pipeline_service_url is not None
-        await create_artifact(self.pipeline_service_url, job.demand.demand_id, payload)
+        assert self._pipeline_client is not None
+        await self._pipeline_client.persist_artifact(job.demand.demand_id, payload)
 
     @staticmethod
     def _registrar_falha(job: StructuringJob, code: str, message: str) -> None:

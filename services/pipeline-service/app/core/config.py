@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     pipeline_port: int = Field(ge=1, le=65535)
     database_url: SecretStr = Field(min_length=1)
     auth_service_key: SecretStr = Field(min_length=32)
+    audio_max_bytes: int = Field(default=25_000_000, gt=0)
+    audio_max_duration_seconds: float = Field(default=3600, gt=0, allow_inf_nan=False)
 
 
 @lru_cache

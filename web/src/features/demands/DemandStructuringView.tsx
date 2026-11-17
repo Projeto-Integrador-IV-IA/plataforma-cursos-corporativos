@@ -31,21 +31,26 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
-import { buildPath } from '@/app/paths';
+import { buildPath, QUERY_PARAMS } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { formatarDataHora, rotuloDaOrigem } from '@/features/demands/DemandDetailLabels';
 import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import { DemandStructuringCourse } from '@/features/demands/DemandStructuringCourse';
 import { DemandStructuringGapList } from '@/features/demands/DemandStructuringGaps';
-import { demandArtifactsKey } from '@/features/demands/DemandStructuringQueryKeys';
+import {
+  demandArtifactsKey,
+  structuringJobKey,
+} from '@/features/demands/DemandStructuringQueryKeys';
 import { DemandStructuringSources } from '@/features/demands/DemandStructuringSources';
 import { DemandStructuringStatus } from '@/features/demands/DemandStructuringStatus';
 import { lerCursoEstruturado } from '@/features/demands/StructuredCourseContent';
 import { isApiError } from '@/services/api';
 import { listArtifacts } from '@/services/artifacts';
-import { getDemand } from '@/services/demands';
+import { getDemand, listDemandSegments } from '@/services/demands';
+import { getStructuringJob } from '@/services/structuring';
 import type {
   ArtifactResultRead,
   ArtifactResultVersionRead,
@@ -53,7 +58,7 @@ import type {
   DemandDetail,
   DemandRawInputRead,
   JsonObject,
-  StructuringJobRead,
+  SourceSegmentRead,
   Uuid,
 } from '@/types/api';
 
@@ -103,6 +108,22 @@ function fonteMaisRecente(demand: DemandDetail): DemandRawInputRead | undefined 
   }, undefined);
 }
 
+/**
+ * Reconstroi a numeracao da chamada de IA: fontes na ordem do agregado da
+ * demanda e, dentro de cada fonte, segmentos por posicao.
+ */
+function trechosNaOrdemDaRevisao(
+  rawInputs: readonly DemandRawInputRead[],
+  segments: readonly SourceSegmentRead[],
+) {
+  return rawInputs.flatMap((source) =>
+    segments
+      .filter((segment) => segment.raw_input_id === source.id)
+      .slice()
+      .sort((left, right) => left.position - right.position),
+  );
+}
+
 /** Versao corrente: a de maior numero, que e a que vale hoje (RF08). */
 function versaoCorrente(artifact: ArtifactResultRead): ArtifactResultVersionRead | undefined {
   return artifact.versions.reduce<ArtifactResultVersionRead | undefined>(
@@ -117,11 +138,8 @@ interface DemandStructuringViewProps {
 }
 
 export function DemandStructuringView({ demandId }: DemandStructuringViewProps) {
-  // O resultado do job chega antes de existir um artefato. `DemandStructuringStatus`
-  // ja consulta esse recurso para o bloco de processamento; em vez de abrir uma
-  // segunda consulta ao mesmo identificador aqui, esta tela so recebe o
-  // resultado mais recente de volta, por `onExecucaoChange`.
-  const [execucaoData, setExecucaoData] = useState<StructuringJobRead | undefined>(undefined);
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get(QUERY_PARAMS.structuringJob) ?? '';
 
   const demanda = useQuery({
     queryKey: demandDetailKey(demandId),
@@ -135,7 +153,26 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     enabled: demandId !== '',
   });
 
-  if (demanda.isPending || artefatos.isPending) {
+  const trechos = useQuery({
+    queryKey: ['demand-segments', demandId],
+    queryFn: ({ signal }) => listDemandSegments(demandId, { signal }),
+    enabled: demandId !== '',
+  });
+
+  // O resultado do job chega antes de existir um artefato. Ler o mesmo
+  // recurso acompanhado pelo bloco de processamento evita declarar vazio um
+  // curso que a API ja devolveu como concluido.
+  const execucao = useQuery({
+    queryKey: structuringJobKey(jobId),
+    queryFn: ({ signal }) => getStructuringJob(jobId, { signal }),
+    enabled: jobId !== '',
+    refetchInterval: (query) =>
+      query.state.data?.status === 'PENDENTE' || query.state.data?.status === 'PROCESSANDO'
+        ? 2_000
+        : false,
+  });
+
+  if (demanda.isPending || artefatos.isPending || trechos.isPending) {
     return (
       <p className="page__pending" aria-live="polite">
         Carregando a estrutura gerada…
@@ -143,10 +180,10 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     );
   }
 
-  if (demanda.isError || artefatos.isError) {
+  if (demanda.isError || artefatos.isError || trechos.isError) {
     return (
       <p className="demand-detail__failure" aria-live="polite">
-        {mensagemDeErro(demanda.error ?? artefatos.error)}
+        {mensagemDeErro(demanda.error ?? artefatos.error ?? trechos.error)}
       </p>
     );
   }
@@ -155,12 +192,13 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
   const versao = artefato === undefined ? undefined : versaoCorrente(artefato);
   const cursoSalvo =
     versao === undefined ? undefined : lerCursoEstruturado(versao.structured_content);
-  const cursoDaExecucao = execucaoData?.result?.course;
+  const cursoDaExecucao = execucao.data?.result?.course;
   const curso =
     cursoSalvo ??
     (cursoDaExecucao === undefined
       ? undefined
       : lerCursoEstruturado(JSON.parse(JSON.stringify(cursoDaExecucao)) as JsonObject));
+  const trechosDaRevisao = trechosNaOrdemDaRevisao(demanda.data.raw_inputs, trechos.data);
 
   return (
     <div className="structuring">
@@ -182,7 +220,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
         <DemandStructuringStatus
           demandId={demandId}
           source={fonteMaisRecente(demanda.data)}
-          onExecucaoChange={setExecucaoData}
+          reviewAvailable={versao !== undefined}
         />
       </section>
 
@@ -205,7 +243,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
         </h2>
         {curso === undefined ? (
           <p className="demand-detail__empty">
-            {execucaoData?.status === 'CONCLUIDA'
+            {execucao.data?.status === 'CONCLUIDA'
               ? 'A execucao foi concluida, mas a API nao devolveu o curso no resultado.'
               : 'Nenhuma estrutura foi anexada a esta demanda ate agora. Ela aparece aqui depois que a estruturacao por IA concluir.'}
           </p>
@@ -216,12 +254,18 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
                 ? `${artefato.title ?? 'Requisitos extraidos'}: versao ${versao.number} (${rotuloDaOrigem(versao.origin)}) gerada em ${formatarDataHora(versao.created_at)}.`
                 : 'Resultado recebido da execucao da IA. Ele ainda nao aparece no historico de versoes da demanda.'}
             </p>
-            <DemandStructuringCourse course={curso} />
+            <DemandStructuringCourse
+              course={curso}
+              demandId={demandId}
+              segments={trechosDaRevisao}
+            />
             {artefato === undefined ? null : (
               <p className="page__description">
-                <Link to={buildPath.artifactVersions(artefato.id)}>
-                  Ver o historico de versoes ({artefato.versions.length})
-                </Link>
+                <PermissionGate permission={PERMISSIONS.artifactsRead}>
+                  <Link to={buildPath.artifactVersions(artefato.id)}>
+                    Ver o historico de versoes ({artefato.versions.length})
+                  </Link>
+                </PermissionGate>
               </p>
             )}
           </>

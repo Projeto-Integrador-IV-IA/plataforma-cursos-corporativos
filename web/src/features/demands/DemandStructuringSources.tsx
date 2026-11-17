@@ -16,6 +16,8 @@
 import { Link } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { formatarDataHora } from '@/features/demands/DemandDetailLabels';
 import { rotuloDaFonte } from '@/features/demands/DemandStructuringLabels';
 import type { ArtifactSourceRead, DemandRawInputRead, Uuid } from '@/types/api';
@@ -41,7 +43,9 @@ export function DemandStructuringSources({
           ser conferida contra o que o cliente escreveu.
         </p>
         <p className="page__description">
-          <Link to={buildPath.demandIngestion(demandId)}>Ver a captacao desta demanda</Link>
+          <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+            <Link to={buildPath.demandIngestion(demandId)}>Ver a captacao desta demanda</Link>
+          </PermissionGate>
         </p>
       </>
     );
@@ -82,7 +86,9 @@ export function DemandStructuringSources({
         })}
       </ul>
       <p className="page__description">
-        <Link to={buildPath.demandIngestion(demandId)}>Ver a captacao desta demanda</Link>
+        <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+          <Link to={buildPath.demandIngestion(demandId)}>Ver a captacao desta demanda</Link>
+        </PermissionGate>
       </p>
     </>
   );

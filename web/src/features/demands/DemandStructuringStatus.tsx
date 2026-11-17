@@ -36,6 +36,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { buildPath, QUERY_PARAMS } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { formatarDataHora } from '@/features/demands/DemandDetailLabels';
 import { demandDetailKey } from '@/features/demands/DemandDetailQueryKeys';
 import {
@@ -94,19 +96,14 @@ interface DemandStructuringStatusProps {
   demandId: Uuid;
   /** Fonte captada mais recente; `undefined` quando a demanda nao tem nenhuma. */
   source: DemandRawInputRead | undefined;
-  /**
-   * Avisa quem renderizou este componente sobre o resultado mais recente da
-   * execucao consultada aqui. Usado pela tela de revisao
-   * (`DemandStructuringView`), que precisa de `result.course` antes de existir
-   * artefato salvo, sem abrir uma segunda consulta ao mesmo recurso.
-   */
-  onExecucaoChange?: (execucao: StructuringJobRead | undefined) => void;
+  /** Ha uma estrutura pronta para a conferencia humana. */
+  reviewAvailable?: boolean;
 }
 
 export function DemandStructuringStatus({
   demandId,
   source,
-  onExecucaoChange,
+  reviewAvailable = false,
 }: DemandStructuringStatusProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -123,10 +120,6 @@ export function DemandStructuringStatus({
         ? 2_000
         : false,
   });
-
-  useEffect(() => {
-    onExecucaoChange?.(execucao.data);
-  }, [execucao.data, onExecucaoChange]);
 
   useEffect(() => {
     if (execucao.data?.status !== 'CONCLUIDA') {
@@ -158,6 +151,7 @@ export function DemandStructuringStatus({
   });
 
   const estado = execucao.data?.status;
+  const aguardandoRevisao = estado === 'CONCLUIDA' && reviewAvailable;
   const emCurso = estado === 'PENDENTE' || estado === 'PROCESSANDO';
   // Execucao na URL cujo estado ainda nao chegou: nao se sabe se terminou, e
   // na duvida o reenvio continua bloqueado.
@@ -187,7 +181,9 @@ export function DemandStructuringStatus({
       ) : (
         <>
           <p
-            className={`structuring-status__state structuring-status__state--${execucao.data.status.toLowerCase()}`}
+            className={`structuring-status__state structuring-status__state--${
+              aguardandoRevisao ? 'aguardando-revisao' : execucao.data.status.toLowerCase()
+            }`}
             role="status"
             aria-live="polite"
             aria-label="Estado da execucao"
@@ -197,7 +193,7 @@ export function DemandStructuringStatus({
             </span>
             <span>
               <strong className="structuring-status__name">
-                {rotuloDoEstado(execucao.data.status)}
+                {aguardandoRevisao ? 'Aguardando revisao' : rotuloDoEstado(execucao.data.status)}
               </strong>{' '}
               — {explicacaoDoEstado(execucao.data.status)}
             </span>
@@ -213,10 +209,17 @@ export function DemandStructuringStatus({
               : ` Tempo total: ${formatarDuracao(execucao.data.total_elapsed_ms)}.`}
           </p>
           {execucao.data.error === null ? null : (
-            <p className="demand-detail__failure">
-              {execucao.data.error.message} (codigo {execucao.data.error.code})
-            </p>
+            <div className="structuring-status__failure">
+              <p className="demand-detail__failure">
+                Causa: {execucao.data.error.message} (codigo {execucao.data.error.code})
+              </p>
+            </div>
           )}
+          {aguardandoRevisao ? (
+            <Link className="button button--secondary" to={buildPath.demandStructuring(demandId)}>
+              Abrir tela de revisao
+            </Link>
+          ) : null}
         </>
       )}
 
@@ -236,16 +239,18 @@ export function DemandStructuringStatus({
       {source === undefined ? (
         <>
           <p className="demand-detail__empty">
-            Esta demanda não tem nenhuma fonte captada. Sem o texto do cliente, não há o que
+            Esta demanda nao tem nenhuma fonte captada. Sem o texto do cliente, nao ha o que
             estruturar.
           </p>
           <div className="form__actions">
             <button className="button" type="button" disabled>
               Fazer o curso com IA
             </button>
-            <Link className="button button--secondary" to={buildPath.demandIngestion(demandId)}>
-              Registrar texto da demanda
-            </Link>
+            <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+              <Link className="button button--secondary" to={buildPath.demandIngestion(demandId)}>
+                Registrar texto da demanda
+              </Link>
+            </PermissionGate>
           </div>
         </>
       ) : (
@@ -259,9 +264,11 @@ export function DemandStructuringStatus({
             >
               {envio.isPending
                 ? 'Enviando…'
-                : jobId === ''
-                ? 'Fazer o curso com IA'
-                : 'Fazer o curso novamente com IA'}
+                : estado === 'ERRO'
+                  ? 'Reprocessar estrutura'
+                  : jobId === ''
+                    ? 'Fazer o curso com IA'
+                    : 'Fazer o curso novamente com IA'}
             </button>
           </div>
           <p className="form__hint">

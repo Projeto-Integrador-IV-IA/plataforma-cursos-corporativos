@@ -14,6 +14,8 @@
 import { Link } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import {
   formatarDataHora,
   rotuloDaOrigem,
@@ -58,9 +60,11 @@ export function DemandDetailArtifacts({ artifacts }: DemandDetailArtifactsProps)
             {descricaoDaVersaoCorrente(artifact)} Criado em {formatarDataHora(artifact.created_at)}.
           </p>
           <p className="demand-detail__artifact-meta">
-            <Link to={buildPath.artifactVersions(artifact.id)}>
-              Ver o historico de versoes ({artifact.versions.length})
-            </Link>
+            <PermissionGate permission={PERMISSIONS.artifactsRead}>
+              <Link to={buildPath.artifactVersions(artifact.id)}>
+                Ver o historico de versoes ({artifact.versions.length})
+              </Link>
+            </PermissionGate>
           </p>
         </li>
       ))}
