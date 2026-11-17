@@ -1,7 +1,7 @@
 """Habilita pgvector e cria o armazenamento de embeddings de trecho (card #158).
 
 Revision ID: 20261112_1200
-Revises: 20261101_1300
+Revises: 20261110_1200
 
 RNF28 consolidado (ADR-0007): armazenamento vinculado ao trecho citavel
 (``source_segments``), via a extensao ``vector`` do Postgres, sem banco
@@ -24,7 +24,7 @@ from alembic import op
 from app.models._types import UUID_TYPE, VECTOR_TYPE
 
 revision: str = "20261112_1200"
-down_revision: str | None = "20261101_1300"
+down_revision: str | None = "20261110_1200"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

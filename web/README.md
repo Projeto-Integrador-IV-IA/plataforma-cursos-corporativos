@@ -4,7 +4,7 @@ Interface do operador: onde clientes, demandas e o pipeline são consultados e o
 revisada antes de qualquer uso externo (RF14). Atende **RNF25** (Documento Consolidado de Requisitos v1.0).
 
 - **Porta:** `5173`
-- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF14, RF17, RF26, RNF10, RNF25
+- **Requisitos atendidos:** RF03, RF04, RF05, RF06, RF07, RF14, RF17, RF23, RF26, RNF10, RNF25
 
 ---
 
@@ -15,6 +15,7 @@ revisada antes de qualquer uso externo (RF14). Atende **RNF25** (Documento Conso
 | Login | RF26 |
 | Lista de clientes / cadastro | RF01, RF03 |
 | Lista de demandas com filtro por status, cliente e período | RF02, RF03 |
+| Painel do pipeline e atualizações recentes | RF05, RF23 |
 | Detalhe da negociação: pipeline, histórico e artefatos | RF04, RF05, RF06, RF07, RF15 |
 | Ingestão de demanda bruta (texto livre) | RF09 |
 | Revisão e edição do curso estruturado pela IA | RF12, RF14 |
@@ -55,6 +56,7 @@ Declaradas em [`src/app/routes.tsx`](src/app/routes.tsx); os caminhos vivem em
 | `/login` | Entrar | RF26 |
 | `/clientes` | Clientes | RF01, RF03 |
 | `/clientes/:clientId` | Detalhe do cliente | RF01 |
+| `/pipeline` | Painel por etapas e atualizações recentes | RF05, RF23 |
 | `/demandas` | Demandas | RF02, RF03 |
 | `/demandas/:demandId` | Detalhe da demanda | RF04–RF07, RF15 |
 | `/demandas/:demandId/ingestao` | Ingestão da demanda | RF09, RNF05 |
@@ -109,4 +111,3 @@ npm run lint    # eslint (Verifica a qualidade de código)
 
 Estado: estrutura base pronta (RNF01) — rotas, layout e providers navegáveis.
 As telas são molduras: nenhum dado é consumido do gateway ainda.
-

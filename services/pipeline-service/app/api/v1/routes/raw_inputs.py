@@ -1,13 +1,20 @@
 """Rota interna de persistencia das fontes brutas captadas pelo RF09."""
 
+from hashlib import sha256
+from pathlib import PurePosixPath
 from typing import Annotated
+from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, File, Form, Header, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
+from app.core.exceptions import NotFoundError, ValidationError
 from app.db.session import get_session
 from app.schemas.raw_input import (
+    AudioMetadata,
     RawInputCreate,
     RawInputErrorResponse,
     RawInputNormalization,
@@ -50,6 +57,100 @@ def create_raw_input(
 ) -> RawInputRead:
     raw_input = RawInputService(session).create(demand_id, author_id, data)
     return RawInputRead.model_validate(raw_input)
+
+
+@router.post(
+    "/demands/{demand_id}/audio-inputs",
+    response_model=RawInputRead,
+    status_code=201,
+    summary="Persistir arquivo original de audio e proveniencia",
+    description=(
+        "Rota interna do ingestion-service: recebe arquivo ja validado e duracao "
+        "medida na captacao. Confirma commit do binario antes de devolver 201."
+    ),
+    responses={
+        code: {"model": RawInputErrorResponse, "description": message}
+        for code, message in {
+            404: "Demanda ou operador inexistente.",
+            409: "Referencia removida durante a persistencia.",
+            422: "Arquivo ou metadados invalidos ou acima dos limites configurados.",
+        }.items()
+    },
+)
+def create_audio_input(
+    demand_id: UUID,
+    file: Annotated[UploadFile, File()],
+    duration_seconds: Annotated[float, Form(gt=0, allow_inf_nan=False)],
+    author_id: Annotated[UUID, Header(alias="X-User-ID")],
+    settings: Annotated[Settings, Depends(get_settings)],
+    session: Annotated[Session, Depends(get_session)],
+) -> RawInputRead:
+    try:
+        content = file.file.read(settings.audio_max_bytes + 1)
+    finally:
+        file.file.close()
+    filename = PurePosixPath((file.filename or "").replace("\\", "/")).name
+    if not content or len(content) > settings.audio_max_bytes:
+        raise ValidationError(
+            code="AUDIO_INVALID_SIZE",
+            message=f"O audio deve conter de 1 a {settings.audio_max_bytes} bytes.",
+        )
+    if duration_seconds > settings.audio_max_duration_seconds:
+        raise ValidationError(
+            code="AUDIO_TOO_LONG",
+            message=(
+                f"O audio deve durar no maximo {settings.audio_max_duration_seconds:g} segundos."
+            ),
+        )
+    if (
+        not filename
+        or len(filename) > 255
+        or any(ord(char) < 32 for char in filename)
+        or file.content_type
+        not in {"audio/wav", "audio/mpeg", "audio/mp4", "audio/ogg", "audio/flac"}
+    ):
+        raise ValidationError(code="AUDIO_INVALID_FORMAT", message="Metadados de audio invalidos.")
+    metadata = AudioMetadata(
+        filename=filename,
+        content_type=file.content_type,
+        size_bytes=len(content),
+        duration_seconds=duration_seconds,
+        sha256=sha256(content).hexdigest(),
+    )
+    raw_input = RawInputService(session).create_audio(demand_id, author_id, metadata, content)
+    session.commit()
+    return RawInputRead.model_validate(raw_input)
+
+
+@router.get(
+    "/raw-inputs/{raw_input_id}/audio",
+    response_class=Response,
+    summary="Recuperar arquivo original de audio",
+    responses={
+        200: {
+            "description": "Bytes originais do arquivo, sem transcodificacao.",
+            "content": {
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
+            },
+        },
+        404: {"model": RawInputErrorResponse, "description": "Fonte ou arquivo inexistente."},
+    },
+)
+def download_audio(
+    raw_input_id: UUID, session: Annotated[Session, Depends(get_session)]
+) -> Response:
+    raw_input = RawInputService(session).get(raw_input_id)
+    audio = raw_input.audio
+    if audio is None:
+        raise NotFoundError(code="AUDIO_NOT_FOUND", message="A fonte nao possui arquivo de audio.")
+    return Response(
+        audio.content,
+        media_type=audio.content_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(audio.filename, safe='')}",
+            "X-Content-SHA256": audio.sha256,
+        },
+    )
 
 
 @router.get(
