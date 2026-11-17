@@ -43,6 +43,12 @@ CLIENTES_HTTP = frozenset({"httpx", "requests", "aiohttp", "urllib3"})
 
 RESTRITOS = SDKS_DE_PROVEDOR | CLIENTES_HTTP
 
+# job_service.py fala com o pipeline-service (outro microsservico da
+# plataforma, nao um fornecedor de LLM) para persistir o resultado da
+# estruturacao (RF13, ADR-0001). O cliente HTTP generico ali nao burla a
+# abstracao LLMProvider - por isso essa unica excecao fica fora de RESTRITOS.
+EXCECOES_DE_CLIENTE_HTTP = {"services/job_service.py": CLIENTES_HTTP}
+
 
 def _modulos_raiz_importados(arquivo: Path) -> set[str]:
     arvore = ast.parse(arquivo.read_text(encoding="utf-8"), filename=str(arquivo))
@@ -66,9 +72,12 @@ def _modulos_fora_de_providers() -> list[Path]:
 def test_nenhum_modulo_fora_de_providers_importa_sdk_de_provedor() -> None:
     infratores: dict[str, list[str]] = {}
     for arquivo in _modulos_fora_de_providers():
-        restritos = sorted(_modulos_raiz_importados(arquivo) & RESTRITOS)
+        caminho = arquivo.relative_to(APP_DIR).as_posix()
+        importados_restritos = _modulos_raiz_importados(arquivo) & RESTRITOS
+        importados_restritos -= EXCECOES_DE_CLIENTE_HTTP.get(caminho, frozenset())
+        restritos = sorted(importados_restritos)
         if restritos:
-            infratores[arquivo.relative_to(APP_DIR).as_posix()] = restritos
+            infratores[caminho] = restritos
 
     assert infratores == {}, (
         "SDK de provedor importado fora de app/providers e app/clients - o servico "
