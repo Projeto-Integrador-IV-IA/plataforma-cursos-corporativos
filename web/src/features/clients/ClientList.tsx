@@ -31,6 +31,8 @@ import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { PATHS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { ClientListPager } from "@/features/clients/ClientListPager";
 import { ClientListTable } from "@/features/clients/ClientListTable";
 import { isApiError } from "@/services/api";
@@ -139,9 +141,11 @@ export function ClientList() {
           ) : (
             <p>
               Nenhum cliente cadastrado ate agora.{" "}
-              <Link className="button" to={PATHS.clientNew}>
-                Cadastrar primeiro cliente
-              </Link>
+              <PermissionGate permission={PERMISSIONS.clientsManage}>
+                <Link className="button" to={PATHS.clientNew}>
+                  Cadastrar primeiro cliente
+                </Link>
+              </PermissionGate>
             </p>
           )}
         </div>

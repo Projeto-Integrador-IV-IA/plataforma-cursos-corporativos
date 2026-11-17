@@ -27,6 +27,8 @@
 import { Link } from "react-router-dom";
 
 import { buildPath } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { STATUS_LABELS } from "@/features/demands/DemandListLabels";
 import type { PipelineCardRead } from "@/types/api";
 
@@ -49,32 +51,34 @@ export function PipelineCard({
     : "pipeline-card";
 
   return (
-    <Link
-      className={className}
-      to={buildPath.demandDetail(card.id)}
-      draggable={Boolean(onDragStart)}
-      onDragStart={() => onDragStart?.(card)}
-      onDragEnd={onDragEnd}
-    >
-      <span className="pipeline-card__client">{card.client.name}</span>
-      <span className="pipeline-card__title">{card.title}</span>
-      <span className="pipeline-card__meta">
-        <span
-          className={`pipeline-card__status pipeline-card__status--${card.status.toLowerCase()}`}
-        >
-          {STATUS_LABELS[card.status]}
-        </span>
-        {card.owner === null ? (
-          <span className="pipeline-card__attention">
-            <span className="pipeline-card__attention-mark" aria-hidden="true">
-              !
-            </span>
-            Sem responsavel definido
+    <PermissionGate permission={PERMISSIONS.demandsRead}>
+      <Link
+        className={className}
+        to={buildPath.demandDetail(card.id)}
+        draggable={Boolean(onDragStart)}
+        onDragStart={() => onDragStart?.(card)}
+        onDragEnd={onDragEnd}
+      >
+        <span className="pipeline-card__client">{card.client.name}</span>
+        <span className="pipeline-card__title">{card.title}</span>
+        <span className="pipeline-card__meta">
+          <span
+            className={`pipeline-card__status pipeline-card__status--${card.status.toLowerCase()}`}
+          >
+            {STATUS_LABELS[card.status]}
           </span>
-        ) : (
-          <span className="pipeline-card__owner">{card.owner.name}</span>
-        )}
-      </span>
-    </Link>
+          {card.owner === null ? (
+            <span className="pipeline-card__attention">
+              <span className="pipeline-card__attention-mark" aria-hidden="true">
+                !
+              </span>
+              Sem responsavel definido
+            </span>
+          ) : (
+            <span className="pipeline-card__owner">{card.owner.name}</span>
+          )}
+        </span>
+      </Link>
+    </PermissionGate>
   );
 }

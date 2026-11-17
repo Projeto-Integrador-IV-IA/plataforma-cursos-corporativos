@@ -34,13 +34,15 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { PATHS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { demandCount } from "@/features/pipeline/PipelineBoardLabels";
 import { PipelineRecentUpdates } from "@/features/pipeline/PipelineRecentUpdates";
 import { PipelineStageColumn } from "@/features/pipeline/PipelineStageColumn";
 import { isApiError } from "@/services/api";
-import { getPipelineBoard } from "@/services/pipeline";
 import {
   advancePipelineDemand,
+  getPipelineBoard,
   rollbackPipelineDemand,
 } from "@/services/pipeline";
 import type {
@@ -144,9 +146,11 @@ export function PipelineBoardView() {
           {board.data.total === 0 ? (
             <p className="pipeline-board__state" aria-live="polite">
               Nenhuma demanda no pipeline até agora.
-              <Link className="button" to={PATHS.demandNew}>
-                Abrir primeira negociação
-              </Link>
+              <PermissionGate permission={PERMISSIONS.demandsManage}>
+                <Link className="button" to={PATHS.demandNew}>
+                  Abrir primeira negociação
+                </Link>
+              </PermissionGate>
             </p>
           ) : null}
 
@@ -178,7 +182,10 @@ export function PipelineBoardView() {
           <p className="pipeline-board__summary" aria-live="polite">
             {demandCount(board.data.total)} no pipeline. Cada coluna carrega ate{" "}
             {CARDS_PER_STAGE} cartoes; o numero no topo da coluna e o total da
-            etapa. <Link to={PATHS.demands}>Ver tudo em lista</Link>
+            etapa.{" "}
+            <PermissionGate permission={PERMISSIONS.demandsRead}>
+              <Link to={PATHS.demands}>Ver tudo em lista</Link>
+            </PermissionGate>
           </p>
         </>
       ) : null}

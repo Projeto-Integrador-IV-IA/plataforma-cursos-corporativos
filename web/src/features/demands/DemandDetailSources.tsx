@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 
 import { buildPath } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { formatarDataHora } from "@/features/demands/DemandDetailLabels";
 import { rotuloDaFonte } from "@/features/demands/DemandStructuringLabels";
 import { DemandSourceEvidence } from "@/features/ingestion/DemandSourceEvidence";
@@ -40,12 +42,14 @@ export function DemandDetailSources({
           </p>
         ) : (
           <div className="demand-detail__actions">
-            <Link
-              className="button button--secondary"
-              to={buildPath.demandIngestion(demandId)}
-            >
-              Registrar a primeira fonte da demanda
-            </Link>
+            <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+              <Link
+                className="button button--secondary"
+                to={buildPath.demandIngestion(demandId)}
+              >
+                Registrar a primeira fonte da demanda
+              </Link>
+            </PermissionGate>
           </div>
         )}
       </>
@@ -111,12 +115,14 @@ export function DemandDetailSources({
         </ul>
       )}
       <div className="demand-detail__actions">
-        <Link
-          className="button button--secondary"
-          to={buildPath.demandIngestion(demandId)}
-        >
-          Adicionar outra fonte
-        </Link>
+        <PermissionGate permission={PERMISSIONS.ingestionCreate}>
+          <Link
+            className="button button--secondary"
+            to={buildPath.demandIngestion(demandId)}
+          >
+            Adicionar outra fonte
+          </Link>
+        </PermissionGate>
       </div>
     </>
   );
