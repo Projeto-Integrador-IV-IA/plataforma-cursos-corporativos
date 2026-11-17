@@ -35,8 +35,6 @@ make migrate     # aplica as migrations
 make dev         # sobe a stack completa
 ```
 
-> **Hoje** apenas `make db-up` funciona: os serviços ainda são scaffolding, sem implementação.
-
 ## Portas
 
 | Serviço | Porta | URL |
