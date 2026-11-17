@@ -4,9 +4,12 @@ from datetime import datetime
 from uuid import UUID
 
 import httpx
+from pydantic import ValidationError
 
 from app.core.exceptions import UpstreamError
+from app.domain.audio import AudioSource
 from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
+from app.schemas.ingestion import AudioPersistenceRead
 
 
 class PipelineClient:
@@ -14,6 +17,55 @@ class PipelineClient:
 
     def __init__(self, http_client: httpx.Client) -> None:
         self.http_client = http_client
+
+    def persist_audio(
+        self, audio: AudioSource, *, author_id: UUID, request_id: str | None = None
+    ) -> AudioPersistenceRead:
+        """A resposta 201 so vale depois de confirmar o arquivo e a proveniencia."""
+
+        headers = {"X-User-ID": str(author_id)}
+        if request_id:
+            headers["X-Request-ID"] = request_id
+        try:
+            response = self.http_client.post(
+                f"/api/v1/demands/{audio.demand_id}/audio-inputs",
+                files={"file": (audio.filename, audio.content, audio.content_type)},
+                data={"duration_seconds": str(audio.duration_seconds)},
+                headers=headers,
+            )
+        except httpx.TimeoutException as exc:
+            raise UpstreamError(
+                status_code=504,
+                code="PIPELINE_TIMEOUT",
+                message="O pipeline nao confirmou a persistencia do audio no prazo.",
+            ) from exc
+        except httpx.RequestError as exc:
+            raise UpstreamError(
+                status_code=502,
+                code="PIPELINE_UNAVAILABLE",
+                message="Nao foi possivel persistir o audio no pipeline.",
+            ) from exc
+        if response.status_code != 201:
+            self._raise_response_error(response)
+        try:
+            receipt = AudioPersistenceRead.model_validate_json(response.content)
+            if (
+                receipt.demand_id != audio.demand_id
+                or receipt.author_id != author_id
+                or receipt.audio.sha256 != audio.sha256
+                or receipt.audio.size_bytes != len(audio.content)
+                or receipt.audio.filename != audio.filename
+                or receipt.audio.content_type != audio.content_type
+                or receipt.audio.duration_seconds != audio.duration_seconds
+            ):
+                raise ValueError("Confirmacao de outro arquivo ou proveniencia")
+        except (ValidationError, ValueError) as exc:
+            raise UpstreamError(
+                status_code=502,
+                code="PIPELINE_INVALID_RESPONSE",
+                message="O pipeline nao confirmou a integridade do audio.",
+            ) from exc
+        return receipt
 
     def persist_raw_demand(
         self,

@@ -349,7 +349,7 @@ export const RAW_INPUT_SOURCES = [
   'OUTRO',
 ] as const;
 
-export type RawInputSource = (typeof RAW_INPUT_SOURCES)[number];
+export type RawInputSource = (typeof RAW_INPUT_SOURCES)[number] | 'AUDIO';
 
 /** Corpo de `POST /api/v1/ingestion`: texto que sera preservado para a demanda. */
 export interface IngestionCreateRequest {
@@ -388,7 +388,7 @@ export interface RawInput {
 /** Registro de demanda bruta. O autor vem do token, nunca do corpo. */
 export interface RawInputCreate {
   readonly original_content: string;
-  readonly source: RawInputSource;
+  readonly source: Exclude<RawInputSource, 'AUDIO'>;
 }
 
 // ---------------------------------------------------------------------------
