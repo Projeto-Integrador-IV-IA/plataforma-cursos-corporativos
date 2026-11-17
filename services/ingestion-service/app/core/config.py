@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     ingestion_port: int = Field(ge=1, le=65535)
     pipeline_service_url: str = Field(min_length=1)
     pipeline_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    audio_max_bytes: int = Field(default=25_000_000, gt=0)
+    audio_max_duration_seconds: float = Field(default=3600, gt=0, allow_inf_nan=False)
     ai_structuring_service_url: str = Field(min_length=1)
     source_text_max_length: int = Field(default=DEFAULT_SOURCE_TEXT_MAX_LENGTH, ge=10)
 

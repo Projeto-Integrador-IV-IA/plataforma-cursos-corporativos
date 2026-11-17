@@ -49,7 +49,7 @@ import { DemandStructuringStatus } from '@/features/demands/DemandStructuringSta
 import { lerCursoEstruturado } from '@/features/demands/StructuredCourseContent';
 import { isApiError } from '@/services/api';
 import { listArtifacts } from '@/services/artifacts';
-import { getDemand } from '@/services/demands';
+import { getDemand, listDemandSegments } from '@/services/demands';
 import { getStructuringJob } from '@/services/structuring';
 import type {
   ArtifactResultRead,
@@ -136,6 +136,12 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     enabled: demandId !== '',
   });
 
+  const trechos = useQuery({
+    queryKey: ['demand-segments', demandId],
+    queryFn: ({ signal }) => listDemandSegments(demandId, { signal }),
+    enabled: demandId !== '',
+  });
+
   // O resultado do job chega antes de existir um artefato. Ler o mesmo
   // recurso acompanhado pelo bloco de processamento evita declarar vazio um
   // curso que a API ja devolveu como concluido.
@@ -149,7 +155,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
         : false,
   });
 
-  if (demanda.isPending || artefatos.isPending) {
+  if (demanda.isPending || artefatos.isPending || trechos.isPending) {
     return (
       <p className="page__pending" aria-live="polite">
         Carregando a estrutura gerada…
@@ -157,10 +163,10 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     );
   }
 
-  if (demanda.isError || artefatos.isError) {
+  if (demanda.isError || artefatos.isError || trechos.isError) {
     return (
       <p className="demand-detail__failure" aria-live="polite">
-        {mensagemDeErro(demanda.error ?? artefatos.error)}
+        {mensagemDeErro(demanda.error ?? artefatos.error ?? trechos.error)}
       </p>
     );
   }
@@ -226,7 +232,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
                 ? `${artefato.title ?? 'Requisitos extraidos'}: versao ${versao.number} (${rotuloDaOrigem(versao.origin)}) gerada em ${formatarDataHora(versao.created_at)}.`
                 : 'Resultado recebido da execucao da IA. Ele ainda nao aparece no historico de versoes da demanda.'}
             </p>
-            <DemandStructuringCourse course={curso} />
+            <DemandStructuringCourse course={curso} segments={trechos.data} />
             {artefato === undefined ? null : (
               <p className="page__description">
                 <PermissionGate permission={PERMISSIONS.artifactsRead}>

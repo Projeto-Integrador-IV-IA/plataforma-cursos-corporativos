@@ -31,7 +31,7 @@ export function DemandDetailSources({
               className="button button--secondary"
               to={buildPath.demandIngestion(demandId)}
             >
-              Registrar texto da demanda
+              Registrar a primeira fonte da demanda
             </Link>
           </PermissionGate>
         </div>

@@ -37,6 +37,7 @@ import { PATHS } from "@/app/paths";
 import { PermissionGate } from "@/features/auth/Authorization";
 import { PERMISSIONS } from "@/features/auth/permissions";
 import { demandCount } from "@/features/pipeline/PipelineBoardLabels";
+import { PipelineRecentUpdates } from "@/features/pipeline/PipelineRecentUpdates";
 import { PipelineStageColumn } from "@/features/pipeline/PipelineStageColumn";
 import { isApiError } from "@/services/api";
 import {
@@ -138,6 +139,10 @@ export function PipelineBoardView() {
 
       {board.isSuccess ? (
         <>
+          <PipelineRecentUpdates
+            demands={board.data.stages.flatMap((group) => group.items)}
+          />
+
           {board.data.total === 0 ? (
             <p className="pipeline-board__state" aria-live="polite">
               Nenhuma demanda no pipeline até agora.
