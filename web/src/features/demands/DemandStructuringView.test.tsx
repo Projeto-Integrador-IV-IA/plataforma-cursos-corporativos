@@ -523,8 +523,8 @@ describe('revisao da estruturacao', () => {
     // o identificador da fonte acompanha o envio para sustentar a evidencia.
     expect(vi.mocked(submitStructuringJob).mock.calls[0]?.[0]).toEqual({
       demand_id: DEMAND_ID,
-      text: FONTE.original_content,
       source_ids: [FONTE_ID],
+      text: FONTE.original_content,
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
@@ -542,7 +542,7 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao();
 
-    expect(textoDaTela()).toContain('Esta demanda não tem nenhuma fonte captada.');
+    expect(textoDaTela()).toContain('Esta demanda nao tem nenhuma fonte captada.');
     expect(
       screen.getByRole<HTMLButtonElement>('button', { name: 'Fazer o curso com IA' }).disabled,
     ).toBe(true);

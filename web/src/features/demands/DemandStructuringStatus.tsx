@@ -237,7 +237,7 @@ export function DemandStructuringStatus({
       {source === undefined ? (
         <>
           <p className="demand-detail__empty">
-            Esta demanda não tem nenhuma fonte captada. Sem o texto do cliente, não há o que
+            Esta demanda nao tem nenhuma fonte captada. Sem o texto do cliente, nao ha o que
             estruturar.
           </p>
           <div className="form__actions">

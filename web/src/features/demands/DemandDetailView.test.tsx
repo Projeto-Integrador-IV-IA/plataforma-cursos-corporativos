@@ -216,7 +216,7 @@ describe('detalhe da demanda', () => {
     await abrirDetalhe();
 
     const destino = (nome: RegExp) =>
-      screen.getByRole('link', { name: nome }).getAttribute('href');
+      screen.getAllByRole('link', { name: nome })[0]?.getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
     expect(destino(/Registrar a primeira fonte da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
