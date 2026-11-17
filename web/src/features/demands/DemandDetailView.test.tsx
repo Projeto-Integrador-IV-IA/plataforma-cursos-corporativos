@@ -27,6 +27,7 @@ vi.mock('@/services/demands', () => ({
   createDemand: vi.fn(),
   listDemands: vi.fn(),
   getDemand: vi.fn(),
+  listDemandSegments: vi.fn(),
   updateDemand: vi.fn(),
 }));
 vi.mock('@/services/pipeline', () => ({ listStageTransitions: vi.fn() }));
@@ -85,8 +86,8 @@ const DEMANDA: DemandDetail = {
     notes: null,
     active: true,
   },
-  // A secao de fontes do detalhe continua anunciada e vazia (RF09): o que
-  // consome `raw_inputs` hoje e a revisao da estruturacao (RF19).
+  // A secao de fontes continua vazia neste fixture; a revisao consome
+  // `raw_inputs` em outro fluxo (RF19).
   raw_inputs: [],
   artifacts: [EMENTA],
 };
@@ -215,7 +216,7 @@ describe('detalhe da demanda', () => {
     await abrirDetalhe();
 
     const destino = (nome: RegExp) =>
-      screen.getByRole('link', { name: nome }).getAttribute('href');
+      screen.getAllByRole('link', { name: nome })[0]?.getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
     expect(destino(/Registrar a primeira fonte da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);

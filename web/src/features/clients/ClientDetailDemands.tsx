@@ -15,6 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { buildPath, PATHS } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { clientDemandsKey } from '@/features/clients/ClientDetailQueryKeys';
 import {
   formatarDataHora,
@@ -74,7 +76,9 @@ export function ClientDetailDemands({ clientId }: ClientDetailDemandsProps) {
           Este cliente ainda nao tem demanda aberta.
         </p>
         <p className="page__description">
-          <Link to={PATHS.demandNew}>Abrir a primeira demanda</Link>
+          <PermissionGate permission={PERMISSIONS.demandsManage}>
+            <Link to={PATHS.demandNew}>Abrir a primeira demanda</Link>
+          </PermissionGate>
         </p>
       </>
     );
@@ -85,7 +89,9 @@ export function ClientDetailDemands({ clientId }: ClientDetailDemandsProps) {
       <ul className="client-detail__demands">
         {items.map((demanda) => (
           <li className="client-detail__demand" key={demanda.id}>
-            <Link to={buildPath.demandDetail(demanda.id)}>{demanda.title}</Link>
+            <PermissionGate permission={PERMISSIONS.demandsRead}>
+              <Link to={buildPath.demandDetail(demanda.id)}>{demanda.title}</Link>
+            </PermissionGate>
             <p className="client-detail__demand-meta">
               <span className="tag">{rotuloDaEtapa(demanda.current_stage)}</span>
               <span className="tag">{rotuloDaSituacao(demanda.status)}</span>
@@ -98,7 +104,9 @@ export function ClientDetailDemands({ clientId }: ClientDetailDemandsProps) {
         {items.length < total
           ? `Mostrando ${items.length} de ${total} demandas. `
           : `${total} demanda(s) no total. `}
-        <Link to={listagemFiltrada}>Ver as demandas deste cliente na listagem</Link>
+        <PermissionGate permission={PERMISSIONS.demandsRead}>
+          <Link to={listagemFiltrada}>Ver as demandas deste cliente na listagem</Link>
+        </PermissionGate>
       </p>
     </>
   );

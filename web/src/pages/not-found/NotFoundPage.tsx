@@ -8,6 +8,8 @@
 import { Link } from "react-router-dom";
 
 import { PATHS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 
 export function NotFoundPage() {
   return (
@@ -16,7 +18,9 @@ export function NotFoundPage() {
       <p className="page__description">
         O endereco acessado nao corresponde a nenhuma tela.
       </p>
-      <Link to={PATHS.home}>Voltar para a visão geral</Link>
+      <PermissionGate permission={PERMISSIONS.pipelineRead}>
+        <Link to={PATHS.home}>Voltar para a visão geral</Link>
+      </PermissionGate>
     </section>
   );
 }

@@ -14,6 +14,8 @@
 import { Link } from "react-router-dom";
 
 import { PATHS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { PipelineBoardView } from "@/features/pipeline/PipelineBoardView";
 
 import "./pipeline.css";
@@ -29,12 +31,16 @@ export function PipelinePage() {
           </p>
         </div>
         <div className="pipeline-page__actions">
-          <Link className="button button--secondary" to={PATHS.demands}>
-            Ver em lista
-          </Link>
-          <Link className="button" to={PATHS.demandNew}>
-            <span aria-hidden="true">+</span> Nova demanda
-          </Link>
+          <PermissionGate permission={PERMISSIONS.demandsRead}>
+            <Link className="button button--secondary" to={PATHS.demands}>
+              Ver em lista
+            </Link>
+          </PermissionGate>
+          <PermissionGate permission={PERMISSIONS.demandsManage}>
+            <Link className="button" to={PATHS.demandNew}>
+              <span aria-hidden="true">+</span> Nova demanda
+            </Link>
+          </PermissionGate>
         </div>
       </header>
       <PipelineBoardView />

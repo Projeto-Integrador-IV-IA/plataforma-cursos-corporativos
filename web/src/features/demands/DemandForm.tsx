@@ -21,6 +21,8 @@ import { type FormEvent, useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { buildPath } from '@/app/paths';
+import { FieldError } from '@/components/FieldError';
+import { fieldErrorsFrom, hasFieldErrors, type FieldErrors } from '@/components/fieldErrors';
 import { ProcessingMessage } from '@/components/ProcessingMessage';
 import { useFeedback } from '@/hooks/useFeedback';
 import { isApiError } from '@/services/api';
@@ -54,6 +56,13 @@ export function DemandForm() {
   const [clientId, setClientId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  function clearError(field: string) {
+    if (errors[field] !== undefined) {
+      setErrors((current) => ({ ...current, [field]: undefined }));
+    }
+  }
 
   const clientes = useQuery({
     queryKey: ['clients', { size: LIMITE_DE_CLIENTES }],
@@ -67,7 +76,11 @@ export function DemandForm() {
       await queryClient.invalidateQueries({ queryKey: ['demands'] });
       navigate(buildPath.demandDetail(demanda.id));
     },
-    onError: (erro: unknown) => showError(mensagemDeErro(erro)),
+    onError: (erro: unknown) => {
+      const fieldErrors = fieldErrorsFrom(erro);
+      setErrors(fieldErrors);
+      if (!hasFieldErrors(fieldErrors)) showError(mensagemDeErro(erro));
+    },
   });
 
   const tituloPreenchido = title.trim() !== '';
@@ -96,9 +109,14 @@ export function DemandForm() {
           id={idCliente}
           className="form__control"
           value={clientId}
+          aria-invalid={errors.client_id !== undefined}
+          aria-describedby={errors.client_id === undefined ? undefined : `${idCliente}-error`}
           required
           disabled={clientes.isPending || clientes.isError}
-          onChange={(evento) => setClientId(evento.target.value)}
+          onChange={(evento) => {
+            setClientId(evento.target.value);
+            clearError('client_id');
+          }}
         >
           <option value="">
             {clientes.isPending ? 'Carregando clientes…' : 'Selecione o cliente'}
@@ -115,6 +133,7 @@ export function DemandForm() {
             negociacao.
           </p>
         ) : null}
+        <FieldError id={`${idCliente}-error`} message={errors.client_id} />
         {clientes.isSuccess && clientes.data.items.length === 0 ? (
           <p className="form__hint" role="status">
             Nenhum cliente cadastrado. Cadastre o cliente antes de abrir a demanda.
@@ -130,11 +149,17 @@ export function DemandForm() {
           id={idTitulo}
           className="form__control"
           value={title}
+          aria-invalid={errors.title !== undefined}
+          aria-describedby={errors.title === undefined ? undefined : `${idTitulo}-error`}
           required
           maxLength={200}
           autoComplete="off"
-          onChange={(evento) => setTitle(evento.target.value)}
+          onChange={(evento) => {
+            setTitle(evento.target.value);
+            clearError('title');
+          }}
         />
+        <FieldError id={`${idTitulo}-error`} message={errors.title} />
       </div>
 
       <div className="form__field">
@@ -145,13 +170,19 @@ export function DemandForm() {
           id={idContexto}
           className="form__control"
           value={description}
+          aria-invalid={errors.description !== undefined}
+          aria-describedby={errors.description === undefined ? undefined : `${idContexto}-error`}
           rows={5}
-          onChange={(evento) => setDescription(evento.target.value)}
+          onChange={(evento) => {
+            setDescription(evento.target.value);
+            clearError('description');
+          }}
         />
         <p className="form__hint">
           O que o cliente pediu, nas palavras dele. A fonte bruta completa entra depois, na
           captacao.
         </p>
+        <FieldError id={`${idContexto}-error`} message={errors.description} />
       </div>
 
       <div className="form__actions">

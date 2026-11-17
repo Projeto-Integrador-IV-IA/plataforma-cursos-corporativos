@@ -24,6 +24,8 @@ import { Link } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
 import { ProcessingMessage } from '@/components/ProcessingMessage';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { ClientDetailDemands } from '@/features/clients/ClientDetailDemands';
 import { ClientDetailForm } from '@/features/clients/ClientDetailForm';
 import { clientDetailKey } from '@/features/clients/ClientDetailQueryKeys';
@@ -131,7 +133,9 @@ const alterarSituacao = useMutation({
           Dados cadastrais
         </h2>
         {editando ? (
-          <ClientDetailForm client={cliente} onFinish={() => setEditando(false)} />
+          <PermissionGate permission={PERMISSIONS.clientsManage}>
+            <ClientDetailForm client={cliente} onFinish={() => setEditando(false)} />
+          </PermissionGate>
         ) : (
           <>
             <dl className="client-detail__fields">
@@ -147,29 +151,33 @@ const alterarSituacao = useMutation({
               <Campo termo="Ultima alteracao">{formatarDataHora(cliente.updated_at)}</Campo>
             </dl>
             <div className="form__actions">
-              <button className="button" type="button" onClick={() => setEditando(true)}>
-                Editar cadastro
-              </button>
+              <PermissionGate permission={PERMISSIONS.clientsManage}>
+                <button className="button" type="button" onClick={() => setEditando(true)}>
+                  Editar cadastro
+                </button>
+              </PermissionGate>
             </div>
-           <button
-  className="button"
-  type="button"
-  disabled={alterarSituacao.isPending}
-  onClick={() => alterarSituacao.mutate(cliente.active)}
->
-  {alterarSituacao.isPending
-    ? 'Atualizando...'
-    : cliente.active
-      ? 'Inativar cliente'
-      : 'Reativar cliente'}
-</button>
+            <PermissionGate permission={PERMISSIONS.clientsManage}>
+              <button
+                className="button"
+                type="button"
+                disabled={alterarSituacao.isPending}
+                onClick={() => alterarSituacao.mutate(cliente.active)}
+              >
+                {alterarSituacao.isPending
+                  ? 'Atualizando...'
+                  : cliente.active
+                    ? 'Inativar cliente'
+                    : 'Reativar cliente'}
+              </button>
+            </PermissionGate>
 
-{alterarSituacao.isError && (
-  <p className="client-detail__failure" role="alert">
-    {mensagemDeErro(alterarSituacao.error)}
-  </p>
-)}
-{alterarSituacao.isPending ? <ProcessingMessage operation="alteracao da situacao" /> : null}
+            {alterarSituacao.isError && (
+              <p className="client-detail__failure" role="alert">
+                {mensagemDeErro(alterarSituacao.error)}
+              </p>
+            )}
+            {alterarSituacao.isPending ? <ProcessingMessage operation="alteracao da situacao" /> : null}
             <p className="client-detail__note">
               Inativar o cliente ainda nao e possivel por esta tela: a operacao pertence ao RF01.3
               e nao foi publicada no contrato.
@@ -178,12 +186,14 @@ const alterarSituacao = useMutation({
         )}
       </section>
 
-      <section className="client-detail__section" aria-labelledby="cliente-demandas">
-        <h2 className="client-detail__section-title" id="cliente-demandas">
-          Demandas do cliente
-        </h2>
-        <ClientDetailDemands clientId={cliente.id} />
-      </section>
+      <PermissionGate permission={PERMISSIONS.demandsRead}>
+        <section className="client-detail__section" aria-labelledby="cliente-demandas">
+          <h2 className="client-detail__section-title" id="cliente-demandas">
+            Demandas do cliente
+          </h2>
+          <ClientDetailDemands clientId={cliente.id} />
+        </section>
+      </PermissionGate>
     </div>
   );
 }

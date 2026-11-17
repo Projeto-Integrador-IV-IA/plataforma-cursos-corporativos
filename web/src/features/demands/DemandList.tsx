@@ -28,6 +28,8 @@ import { useId, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { PATHS } from '@/app/paths';
+import { PermissionGate } from '@/features/auth/Authorization';
+import { PERMISSIONS } from '@/features/auth/permissions';
 import { STAGE_LABELS, STATUS_LABELS } from '@/features/demands/DemandListLabels';
 import { DemandListPager } from '@/features/demands/DemandListPager';
 import { DemandListTable } from '@/features/demands/DemandListTable';
@@ -39,6 +41,7 @@ import {
   PIPELINE_STAGES,
   type Client,
   type DemandStatus,
+  type PipelineStage,
   type Uuid,
 } from '@/types/api';
 
@@ -81,6 +84,12 @@ function readStatus(params: URLSearchParams): DemandStatus | undefined {
   return DEMAND_STATUSES.find((status) => status === raw);
 }
 
+function readStage(params: URLSearchParams): PipelineStage | undefined {
+  const raw = params.get(PARAM.stage);
+
+  return PIPELINE_STAGES.find((stage) => stage === raw);
+}
+
 function readClient(params: URLSearchParams): Uuid | undefined {
   const raw = params.get(PARAM.client);
 
@@ -102,12 +111,12 @@ export function DemandList() {
 
   const page = readPage(searchParams);
   const status = readStatus(searchParams);
-  const stage = PIPELINE_STAGES.find((value) => value === searchParams.get(PARAM.stage));
+  const stage = readStage(searchParams);
   const clientId = readClient(searchParams);
   const ownerId = searchParams.get(PARAM.owner) || undefined;
 
   const filtered =
-    stage !== undefined || status !== undefined || clientId !== undefined || ownerId !== undefined;
+    status !== undefined || stage !== undefined || clientId !== undefined || ownerId !== undefined;
 
   const params = useMemo(
     () => ({
@@ -313,7 +322,9 @@ export function DemandList() {
           ) : (
             <p>
               Nenhuma demanda aberta ate agora.{' '}
-              <Link to={PATHS.demandNew}>Abra a primeira negociacao</Link>.
+              <PermissionGate permission={PERMISSIONS.demandsManage}>
+                <Link to={PATHS.demandNew}>Abra a primeira negociacao</Link>.
+              </PermissionGate>
             </p>
           )}
         </div>

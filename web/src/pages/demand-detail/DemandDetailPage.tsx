@@ -10,29 +10,79 @@
  * operacoes de pipeline forem publicadas.
  */
 
-import { Link, useParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 
-import { PATHS } from "@/app/paths";
+import { buildPath, PATHS, QUERY_PARAMS } from "@/app/paths";
+import { PermissionGate } from "@/features/auth/Authorization";
+import { PERMISSIONS } from "@/features/auth/permissions";
 import { DemandDetailView } from "@/features/demands/DemandDetailView";
 
 import "./demand-detail.css";
 
+interface ReviewLocation {
+  readonly pathname: string;
+  readonly search: string;
+  readonly hash: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function getReviewReturnLocation(state: unknown, demandId: string): ReviewLocation {
+  const fallback = {
+    pathname: buildPath.demandStructuring(demandId),
+    search: '',
+    hash: '',
+  };
+  if (!isRecord(state) || !isRecord(state.returnTo)) return fallback;
+
+  const candidate = state.returnTo;
+  if (
+    candidate.pathname !== fallback.pathname ||
+    typeof candidate.search !== 'string' ||
+    typeof candidate.hash !== 'string'
+  ) {
+    return fallback;
+  }
+
+  return {
+    pathname: fallback.pathname,
+    search: candidate.search,
+    hash: candidate.hash,
+  };
+}
+
 export function DemandDetailPage() {
   const { demandId } = useParams<{ demandId: string }>();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
 
   return (
     <section className="page page--wide">
       <header className="demand-detail-page__header">
         <h1 className="page__title">Detalhe da demanda</h1>
-        <Link className="demand-detail-page__back" to={PATHS.demands}>
-          ← Voltar para demandas
-        </Link>
+        <PermissionGate permission={PERMISSIONS.demandsRead}>
+          <Link className="demand-detail-page__back" to={PATHS.demands}>
+            ← Voltar para demandas
+          </Link>
+        </PermissionGate>
       </header>
 
       {demandId === undefined ? (
         <p className="page__pending">Demanda nao informada no endereco.</p>
       ) : (
-        <DemandDetailView demandId={demandId} />
+        <DemandDetailView
+          demandId={demandId}
+          selectedSourceId={searchParams.get(QUERY_PARAMS.sourceId)}
+          selectedSegmentId={searchParams.get(QUERY_PARAMS.sourceSegmentId)}
+          returnTo={getReviewReturnLocation(location.state, demandId)}
+        />
       )}
     </section>
   );
