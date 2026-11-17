@@ -162,14 +162,15 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
   // O resultado do job chega antes de existir um artefato. Ler o mesmo
   // recurso acompanhado pelo bloco de processamento evita declarar vazio um
   // curso que a API ja devolveu como concluido.
+  //
+  // `DemandStructuringStatus` e quem busca e mantem este recurso em dia
+  // (mutacao, cache otimista, nova consulta no intervalo); aqui so se le o
+  // mesmo cache - `enabled: false` impede uma segunda busca concorrente, mas
+  // a leitura continua reativa as atualizacoes que o outro observador faz.
   const execucao = useQuery({
     queryKey: structuringJobKey(jobId),
     queryFn: ({ signal }) => getStructuringJob(jobId, { signal }),
-    enabled: jobId !== '',
-    refetchInterval: (query) =>
-      query.state.data?.status === 'PENDENTE' || query.state.data?.status === 'PROCESSANDO'
-        ? 2_000
-        : false,
+    enabled: false,
   });
 
   if (demanda.isPending || artefatos.isPending || trechos.isPending) {

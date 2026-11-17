@@ -43,11 +43,11 @@ CLIENTES_HTTP = frozenset({"httpx", "requests", "aiohttp", "urllib3"})
 
 RESTRITOS = SDKS_DE_PROVEDOR | CLIENTES_HTTP
 
-# Chamada a outro microsservico interno (nunca a um fornecedor de LLM): o
-# job_service fala HTTP direto com o pipeline-service para persistir o
-# resultado (RF13, ADR-0001), nao ha SDK de provedor envolvido e nenhuma
-# resposta de fornecedor passa por aqui. Fora do escopo desta varredura.
-EXCECOES_DE_INTEGRACAO_INTERNA = frozenset({"services/job_service.py"})
+# job_service.py fala com o pipeline-service (outro microsservico da
+# plataforma, nao um fornecedor de LLM) para persistir o resultado da
+# estruturacao (RF13, ADR-0001). O cliente HTTP generico ali nao burla a
+# abstracao LLMProvider - por isso essa unica excecao fica fora de RESTRITOS.
+EXCECOES_DE_CLIENTE_HTTP = {"services/job_service.py": CLIENTES_HTTP}
 
 
 def _modulos_raiz_importados(arquivo: Path) -> set[str]:
@@ -73,9 +73,9 @@ def test_nenhum_modulo_fora_de_providers_importa_sdk_de_provedor() -> None:
     infratores: dict[str, list[str]] = {}
     for arquivo in _modulos_fora_de_providers():
         caminho = arquivo.relative_to(APP_DIR).as_posix()
-        if caminho in EXCECOES_DE_INTEGRACAO_INTERNA:
-            continue
-        restritos = sorted(_modulos_raiz_importados(arquivo) & RESTRITOS)
+        importados_restritos = _modulos_raiz_importados(arquivo) & RESTRITOS
+        importados_restritos -= EXCECOES_DE_CLIENTE_HTTP.get(caminho, frozenset())
+        restritos = sorted(importados_restritos)
         if restritos:
             infratores[caminho] = restritos
 
