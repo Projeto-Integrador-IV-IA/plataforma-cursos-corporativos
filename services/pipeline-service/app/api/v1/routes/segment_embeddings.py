@@ -52,7 +52,12 @@ def create_segment_embeddings(
     data: SegmentEmbeddingBatchCreate,
     session: Annotated[Session, Depends(get_session)],
 ) -> list[SegmentEmbeddingRead]:
-    return SegmentEmbeddingService(session).save_batch(data)
+    embeddings = SegmentEmbeddingService(session).save_batch(data)
+    # Commit explicito: uma busca por similaridade (RF29 #161) pedida logo
+    # apos esta resposta precisa ver estes embeddings, e o commit implicito
+    # da dependencia so roda depois que a resposta ja foi enviada.
+    session.commit()
+    return embeddings
 
 
 @router.post(

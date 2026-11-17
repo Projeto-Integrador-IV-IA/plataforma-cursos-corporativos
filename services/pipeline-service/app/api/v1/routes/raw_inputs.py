@@ -56,6 +56,12 @@ def create_raw_input(
     session: Annotated[Session, Depends(get_session)],
 ) -> RawInputRead:
     raw_input = RawInputService(session).create(demand_id, author_id, data)
+    # Confirma commit do texto antes de devolver 201 - mesmo motivo do
+    # audio-inputs abaixo: sem isso, o ingestion-service sanitizar e persistir
+    # trechos imediatamente apos esta resposta (RF10, RF29) pode nao achar
+    # esta fonte ainda, porque o commit implicito da dependencia roda depois
+    # que a resposta ja foi enviada.
+    session.commit()
     return RawInputRead.model_validate(raw_input)
 
 
@@ -228,4 +234,5 @@ def normalize_raw_input(
     session: Annotated[Session, Depends(get_session)],
 ) -> RawInputRead:
     raw_input = RawInputService(session).normalize(raw_input_id, data)
+    session.commit()
     return RawInputRead.model_validate(raw_input)

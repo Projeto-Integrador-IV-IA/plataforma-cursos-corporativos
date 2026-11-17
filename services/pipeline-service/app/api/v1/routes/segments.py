@@ -46,7 +46,13 @@ def persist_source_segments(
     data: SourceSegmentBatchCreate,
     session: Annotated[Session, Depends(get_session)],
 ) -> list[SourceSegmentRead]:
-    return SourceSegmentService(session).persist(raw_input_id, data)
+    trechos = SourceSegmentService(session).persist(raw_input_id, data)
+    # Commit explicito: sem ele, uma busca por similaridade (RF29 #161) ou
+    # geracao de embedding (#160) pedida logo apos esta resposta pode nao
+    # encontrar os trechos ainda, porque o commit implicito da dependencia
+    # roda depois que a resposta ja foi enviada.
+    session.commit()
+    return trechos
 
 
 @router.get(

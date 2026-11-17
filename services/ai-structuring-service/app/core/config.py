@@ -55,6 +55,20 @@ class Settings(BaseSettings):
 
         return None if value == "" else value
 
+    @field_validator("llm_daily_token_budget", mode="before")
+    @classmethod
+    def empty_token_budget_is_absent(cls, value: object) -> object:
+        """Trata teto diario vazio como ausente (RNF22: vazio = sem alerta).
+
+        Sem isto, ``LLM_DAILY_TOKEN_BUDGET=`` vazio - o estado padrao do
+        `.env.example` e o documentado como valido - quebra a validacao do
+        Settings na primeira requisicao, porque pydantic-settings nao trata
+        string vazia como ausente para um campo ``int | None`` por conta
+        propria.
+        """
+
+        return None if value == "" else value
+
     @model_validator(mode="after")
     def require_api_key_for_remote_provider(self) -> Self:
         """Falha rapidamente se um provedor remoto estiver sem credencial."""

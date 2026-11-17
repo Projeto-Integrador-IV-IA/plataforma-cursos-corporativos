@@ -52,7 +52,12 @@ def save_artifact_edit(
     author_id: Annotated[UUID, Header(alias="X-User-ID")],
     session: Annotated[Session, Depends(get_session)],
 ) -> ArtifactVersionRead:
-    return ArtifactService(session).save_edit(artifact_id, data, author_id)
+    versao = ArtifactService(session).save_edit(artifact_id, data, author_id)
+    # Commit explicito: o commit implicito da dependencia so roda depois que
+    # a resposta ja foi enviada (FastAPI), o que deixaria uma consulta
+    # imediatamente seguinte (ex.: listar versoes) sem ver esta edicao ainda.
+    session.commit()
+    return versao
 
 
 @router.post(
@@ -84,7 +89,14 @@ def create_artifact_result(
     data: ArtifactResultCreate,
     session: Annotated[Session, Depends(get_session)],
 ) -> ArtifactRead:
-    return ArtifactService(session).create_result(demand_id, data)
+    artefato = ArtifactService(session).create_result(demand_id, data)
+    # Commit explicito: o ai-structuring-service considera a execucao (RF17)
+    # concluida so depois desta resposta, e a tela de detalhe da demanda
+    # (RF13) pode ser consultada no instante seguinte - sem o commit aqui, o
+    # artefato pode ainda nao estar visivel, porque o commit implicito da
+    # dependencia so roda depois que a resposta ja foi enviada.
+    session.commit()
+    return artefato
 
 
 @router.get(
@@ -171,7 +183,9 @@ def restore_artifact_version(
     author_id: Annotated[UUID, Header(alias="X-User-ID")],
     session: Annotated[Session, Depends(get_session)],
 ) -> ArtifactVersionRead:
-    return ArtifactService(session).restore_version(artifact_id, number, author_id)
+    versao = ArtifactService(session).restore_version(artifact_id, number, author_id)
+    session.commit()
+    return versao
 
 
 @router.post(
@@ -205,4 +219,6 @@ def reprocess_artifact(
     data: ArtifactReprocessCreate,
     session: Annotated[Session, Depends(get_session)],
 ) -> ArtifactVersionRead:
-    return ArtifactService(session).reprocess(artifact_id, data)
+    versao = ArtifactService(session).reprocess(artifact_id, data)
+    session.commit()
+    return versao

@@ -37,8 +37,14 @@ def create_client(
     payload: ClientCreate,
     response: Response,
     service: Annotated[ClientService, Depends(get_client_service)],
+    session: Annotated[Session, Depends(get_session)],
 ) -> ClientRead:
     client = service.create(payload)
+    # Confirma o commit antes de devolver: sem isso, uma chamada imediatamente
+    # seguinte (ex.: criar a demanda deste cliente) pode nao ver o cliente
+    # ainda, porque o commit implicito da dependencia so roda depois que a
+    # resposta ja foi enviada (comportamento documentado do FastAPI).
+    session.commit()
     response.headers["Location"] = f"/api/v1/clients/{client.id}"
     return ClientRead.model_validate(client)
 
@@ -114,8 +120,11 @@ def update_client(
     client_id: UUID,
     payload: ClientUpdate,
     service: Annotated[ClientService, Depends(get_client_service)],
+    session: Annotated[Session, Depends(get_session)],
 ) -> ClientRead:
-    return ClientRead.model_validate(service.update(client_id, payload))
+    client = service.update(client_id, payload)
+    session.commit()
+    return ClientRead.model_validate(client)
 
 
 @router.post(
@@ -137,8 +146,11 @@ def update_client(
 def deactivate_client(
     client_id: UUID,
     service: Annotated[ClientService, Depends(get_client_service)],
+    session: Annotated[Session, Depends(get_session)],
 ) -> ClientRead:
-    return ClientRead.model_validate(service.deactivate(client_id))
+    client = service.deactivate(client_id)
+    session.commit()
+    return ClientRead.model_validate(client)
 
 
 @router.post(
@@ -160,5 +172,8 @@ def deactivate_client(
 def reactivate_client(
     client_id: UUID,
     service: Annotated[ClientService, Depends(get_client_service)],
+    session: Annotated[Session, Depends(get_session)],
 ) -> ClientRead:
-    return ClientRead.model_validate(service.reactivate(client_id))
+    client = service.reactivate(client_id)
+    session.commit()
+    return ClientRead.model_validate(client)

@@ -155,13 +155,22 @@ def advance_demand(
     session: Annotated[Session, Depends(get_session)],
     payload: StageChangeRequest | None = None,
 ) -> StageChangeRead:
-    """Delega ao servico; commit ou rollback ficam com a sessao da requisicao."""
+    """Delega ao servico e confirma o commit antes de devolver a resposta.
 
-    return PipelineService(session).advance(
+    O commit e explicito aqui, e nao deixado para o commit implicito da
+    dependencia: aquele so roda depois que a resposta ja foi enviada
+    (comportamento documentado do FastAPI), o que deixaria uma consulta
+    imediatamente seguinte (ex.: o historico de etapas) sem ver esta
+    transicao ainda.
+    """
+
+    resultado = PipelineService(session).advance(
         demand_id,
         author_id,
         reason=payload.reason if payload is not None else None,
     )
+    session.commit()
+    return resultado
 
 
 @demands_router.get(
@@ -238,11 +247,13 @@ def rollback_demand(
     author_id: Annotated[UUID, Header(alias="X-User-ID")],
     session: Annotated[Session, Depends(get_session)],
 ) -> StageChangeRead:
-    """Delega o retrocesso atomico ao servico de pipeline."""
+    """Delega o retrocesso atomico ao servico e confirma o commit antes de responder."""
 
-    return PipelineService(session).rollback(
+    resultado = PipelineService(session).rollback(
         demand_id,
         payload.to_stage,
         author_id,
         payload.reason,
     )
+    session.commit()
+    return resultado

@@ -61,6 +61,26 @@ def test_daily_token_budget_is_optional_and_absent_by_default(
     assert Settings().llm_daily_token_budget is None
 
 
+def test_daily_token_budget_set_to_empty_string_is_also_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Docker Compose sempre define a variavel (``${VAR:-}``), nunca a deixa ausente.
+
+    Diferente de simplesmente nao declarar ``LLM_DAILY_TOKEN_BUDGET``, aqui a
+    variavel existe no ambiente com valor vazio - o cenario real de
+    ``docker-compose.yml``/``.env.example``, que quebrou em produção porque
+    pydantic-settings nao trata string vazia como ausente por conta propria
+    para um campo ``int | None``.
+    """
+
+    _set_common_environment(monkeypatch)
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("LLM_DAILY_TOKEN_BUDGET", "")
+
+    assert Settings().llm_daily_token_budget is None
+
+
 def test_daily_token_budget_rejects_zero_and_negative(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_common_environment(monkeypatch)
     monkeypatch.setenv("LLM_PROVIDER", "mock")

@@ -111,7 +111,13 @@ def create_demand(
 ) -> DemandRead:
     """Aplica o caso de uso e traduz apenas erros previsiveis do dominio."""
 
-    return DemandRead.model_validate(DemandService(session).create(data))
+    demand = DemandService(session).create(data)
+    # Commit explicito antes de devolver: o commit implicito da dependencia
+    # roda apos a resposta ja ter sido enviada (FastAPI), o que deixaria uma
+    # chamada imediatamente seguinte (ex.: captar a primeira fonte) sem ver
+    # esta demanda ainda.
+    session.commit()
+    return DemandRead.model_validate(demand)
 
 
 @router.get(
@@ -152,4 +158,6 @@ def update_demand(
     data: DemandUpdate,
     session: Annotated[Session, Depends(get_session)],
 ) -> DemandDetail:
-    return DemandDetail.model_validate(DemandService(session).update(demand_id, data))
+    demand = DemandService(session).update(demand_id, data)
+    session.commit()
+    return DemandDetail.model_validate(demand)
