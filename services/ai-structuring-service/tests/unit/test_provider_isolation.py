@@ -3,6 +3,11 @@
 Se um modulo de caso de uso, rota ou dominio importar o SDK de um fornecedor, a
 troca de provedor deixa de ser configuracao e vira refatoracao - exatamente o
 que RNF03 e a ADR-0006 evitam. Este teste falha antes disso acontecer.
+
+``app/clients/`` tambem fica fora da varredura: e onde moram os clientes HTTP
+para os OUTROS microsservicos da plataforma (ex.: anexar o resultado ao
+pipeline-service, RF13) - uma dependencia de infraestrutura diferente da que
+RNF03 restringe, sem o risco de acoplar a um fornecedor de LLM concreto.
 """
 
 import ast
@@ -10,6 +15,8 @@ from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parents[2] / "app"
 PROVIDERS_DIR = APP_DIR / "providers"
+CLIENTS_DIR = APP_DIR / "clients"
+DIRETORIOS_ISENTOS = (PROVIDERS_DIR, CLIENTS_DIR)
 
 # Raiz do modulo de cada SDK/cliente de fornecedor conhecido.
 SDKS_DE_PROVEDOR = frozenset(
@@ -50,7 +57,9 @@ def _modulos_raiz_importados(arquivo: Path) -> set[str]:
 
 def _modulos_fora_de_providers() -> list[Path]:
     return [
-        arquivo for arquivo in sorted(APP_DIR.rglob("*.py")) if PROVIDERS_DIR not in arquivo.parents
+        arquivo
+        for arquivo in sorted(APP_DIR.rglob("*.py"))
+        if not any(diretorio in arquivo.parents for diretorio in DIRETORIOS_ISENTOS)
     ]
 
 
@@ -62,8 +71,8 @@ def test_nenhum_modulo_fora_de_providers_importa_sdk_de_provedor() -> None:
             infratores[arquivo.relative_to(APP_DIR).as_posix()] = restritos
 
     assert infratores == {}, (
-        "SDK de provedor importado fora de app/providers - o servico deve falar "
-        f"apenas com a abstracao LLMProvider: {infratores}"
+        "SDK de provedor importado fora de app/providers e app/clients - o servico "
+        f"deve falar apenas com a abstracao LLMProvider: {infratores}"
     )
 
 
