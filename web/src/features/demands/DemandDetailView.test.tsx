@@ -1,5 +1,5 @@
 /**
- * Criterios de aceite da tela de detalhe da demanda (RF02).
+ * Criterios de aceite da tela de detalhe e da trilha da demanda (RF02, RF07).
  *
  * Os testes falam com a tela pelo que o operador ve - bloco, rotulo, botao - e
  * dublam a fronteira de rede (`services/`), nao o `fetch`.
@@ -15,7 +15,13 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/services/api';
-import type { DemandArtifactRead, DemandDetail, DemandUpdate, Uuid } from '@/types/api';
+import type {
+  DemandArtifactRead,
+  DemandDetail,
+  DemandUpdate,
+  StageTransitionTimeline,
+  Uuid,
+} from '@/types/api';
 
 vi.mock('@/services/demands', () => ({
   createDemand: vi.fn(),
@@ -24,8 +30,10 @@ vi.mock('@/services/demands', () => ({
   listDemandSegments: vi.fn(),
   updateDemand: vi.fn(),
 }));
+vi.mock('@/services/pipeline', () => ({ listStageTransitions: vi.fn() }));
 
 const { getDemand, updateDemand } = await import('@/services/demands');
+const { listStageTransitions } = await import('@/services/pipeline');
 const { renderRoute } = await import('@/test/renderRoute');
 
 const EMENTA: DemandArtifactRead = {
@@ -94,6 +102,7 @@ function comDemanda(demanda: DemandDetail) {
 beforeEach(() => {
   vi.clearAllMocks();
   persistida = DEMANDA;
+  vi.mocked(listStageTransitions).mockResolvedValue({ items: [], total: 0 });
   vi.mocked(getDemand).mockImplementation(() => Promise.resolve(persistida));
   vi.mocked(updateDemand).mockImplementation((_demandId: Uuid, payload: DemandUpdate) => {
     persistida = { ...persistida, ...payload };
@@ -116,7 +125,7 @@ function textoDaTela(): string {
 }
 
 describe('detalhe da demanda', () => {
-  it('reune contexto, cliente, etapa e artefatos em uma consulta so', async () => {
+  it('reune contexto, cliente, etapa e artefatos no agregado da demanda', async () => {
     await abrirDetalhe();
 
     expect(getDemand).toHaveBeenCalledTimes(1);
@@ -148,6 +157,7 @@ describe('detalhe da demanda', () => {
       '#demanda-contexto',
       '#demanda-cliente',
       '#demanda-etapa',
+      '#demanda-historico',
       '#demanda-curso-ia',
       '#demanda-fontes',
       '#demanda-artefatos',
@@ -157,12 +167,49 @@ describe('detalhe da demanda', () => {
       'Contexto',
       'Cliente',
       'Etapa e situacao',
+      'Historico de etapas',
       'Curso com IA',
       'Fontes captadas',
       'Artefatos',
     ]) {
       expect(screen.getByRole('heading', { level: 2, name: titulo })).toBeDefined();
     }
+  });
+
+  it('apresenta a trilha completa com evento, autor, justificativa e data', async () => {
+    const historico: StageTransitionTimeline = {
+      items: [
+        {
+          id: '77777777-7777-4777-8777-777777777777',
+          demand_id: DEMANDA.id,
+          from_stage: 'CAPTACAO',
+          to_stage: 'ESTRUTURACAO',
+          reason: 'Escopo validado com o cliente',
+          author: {
+            id: '88888888-8888-4888-8888-888888888888',
+            name: 'Marina Prado',
+          },
+          occurred_at: '2026-09-20T10:30:00-03:00',
+        },
+      ],
+      total: 1,
+    };
+    vi.mocked(listStageTransitions).mockResolvedValue(historico);
+
+    await abrirDetalhe();
+
+    expect(listStageTransitions).toHaveBeenCalledWith(
+      DEMANDA.id,
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+    expect(
+      await screen.findByText('Mudanca de etapa: Captacao para Estruturacao'),
+    ).toBeDefined();
+    expect(textoDaTela()).toContain('Marina Prado');
+    expect(textoDaTela()).toContain('Escopo validado com o cliente');
+    expect(document.querySelector('time')?.getAttribute('datetime')).toBe(
+      '2026-09-20T10:30:00-03:00',
+    );
   });
 
   it('leva ao cliente, a captacao, a estruturacao e as versoes do artefato', async () => {
@@ -172,7 +219,7 @@ describe('detalhe da demanda', () => {
       screen.getByRole('link', { name: nome }).getAttribute('href');
 
     expect(destino(/Industria Alfa/)).toBe(`/clientes/${DEMANDA.client_id}`);
-    expect(destino(/Registrar texto da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
+    expect(destino(/Registrar a primeira fonte da demanda/)).toBe(`/demandas/${DEMANDA.id}/ingestao`);
     expect(destino(/Ver curso e revisar/)).toBe(`/demandas/${DEMANDA.id}/estruturacao`);
     expect(destino(/historico de versoes/)).toBe(`/artefatos/${EMENTA.id}/versoes`);
   });

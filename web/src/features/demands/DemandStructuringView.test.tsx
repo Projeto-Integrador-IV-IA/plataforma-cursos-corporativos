@@ -457,6 +457,8 @@ describe('revisao da estruturacao', () => {
 
     await abrirRevisao(`?execucao=${JOB_ID}`);
 
+    // A tela e o resumo do estado consultam a mesma execucao de forma
+    // independente - a consulta e compartilhada entre os dois, nao unica.
     await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
 
@@ -523,7 +525,9 @@ describe('revisao da estruturacao', () => {
     });
 
     // O identificador vai para o endereco, e e por ele que o estado passa a
-    // ser consultado - o que faz a tela sobreviver a um recarregamento.
+    // ser consultado - o que faz a tela sobreviver a um recarregamento. A
+    // tela e o resumo do estado consultam a mesma execucao de forma
+    // independente, entao a chamada nao e unica.
     await waitFor(() => expect(getStructuringJob).toHaveBeenCalled());
     expect(vi.mocked(getStructuringJob).mock.calls[0]?.[0]).toBe(JOB_ID);
     const estado = await screen.findByRole('status', { name: 'Estado da execucao' });

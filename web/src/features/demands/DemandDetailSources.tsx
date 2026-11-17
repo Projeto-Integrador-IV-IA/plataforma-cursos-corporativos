@@ -44,7 +44,7 @@ export function DemandDetailSources({
               className="button button--secondary"
               to={buildPath.demandIngestion(demandId)}
             >
-              Registrar o texto da demanda
+              Registrar a primeira fonte da demanda
             </Link>
           </div>
         )}
