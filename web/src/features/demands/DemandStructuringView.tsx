@@ -58,6 +58,7 @@ import type {
   DemandDetail,
   DemandRawInputRead,
   JsonObject,
+  SourceSegmentRead,
   Uuid,
 } from '@/types/api';
 
@@ -105,6 +106,22 @@ function fonteMaisRecente(demand: DemandDetail): DemandRawInputRead | undefined 
       ? candidata
       : escolhida;
   }, undefined);
+}
+
+/**
+ * Reconstroi a numeracao da chamada de IA: fontes na ordem do agregado da
+ * demanda e, dentro de cada fonte, segmentos por posicao.
+ */
+function trechosNaOrdemDaRevisao(
+  rawInputs: readonly DemandRawInputRead[],
+  segments: readonly SourceSegmentRead[],
+) {
+  return rawInputs.flatMap((source) =>
+    segments
+      .filter((segment) => segment.raw_input_id === source.id)
+      .slice()
+      .sort((left, right) => left.position - right.position),
+  );
 }
 
 /** Versao corrente: a de maior numero, que e a que vale hoje (RF08). */
@@ -181,6 +198,7 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
     (cursoDaExecucao === undefined
       ? undefined
       : lerCursoEstruturado(JSON.parse(JSON.stringify(cursoDaExecucao)) as JsonObject));
+  const trechosDaRevisao = trechosNaOrdemDaRevisao(demanda.data.raw_inputs, trechos.data);
 
   return (
     <div className="structuring">
@@ -199,7 +217,11 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
         <h2 className="demand-detail__section-title" id="estrutura-processamento">
           Processamento
         </h2>
-        <DemandStructuringStatus demandId={demandId} source={fonteMaisRecente(demanda.data)} />
+        <DemandStructuringStatus
+          demandId={demandId}
+          source={fonteMaisRecente(demanda.data)}
+          reviewAvailable={versao !== undefined}
+        />
       </section>
 
       {curso === undefined ? null : (
@@ -232,7 +254,11 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
                 ? `${artefato.title ?? 'Requisitos extraidos'}: versao ${versao.number} (${rotuloDaOrigem(versao.origin)}) gerada em ${formatarDataHora(versao.created_at)}.`
                 : 'Resultado recebido da execucao da IA. Ele ainda nao aparece no historico de versoes da demanda.'}
             </p>
-            <DemandStructuringCourse course={curso} segments={trechos.data} />
+            <DemandStructuringCourse
+              course={curso}
+              demandId={demandId}
+              segments={trechosDaRevisao}
+            />
             {artefato === undefined ? null : (
               <p className="page__description">
                 <PermissionGate permission={PERMISSIONS.artifactsRead}>

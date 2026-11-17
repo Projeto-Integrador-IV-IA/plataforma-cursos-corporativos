@@ -75,6 +75,10 @@ sessão. Até a matriz de RNF18 ser publicada no backend, somente `OPERADOR` tem
 configuradas; perfis desconhecidos são negados por padrão. Esses controles são apenas visuais:
 o servidor continua responsável por autorizar cada operação e devolver `403` quando necessário.
 
+Na revisão da estrutura, cada evidência leva ao detalhe da demanda já focado na fonte original:
+o trecho é destacado, os segmentos vizinhos ficam visíveis e o retorno restaura o endereço da
+revisão, inclusive parâmetros de execução e a posição do campo consultado.
+
 ---
 
 ## 4. Acesso ao Gateway e Variáveis de Ambiente
