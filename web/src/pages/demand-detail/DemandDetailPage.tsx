@@ -6,8 +6,9 @@
  * vive em `features/demands/DemandDetailView`, que e quem conhece o agregado
  * devolvido pelo contrato.
  *
- * TODO(RF05, RF06): acrescentar as transicoes de etapa e o historico quando as
- * operacoes de pipeline forem publicadas.
+ * TODO(RF06): a movimentacao de etapa (arrastar/avancar/retroceder) so existe
+ * no quadro (`/pipeline`, `PipelineBoardView`) - falta um equivalente aqui no
+ * detalhe de uma demanda especifica.
  */
 
 import {

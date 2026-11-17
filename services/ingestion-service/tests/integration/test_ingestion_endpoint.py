@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from app.api.v1.routes.ingestion import get_pipeline_client
 from app.core.config import DEFAULT_SOURCE_TEXT_MAX_LENGTH
 from app.core.exceptions import UpstreamError
-from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
+from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind, SourceSegment
 from app.main import create_app
 from app.schemas.ingestion import SOURCE_TEXT_MIN_CONTENT_LENGTH
 
@@ -33,6 +33,7 @@ class PipelineDublado:
         self.erro_na_sanitizacao = erro_na_sanitizacao
         self.chamadas: list[tuple[RawDemand, UUID]] = []
         self.sanitizacoes: list[tuple[UUID, str]] = []
+        self.trechos: list[tuple[UUID, tuple[SourceSegment, ...]]] = []
         self.ordem: list[str] = []
 
     def persist_raw_demand(
@@ -60,6 +61,16 @@ class PipelineDublado:
         self.sanitizacoes.append((raw_input_id, normalized_content))
         if self.erro_na_sanitizacao is not None:
             raise self.erro_na_sanitizacao
+
+    def persist_segments(
+        self,
+        raw_input_id: UUID,
+        segments: tuple[SourceSegment, ...],
+        *,
+        request_id: str | None = None,
+    ) -> None:
+        self.ordem.append("trechos")
+        self.trechos.append((raw_input_id, segments))
 
 
 @pytest.fixture
@@ -122,7 +133,7 @@ def test_missing_or_null_source_is_inferred_before_persisting(
     assert raw.text == text
     assert raw.source_type is SourceKind.EMAIL
     assert author == operator
-    assert pipeline.ordem == ["original", "sanitizado"]
+    assert pipeline.ordem == ["original", "sanitizado", "trechos"]
     assert pipeline.sanitizacoes[0][1] == "Precisamos de 20 vagas."
 
 
@@ -321,7 +332,7 @@ def test_the_original_is_persisted_before_the_sanitized_copy(
 
     captar(api)
 
-    assert pipeline.ordem == ["original", "sanitizado"]
+    assert pipeline.ordem == ["original", "sanitizado", "trechos"]
 
 
 def test_the_sanitized_copy_goes_to_the_record_just_created(

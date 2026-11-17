@@ -19,9 +19,10 @@
  * operador varre as etapas. A area rolavel e focalizavel (`tabIndex`) de
  * proposito - area que so rola com o mouse e inalcancavel por teclado.
  *
- * Movimentacao de etapa nao e desta tela. Arrastar o cartao (card #95) e
- * avancar/retroceder com justificativa (card #96) dependem das operacoes de
- * transicao, que ainda nao estao publicadas no contrato (RF06, RF07).
+ * Movimentacao de etapa. Arrastar o cartao avanca ou retrocede a demanda
+ * (card #95/#96, RF06/RF07) via `advancePipelineDemand`/`rollbackPipelineDemand`;
+ * o retrocesso exige justificativa. Nao ha ainda um equivalente por clique/
+ * teclado para quem nao usa arrastar-e-soltar - ver nota de acessibilidade.
  *
  * Filtros. O endpoint aceita os mesmos da listagem (cliente, responsavel,
  * situacao, periodo) e o quadro ainda nao os oferece: o recorte entra junto

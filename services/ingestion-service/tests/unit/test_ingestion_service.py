@@ -3,7 +3,8 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
+from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind, SourceSegment
+from app.normalizers.text_normalizer import segment_text
 from app.services.ingestion_service import IngestionService
 
 
@@ -31,6 +32,15 @@ class PipelineClientSpy:
     ) -> None:
         self.calls.append(("normalized", (raw_input_id, normalized_content, request_id)))
 
+    def persist_segments(
+        self,
+        raw_input_id: object,
+        segments: tuple[SourceSegment, ...],
+        *,
+        request_id: str | None = None,
+    ) -> None:
+        self.calls.append(("segments", (raw_input_id, segments, request_id)))
+
 
 def test_capture_persists_original_first_and_normalized_text_separately() -> None:
     demand_id = uuid4()
@@ -56,9 +66,12 @@ def test_capture_persists_original_first_and_normalized_text_separately() -> Non
         request_id="rf11-test",
     )
 
+    expected_segments = segment_text(original, SourceKind.MENSAGENS, source_id=raw_input_id)
+
     assert result is persisted
     assert pipeline.calls == [
         ("original", (original, author_id, "rf11-test")),
         ("normalized", (raw_input_id, "Curso de vendas para 20 pessoas.", "rf11-test")),
+        ("segments", (raw_input_id, expected_segments, "rf11-test")),
     ]
     assert raw_demand.text == original

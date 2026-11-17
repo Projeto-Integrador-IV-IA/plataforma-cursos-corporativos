@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from app.core.exceptions import UpstreamError
 from app.domain.audio import AudioSource
-from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind
+from app.domain.raw_demand import PersistedRawDemand, RawDemand, SourceKind, SourceSegment
 from app.schemas.ingestion import AudioPersistenceRead
 
 
@@ -149,6 +149,56 @@ class PipelineClient:
             ) from exc
 
         if response.status_code != 200:
+            self._raise_response_error(response)
+
+    def persist_segments(
+        self,
+        raw_input_id: UUID,
+        segments: tuple[SourceSegment, ...],
+        *,
+        request_id: str | None = None,
+    ) -> None:
+        """Persiste os trechos citaveis derivados da fonte (RF29, card #160).
+
+        O lote inteiro e atomico no pipeline-service e o reenvio do mesmo lote
+        e idempotente (os IDs sao estaveis, derivados do conteudo); nao ha
+        necessidade de tratar 409 aqui porque so ocorre para um ID ou posicao
+        que colidisse com um trecho *diferente*, o que indicaria um bug na
+        geracao dos trechos, nao uma repeticao legitima.
+        """
+
+        headers = {"X-Request-ID": request_id} if request_id else None
+        try:
+            response = self.http_client.post(
+                f"/api/v1/raw-inputs/{raw_input_id}/segments",
+                json={
+                    "segments": [
+                        {
+                            "id": str(segment.id),
+                            "position": segment.position,
+                            "content": segment.text,
+                            "original_start_offset": segment.original_start_offset,
+                            "original_end_offset": segment.original_end_offset,
+                        }
+                        for segment in segments
+                    ]
+                },
+                headers=headers,
+            )
+        except httpx.TimeoutException as exc:
+            raise UpstreamError(
+                status_code=504,
+                code="PIPELINE_TIMEOUT",
+                message="O pipeline-service nao confirmou os trechos no prazo.",
+            ) from exc
+        except httpx.RequestError as exc:
+            raise UpstreamError(
+                status_code=502,
+                code="PIPELINE_UNAVAILABLE",
+                message="Nao foi possivel persistir os trechos no pipeline-service.",
+            ) from exc
+
+        if response.status_code != 201:
             self._raise_response_error(response)
 
     @staticmethod

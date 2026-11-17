@@ -170,7 +170,12 @@ def _map_normalized_lines_to_original(
 ) -> list[tuple[str, int, int]]:
     """Alinha cada linha sanitizada ao intervalo de caracteres da fonte bruta."""
 
-    matcher = SequenceMatcher(a=normalized, b=original, autojunk=False)
+    # ``autojunk`` por padrao (True): sem ele, SequenceMatcher degrada para
+    # tempo quadratico-ou-peior em texto longo com muita repeticao - uma fonte
+    # de 50000 caracteres (o maximo aceito por RF09) trava por minutos. O
+    # heuristico de popularidade so entra para sequencias com 200+ caracteres,
+    # entao nao muda nenhum mapeamento de texto curto (ver testes existentes).
+    matcher = SequenceMatcher(a=normalized, b=original)
     blocks = [block for block in matcher.get_matching_blocks() if block.size]
     mapped: list[tuple[str, int, int]] = []
     normalized_cursor = 0

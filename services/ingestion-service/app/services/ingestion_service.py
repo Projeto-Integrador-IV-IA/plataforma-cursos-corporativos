@@ -6,7 +6,7 @@ from uuid import UUID
 from app.clients.pipeline_client import PipelineClient
 from app.core.exceptions import UpstreamError
 from app.domain.raw_demand import PersistedRawDemand, RawDemand
-from app.normalizers.text_normalizer import normalize_text
+from app.normalizers.text_normalizer import normalize_text, segment_text
 
 _logger = logging.getLogger(__name__)
 
@@ -50,6 +50,21 @@ class IngestionService:
             )
         except UpstreamError as erro:
             _registrar_sanitizacao_nao_gravada(persisted, erro, request_id=request_id)
+
+        segments = segment_text(
+            raw_demand.text,
+            raw_demand.source_type,
+            source_id=persisted.raw_input_id,
+        )
+        if segments:
+            try:
+                self.pipeline_client.persist_segments(
+                    persisted.raw_input_id,
+                    segments,
+                    request_id=request_id,
+                )
+            except UpstreamError as erro:
+                _registrar_segmentacao_nao_gravada(persisted, erro, request_id=request_id)
         return persisted
 
 
@@ -67,6 +82,29 @@ def _registrar_sanitizacao_nao_gravada(
 
     _logger.warning(
         "Sanitizacao nao gravada; o texto original esta preservado "
+        "(raw_input_id=%s, demand_id=%s, request_id=%s, causa=%s, status=%d).",
+        persisted.raw_input_id,
+        persisted.demand_id,
+        request_id or "nao informado",
+        erro.code,
+        erro.status_code,
+    )
+
+
+def _registrar_segmentacao_nao_gravada(
+    persisted: PersistedRawDemand,
+    erro: UpstreamError,
+    *,
+    request_id: str | None,
+) -> None:
+    """Alerta sem vazar conteudo do cliente para o log (RNF10, RNF11).
+
+    Trechos citaveis (RF29) sao uma derivacao da fonte, nao a fonte em si: a
+    falha aqui nao pode derrubar a captacao, que ja preservou o original.
+    """
+
+    _logger.warning(
+        "Trechos citaveis nao gravados; o texto original esta preservado "
         "(raw_input_id=%s, demand_id=%s, request_id=%s, causa=%s, status=%d).",
         persisted.raw_input_id,
         persisted.demand_id,

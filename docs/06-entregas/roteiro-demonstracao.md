@@ -99,24 +99,26 @@ explicitamente — não inventamos tela para cobrir a lacuna.
   **versão nova**, sem apagar nem sobrescrever nenhuma versão anterior (append-only, RNF09) — é
   assim que RF08 ("versionar com recuperação") funciona na prática.
 
-## 8. Ver histórico de etapas e avançar no pipeline
+## 8. Ver histórico de etapas
 
 - Voltar para `/demandas/:demandId` e apontar a seção **"Histórico de etapas"**: cada transição
   registra origem, destino, autor, data/hora e justificativa (quando houve retrocesso).
-- **Lacuna honesta a mencionar se perguntado:** avançar ou retroceder a etapa (`POST
-  /api/v1/demands/{id}/advance` e `.../rollback`, já implementados e testados no backend) ainda não
-  tem botão nesta tela nem no quadro do pipeline — card #95/#96, dependente das operações de
-  transição. Para demonstrar a mudança de etapa hoje, é preciso chamar a API diretamente (ex.: pela
-  documentação interativa em `http://localhost:8001/docs` do `pipeline-service`, ou via gateway em
-  `http://localhost:8000`) e depois recarregar a tela para mostrar o resultado.
+- **Lacuna honesta a mencionar se perguntado:** avançar ou retroceder a etapa não tem botão *nesta
+  tela* (detalhe da demanda) — só no quadro do pipeline (seção 9). Para mudar a etapa a partir do
+  detalhe hoje, é preciso ir ao quadro.
 
-## 9. Ver o quadro do pipeline — `/pipeline`
+## 9. Ver o quadro do pipeline e mover uma demanda — `/pipeline`
 
 - Apontar as cinco colunas fixas (etapas), sempre presentes mesmo vazias, com o total real de cada
   etapa no cabeçalho (não só o que o recorte trouxe).
 - Apontar o cartão da demanda usada na demonstração na coluna correspondente, e, se houver outra
   demanda sem responsável, o destaque "Sem responsável definido" (texto, forma e borda — não só
   cor).
+- Arrastar o cartão para a coluna seguinte: avança a etapa (`POST
+  /api/v1/demands/{id}/advance`) e atualiza o quadro. Arrastar para uma coluna anterior pede
+  justificativa (retrocesso, `.../rollback`) antes de confirmar — card #95/#96, RF06/RF07.
+- **Lacuna honesta a mencionar se perguntado:** a movimentação só existe por arrastar-e-soltar; não
+  há botão equivalente para quem usa teclado ou não percebe que o cartão é arrastável.
 - Apontar a seção de **atualizações recentes** do painel (RF23): lista as demandas com movimentação
   mais recente, com link direto para o histórico completo de cada uma.
 

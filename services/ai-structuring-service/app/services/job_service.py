@@ -25,6 +25,7 @@ from uuid import UUID
 from app.clients.pipeline_client import PipelineServiceClient
 from app.core.exceptions import LLMProviderError, PlatformError
 from app.domain.jobs import JobStatus, StructuringJob
+from app.services.embedding_service import EmbeddingService
 from app.services.structuring_service import RawDemand, StructuringOutcome, StructuringService
 
 _logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ class StructuringJobService:
         structuring_service: StructuringService,
         *,
         pipeline_service_url: str | None = None,
+        embedding_service: EmbeddingService | None = None,
     ) -> None:
         self.structuring_service = structuring_service
         self.pipeline_service_url = (
@@ -59,6 +61,7 @@ class StructuringJobService:
             if self.pipeline_service_url is not None
             else None
         )
+        self._embedding_service = embedding_service
         self._jobs: OrderedDict[UUID, StructuringJob] = OrderedDict()
         self._tasks: set[asyncio.Task[None]] = set()
 
@@ -128,6 +131,8 @@ class StructuringJobService:
                     )
                     self._registrar_falha(job, "ARTIFACT_PERSISTENCE_FAILED", str(erro))
                 else:
+                    if self._embedding_service is not None:
+                        await self._gerar_embeddings_best_effort(job)
                     job.status = JobStatus.CONCLUIDA
                     job.finished_at = datetime.now(UTC)
 
@@ -165,6 +170,27 @@ class StructuringJobService:
         }
         assert self._pipeline_client is not None
         await self._pipeline_client.persist_artifact(job.demand.demand_id, payload)
+
+    async def _gerar_embeddings_best_effort(self, job: StructuringJob) -> None:
+        """Embedda os trechos da demanda apos o artefato ser persistido (card #160, RF29).
+
+        Melhor esforco de proposito: a execucao ja concluiu o que o RF17
+        promete (o curso estruturado e anexado); o indice de recuperacao
+        (RF29) e uma derivacao posterior, e sua falha nao pode virar falha da
+        estruturacao, que ja entregou o resultado principal.
+        """
+
+        assert job.demand is not None
+        assert self._embedding_service is not None
+        try:
+            await self._embedding_service.embed_demand(str(job.demand.demand_id))
+        except Exception:
+            _logger.exception(
+                "Falha ao gerar embeddings da demanda apos a estruturacao "
+                "(job_id=%s, demand_id=%s); o curso estruturado ja foi persistido.",
+                job.id,
+                job.demand.demand_id,
+            )
 
     @staticmethod
     def _registrar_falha(job: StructuringJob, code: str, message: str) -> None:

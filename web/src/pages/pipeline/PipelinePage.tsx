@@ -6,9 +6,8 @@
  * `features/pipeline/PipelineBoardView`, que e quem conhece o contrato de
  * `GET /api/v1/pipeline`.
  *
- * TODO(RF06): oferecer a movimentacao de etapa aqui - arrastar o cartao
- * (card #95) e avancar/retroceder com justificativa (card #96) - quando as
- * operacoes de transicao estiverem publicadas no contrato.
+ * Movimentacao de etapa (card #95/#96, RF06/RF07) ja esta disponivel: ver
+ * arrastar-e-soltar em `PipelineBoardView`.
  */
 
 import { Link } from "react-router-dom";

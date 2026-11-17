@@ -34,6 +34,7 @@ from app.providers.embedding_factory import get_embedding_provider
 from app.providers.factory import get_llm_provider
 from app.schemas.jobs import StructuringJobAccepted, StructuringJobRead
 from app.schemas.structuring import StructuringRequest, StructuringResponse
+from app.services.embedding_service import EmbeddingService
 from app.services.job_service import StructuringJobService
 from app.services.structuring_service import RawDemand, StructuringService
 
@@ -106,7 +107,16 @@ def get_job_service(
         # Testes unitarios e de contrato exercitam o servico de IA isolado; no
         # runtime, o resultado passa pela API do pipeline para ficar persistido.
         pipeline_url = None if settings.environment == "test" else settings.pipeline_service_url
-        existente = StructuringJobService(service, pipeline_service_url=pipeline_url)
+        embedding_service = (
+            EmbeddingService(get_embedding_provider(settings), PipelineServiceClient(pipeline_url))
+            if pipeline_url is not None
+            else None
+        )
+        existente = StructuringJobService(
+            service,
+            pipeline_service_url=pipeline_url,
+            embedding_service=embedding_service,
+        )
         request.app.state.structuring_jobs = existente
     return existente
 
