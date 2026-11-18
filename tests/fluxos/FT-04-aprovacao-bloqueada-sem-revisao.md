@@ -1,39 +1,58 @@
-# FT-04: Caso de Teste — Aprovação Bloqueada Sem Revisão (RNF25)
+# FT-04: Caso de Teste — Decisão de Revisão Sobre Versão Desatualizada (RF19.2)
 
 ## Contexto
-Validação da regra de negócio crítica da plataforma: **a IA nunca é a palavra final**. O sistema deve impedir obrigatoriamente a aprovação de qualquer artefato estruturado pela IA enquanto o operador humano não registrar a revisão e validação do conteúdo.
+Validação da regra de negócio crítica da plataforma: **a IA nunca é a palavra final**. O sistema
+registra formalmente a decisão humana (aprovar, rejeitar ou devolver) sobre a versão vigente de um
+artefato, e recusa a decisão quando a versão informada já deixou de ser a vigente — a decisão nunca
+pode valer, em silêncio, para um conteúdo que já foi substituído.
+
+> **Nota de reconciliação (17/11/2026):** esta versão substitui um desenho anterior deste caso de
+> teste, que previa dois passos separados (`POST /demands/{id}/review` e, só depois,
+> `POST /demands/{id}/approve` bloqueado sem o primeiro). O que foi implementado e testado contra a
+> API real é um único endpoint por artefato, com três desfechos possíveis — mais simples e com o
+> mesmo efeito prático: nenhum artefato é aprovado sem que uma pessoa registre a decisão, e a
+> decisão é sempre sobre uma versão específica, nunca sobre "o artefato em geral".
 
 ---
 
 ## Passo a Passo e Resultados Esperados
 
-### 1. Tentativa de Aprovação Direta (Sem Revisão)
-* **Ação:** O operador tenta aprovar o artefato gerado pela IA imediatamente após o término da estruturação, pulando a etapa de revisão humana.
-* **Entrada:** `POST /api/v1/demands/{id}/approve` (ou transição para o status `APROVADO` sem flag de revisão).
-* **Resultado Esperado:** 
-  * A operação é **bloqueada** pelo sistema.
-  * A API retorna um código de erro adequado (ex: `422 Unprocessable Entity` ou `409 Conflict`) informando claramente o motivo do bloqueio (ex: `"Aprovação negada: é obrigatório registrar a revisão humana antes de aprovar o artefato"`).
-
-### 2. Registro da Revisão Humana
-* **Ação:** O operador realiza a leitura e edição necessária do artefato na interface e submete formalmente o registro de revisão.
-* **Entrada:** `POST /api/v1/demands/{id}/review` ou submissão do formulário de revisão validado.
+### 1. Decisão Sobre a Versão Vigente
+* **Ação:** O operador lê a estrutura gerada pela IA (tela de revisão) e registra a decisão.
+* **Entrada:** `POST /api/v1/artifacts/{artifact_id}/review` com `{version_number, decision, reason}`,
+  `decision` em `APROVADO` | `REJEITADO` | `DEVOLVIDO`, autor lido do cabeçalho `X-User-ID`.
 * **Resultado Esperado:**
-  * O sistema registra com sucesso a revisão, vinculando o ID do revisor humano e o timestamp da validação.
+  * `201 Created`, com o registro contendo `id`, `version_number`, `decision`, `author_id`,
+    `created_at` e `reason`.
+  * `REJEITADO` e `DEVOLVIDO` **exigem** `reason` não vazia — sem ela, `422` antes de qualquer
+    gravação (`ArtifactReviewCreate`, validado no cliente e no servidor).
+  * `APROVADO` **não exige** `reason`.
 
-### 3. Sucesso na Aprovação Após Revisão
-* **Ação:** Após a revisão devidamente registrada, o operador repete a tentativa de aprovação do artefato.
-* **Entrada:** `POST /api/v1/demands/{id}/approve`
+### 2. Decisão Sobre Versão Que Já Não É a Vigente — Bloqueio
+* **Ação:** Entre a tela de revisão abrir e o clique na decisão, outra pessoa salva uma edição
+  (RF19.1), criando uma versão nova. O operador decide sobre a versão que já leu, agora desatualizada.
+* **Entrada:** `POST /api/v1/artifacts/{artifact_id}/review` com `version_number` da versão antiga.
 * **Resultado Esperado:**
-  * A operação é processada e aceita com sucesso, permitindo o avanço do artefato para o status de aprovado.
+  * **Bloqueado**: `409 Conflict`, código `ARTIFACT_VERSION_STALE`, mensagem orientando a recarregar
+    a versão vigente antes de decidir. Nenhum registro de revisão é criado.
+  * A interface trata este código especificamente — não como falha genérica — e pede para recarregar.
 
-### 4. Auditoria da Decisão na Trilha
-* **Ação:** O operador consulta a linha do tempo ou o histórico de auditoria da demanda (`GET /api/v1/demands/{id}/timeline`).
+### 3. Histórico e Última Decisão
+* **Ação:** O operador consulta o histórico de decisões do artefato.
+* **Entrada:** `GET /api/v1/artifacts/{artifact_id}/reviews`.
 * **Resultado Esperado:**
-  * A trilha exibe de forma clara e imutável a tentativa bloqueada anterior, o evento de registro da revisão humana e, por fim, o evento de aprovação definitiva com os respectivos responsáveis.
+  * Lista todas as decisões já registradas, da mais antiga à mais recente — append-only, nenhuma é
+    alterada ou removida (mesma garantia de gatilho no banco das demais trilhas do serviço).
+  * `GET /api/v1/demands/{demand_id}/artifacts` (e a tela de revisão) expõe a mesma informação
+    resumida em `latest_review`, sem chamada extra.
 
 ---
 
 ## Critérios de Aceite Atendidos
-- [x] Passos, dados de entrada e resultado esperado descritos e executáveis manualmente.
-- [x] Bloqueio rigoroso verificado quando a revisão não foi registrada.
-- [x] Auditabilidade da decisão e do fluxo garantida na trilha da demanda.
+- [x] Passos, dados de entrada e resultado esperado descritos e executáveis contra a API real.
+- [x] Decisão sem justificativa (`REJEITADO`/`DEVOLVIDO`) recusada antes de qualquer gravação.
+- [x] Decisão sobre versão desatualizada bloqueada (409), sem criar registro.
+- [x] Histórico append-only e auditável, com autor, data e justificativa de cada decisão.
+- [x] Verificado tanto em teste automatizado
+  ([`test_artifact_review.py`](../../services/pipeline-service/tests/integration/test_artifact_review.py),
+  `DemandStructuringView.test.tsx`) quanto ao vivo contra a stack real.

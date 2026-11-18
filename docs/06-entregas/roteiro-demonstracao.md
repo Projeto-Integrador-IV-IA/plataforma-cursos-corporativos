@@ -85,11 +85,17 @@ explicitamente — não inventamos tela para cobrir a lacuna.
     contexto.
   - Voltar para a revisão pelo link "Voltar para a revisão".
 - Seção **"Fontes de origem"**: as fontes brutas que alimentaram esta versão do artefato.
-- **Lacuna honesta a mencionar se perguntado:** a tela de revisão hoje é de leitura — editar um campo
-  gerado e salvar nova versão é feito por API (`POST /api/v1/artifacts/{id}/versions`, já
-  implementado e testado), mas o botão de editar diretamente nesta tela (card #101) e as ações de
-  aprovar/rejeitar/devolver (RF19.2, cards #58–#60, #102) ainda não existem na interface. "A IA nunca
-  é a palavra final" hoje é prática da equipe, não uma barreira que o servidor imponha.
+- Seção **"Decisão da revisão"** (RF19.2, cards #58–#60, #102): preencher a justificativa e clicar em
+  **Devolver** — mostra que a justificativa é obrigatória (tentar sem preencher recusa com mensagem
+  antes de qualquer chamada à API) e que a decisão aparece registrada acima, com autor e data.
+  Aprovar não exige justificativa. Se a estrutura for editada por outra pessoa entre a tela abrir e a
+  decisão, o servidor recusa (409) e a tela avisa para recarregar — a decisão nunca vale, em
+  silêncio, para uma versão que já não é a vigente.
+- **Lacuna honesta a mencionar se perguntado:** editar um campo gerado direto nesta tela (card #101)
+  ainda não existe na interface — a única forma de corrigir um campo hoje é por API
+  (`POST /api/v1/artifacts/{id}/versions`) ou restaurando uma versão anterior na tela de histórico
+  (seção 7). "A IA nunca é a palavra final" hoje é reforçado pelo servidor: aprovar, rejeitar e
+  devolver ficam registrados, com autor e justificativa, de forma append-only.
 
 ## 7. Ver histórico de versões do artefato — `/artefatos/:artifactId/versoes`
 

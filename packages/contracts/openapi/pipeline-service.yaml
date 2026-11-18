@@ -257,6 +257,101 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArtifactErrorResponse'
+  /api/v1/artifacts/{artifact_id}/review:
+    post:
+      tags:
+      - artifacts
+      summary: Registrar a decisao da revisao humana sobre uma versao
+      description: 'Aprova, rejeita ou devolve a versao vigente do artefato (RF19.2).
+        version_number deve ser a versao vigente no instante da decisao; uma decisao
+        sobre versao desatualizada recebe 409. reason e obrigatoria para REJEITADO
+        e DEVOLVIDO, dispensada para APROVADO. O autor e obtido do cabecalho X-User-ID.'
+      operationId: review_artifact_api_v1_artifacts__artifact_id__review_post
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      - name: X-User-ID
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: X-User-Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtifactReviewCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactReviewRead'
+        '404':
+          description: Artefato ou operador inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '409':
+          description: A versao informada nao e mais a vigente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Decisao ou justificativa invalidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+  /api/v1/artifacts/{artifact_id}/reviews:
+    get:
+      tags:
+      - artifacts
+      summary: Consultar o historico de decisoes de revisao de um artefato
+      description: Todas as decisoes registradas, da mais antiga a mais recente
+        (RF19.2).
+      operationId: list_artifact_reviews_api_v1_artifacts__artifact_id__reviews_get
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ArtifactReviewRead'
+                title: Response List Artifact Reviews Api V1 Artifacts  Artifact
+                  Id  Reviews Get
+        '404':
+          description: Artefato inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
+        '422':
+          description: Identificador invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactErrorResponse'
   /api/v1/demands/{demand_id}/artifacts:
     post:
       tags:
@@ -1671,6 +1766,11 @@ components:
             $ref: '#/components/schemas/ArtifactVersionRead'
           type: array
           title: Versions
+        latest_review:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactReviewRead'
+          - type: 'null'
+          description: Ultima decisao registrada (RF19.2); nula enquanto ninguem revisou.
       type: object
       required:
       - id
@@ -1681,7 +1781,8 @@ components:
       - sources
       - versions
       title: ArtifactRead
-      description: Artefato recuperavel pela demanda, com fontes e versoes.
+      description: Artefato recuperavel pela demanda, com fontes, versoes e a ultima
+        decisao de revisao.
     ArtifactReprocessCreate:
       properties:
         raw_output:
@@ -1765,6 +1866,75 @@ components:
       - raw_input_ids
       title: ArtifactResultCreate
       description: Resultado bruto e estruturado, mais todas as fontes que o produziram.
+    ArtifactReviewCreate:
+      properties:
+        version_number:
+          type: integer
+          minimum: 1.0
+          title: Version Number
+          description: Versao revisada; deve ser a vigente.
+        decision:
+          $ref: '#/components/schemas/ArtifactReviewDecision'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: Obrigatoria para REJEITADO e DEVOLVIDO; dispensada para APROVADO.
+      additionalProperties: false
+      type: object
+      required:
+      - version_number
+      - decision
+      title: ArtifactReviewCreate
+      description: 'Decisao sobre uma versao especifica (RF19.2, cards #58-#60).'
+    ArtifactReviewDecision:
+      type: string
+      enum:
+      - APROVADO
+      - REJEITADO
+      - DEVOLVIDO
+      title: ArtifactReviewDecision
+      description: Desfechos possiveis da revisao humana de uma versao (RF19.2).
+    ArtifactReviewRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        artifact_id:
+          type: string
+          format: uuid
+          title: Artifact Id
+        version_number:
+          type: integer
+          title: Version Number
+        decision:
+          $ref: '#/components/schemas/ArtifactReviewDecision'
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        author_id:
+          type: string
+          format: uuid
+          title: Author Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - artifact_id
+      - version_number
+      - decision
+      - reason
+      - author_id
+      - created_at
+      title: ArtifactReviewRead
+      description: Decisao registrada; append-only, como as demais trilhas do servico.
     ArtifactSourceRead:
       properties:
         id:

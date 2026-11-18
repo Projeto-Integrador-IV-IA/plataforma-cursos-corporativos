@@ -118,16 +118,20 @@ Justificativa completa em [ADR-0002](docs/02-arquitetura/decisoes/ADR-0002-stack
 
 ## Estado atual
 
-> ⚠️ **Fase de scaffolding.** A estrutura, os contratos e a documentação estão montados;
-> **os módulos ainda não têm implementação** — cada arquivo `.py` traz sua responsabilidade
-> documentada e `TODO` apontando o requisito que deve atender. O `docker compose up` ainda
-> **não sobe** os serviços. A implementação começa na Fase 3 (16/09), conforme o cronograma.
+**MVP funcional de ponta a ponta** (Marco M4, 17/11): os quatro serviços e o frontend sobem com
+`docker compose up` e o fluxo completo funciona contra a aplicação real — login, cadastro de
+cliente e demanda, captação de texto, estruturação por IA (assíncrona, com embeddings e trechos
+citáveis gerados automaticamente), revisão com evidência por campo e decisão formal de
+aprovar/rejeitar/devolver, histórico de etapas e de versões de artefato. Verificado com um teste
+automatizado real contra a stack viva em [tests/e2e](tests/e2e).
 
-Acompanhe o avanço em [docs/01-requisitos/matriz-rastreabilidade.md](docs/01-requisitos/matriz-rastreabilidade.md).
+Nem todo requisito Essencial/Alta está em ✅: a matriz lista o que ainda é 🟡 (parcial, com a lacuna
+exata descrita linha a linha) ou ⬜ (não iniciado). Acompanhe o estado real, requisito a requisito,
+em [docs/01-requisitos/matriz-rastreabilidade.md](docs/01-requisitos/matriz-rastreabilidade.md).
 
 ---
 
-## Como rodar (quando houver implementação)
+## Como rodar
 
 Pré-requisitos: Docker Desktop, Python 3.12+, Node 20+.
 

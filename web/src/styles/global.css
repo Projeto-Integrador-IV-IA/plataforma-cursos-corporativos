@@ -761,6 +761,29 @@ body {
   color: var(--cor-texto);
 }
 
+/* Acao destrutiva (rejeitar na revisao, RF19.2): mesma forma, cor de erro. */
+.button--danger {
+  border-color: var(--cor-erro);
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+}
+
+/* Decisao da revisao (RF19.2): justificativa e as tres acoes, no mesmo bloco. */
+.structuring-review {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.structuring-review__current {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+}
+
 /*
  * Listagem de clientes (RF03).
  *

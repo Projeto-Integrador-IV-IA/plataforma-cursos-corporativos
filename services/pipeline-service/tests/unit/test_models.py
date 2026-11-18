@@ -18,6 +18,7 @@ from app.domain.enums import (
 )
 from app.models import (
     Artifact,
+    ArtifactReview,
     ArtifactVersion,
     Client,
     Demand,
@@ -109,6 +110,15 @@ EXPECTED_COLUMNS = {
         "created_at",
     },
     "artifact_sources": {"artifact_id", "raw_input_id", "demand_id"},
+    "artifact_reviews": {
+        "id",
+        "artifact_id",
+        "version_number",
+        "decision",
+        "reason",
+        "author_id",
+        "created_at",
+    },
     "segment_embeddings": {"segment_id", "model", "vector", "created_at"},
 }
 
@@ -133,6 +143,8 @@ def test_required_domain_relationships_are_not_nullable() -> None:
         ("artifact_sources", "artifact_id"),
         ("artifact_sources", "raw_input_id"),
         ("artifact_sources", "demand_id"),
+        ("artifact_reviews", "artifact_id"),
+        ("artifact_reviews", "author_id"),
         ("segment_embeddings", "segment_id"),
     }
 
@@ -237,9 +249,15 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
         model="sentence-transformers/all-MiniLM-L6-v2",
         vector=[0.0] * 384,
     )
+    review = ArtifactReview(
+        artifact=artifact,
+        version_number=1,
+        decision="APROVADO",
+        author=user,
+    )
 
     with Session(engine) as session:
-        session.add_all([segment, transition, version, embedding])
+        session.add_all([segment, transition, version, embedding, review])
         session.commit()
 
         assert session.scalar(sa.select(sa.func.count(Client.id))) == 1
@@ -250,5 +268,6 @@ def test_complete_domain_chain_can_be_persisted_through_orm() -> None:
         assert session.scalar(sa.select(sa.func.count(Artifact.id))) == 1
         assert session.scalar(sa.select(sa.func.count(ArtifactVersion.id))) == 1
         assert session.scalar(sa.select(sa.func.count(SegmentEmbedding.segment_id))) == 1
+        assert session.scalar(sa.select(sa.func.count(ArtifactReview.id))) == 1
 
     engine.dispose()

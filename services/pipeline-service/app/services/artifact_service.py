@@ -12,12 +12,15 @@ from app.domain.enums import ArtifactOrigin
 from app.models import Artifact, ArtifactSource, ArtifactVersion, Demand
 from app.models.user import User
 from app.repositories.artifact_repository import ArtifactRepository
+from app.repositories.artifact_review_repository import ArtifactReviewRepository
 from app.repositories.artifact_version_repository import ArtifactVersionRepository
 from app.schemas.artifact import (
     ArtifactEditCreate,
     ArtifactRead,
     ArtifactReprocessCreate,
     ArtifactResultCreate,
+    ArtifactReviewCreate,
+    ArtifactReviewRead,
     ArtifactSourceRead,
     ArtifactVersionRead,
 )
@@ -28,6 +31,7 @@ class ArtifactService:
         self.session = session
         self.repository = ArtifactRepository(session)
         self.versions = ArtifactVersionRepository(session)
+        self.reviews = ArtifactReviewRepository(session)
 
     def create_result(self, demand_id: UUID, data: ArtifactResultCreate) -> ArtifactRead:
         if self.session.get(Demand, demand_id) is None:
@@ -298,6 +302,63 @@ class ArtifactService:
             for version in self.versions.list_for_artifact(artifact_id)
         ]
 
+    def review(
+        self, artifact_id: UUID, data: ArtifactReviewCreate, author_id: UUID
+    ) -> ArtifactReviewRead:
+        """Registra a decisao da revisao sobre uma versao especifica (RF19.2).
+
+        Cards #58 (estado), #59 (autor/data/justificativa) e #60: a versao
+        revisada precisa ser a vigente no instante da decisao, o mesmo CHECK
+        que ``save_edit`` ja aplica para edicao - sem isso, aprovar uma versao
+        que deixou de ser a atual (por exemplo, editada por outra pessoa
+        entre a tela abrir e o clique) aprovaria, silenciosamente, um
+        conteudo que ja nao e o que esta em vigor.
+        """
+
+        if self.versions.get_artifact_for_update(artifact_id) is None:
+            raise NotFoundError(
+                code="ARTIFACT_NOT_FOUND",
+                message="Artefato nao encontrado.",
+                details={"artifact_id": str(artifact_id)},
+            )
+        if self.session.get(User, author_id) is None:
+            raise NotFoundError(code="USER_NOT_FOUND", message="Operador nao encontrado.")
+
+        current = self.versions.latest_number(artifact_id)
+        if data.version_number != current:
+            raise ConflictError(
+                code="ARTIFACT_VERSION_STALE",
+                message="O artefato foi alterado. Recarregue a versao vigente antes de revisar.",
+                details={
+                    "artifact_id": str(artifact_id),
+                    "reviewed_version": str(data.version_number),
+                    "current_version": str(current),
+                },
+            )
+
+        review = self.reviews.create(
+            artifact_id,
+            version_number=data.version_number,
+            decision=data.decision.value,
+            author_id=author_id,
+            reason=data.reason,
+        )
+        return ArtifactReviewRead.model_validate(review)
+
+    def list_reviews(self, artifact_id: UUID) -> list[ArtifactReviewRead]:
+        """Todas as decisoes do artefato, da mais antiga a mais recente (RF19.2)."""
+
+        if self.session.get(Artifact, artifact_id) is None:
+            raise NotFoundError(
+                code="ARTIFACT_NOT_FOUND",
+                message="Artefato nao encontrado.",
+                details={"artifact_id": str(artifact_id)},
+            )
+        return [
+            ArtifactReviewRead.model_validate(review)
+            for review in self.reviews.list_for_artifact(artifact_id)
+        ]
+
     @staticmethod
     def _to_read(artifact: Artifact) -> ArtifactRead:
         return ArtifactRead(
@@ -310,4 +371,9 @@ class ArtifactService:
                 ArtifactSourceRead.model_validate(link.raw_input) for link in artifact.source_links
             ],
             versions=[ArtifactVersionRead.model_validate(version) for version in artifact.versions],
+            latest_review=(
+                ArtifactReviewRead.model_validate(artifact.reviews[-1])
+                if artifact.reviews
+                else None
+            ),
         )

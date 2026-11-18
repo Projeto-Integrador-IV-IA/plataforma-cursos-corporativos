@@ -23,9 +23,15 @@
  * no bloco de processamento: e onde o operador ve se ainda ha algo em curso -
  * e onde o reenvio fica bloqueado enquanto houver.
  *
+ * A decisao da revisao - aprovar, rejeitar ou devolver (RF19.2, card #102) -
+ * fica em `DemandStructuringReview`, logo depois da estrutura: o operador so
+ * decide depois de ler, nunca antes. Editar os campos gerados (#101) segue
+ * fora desta tela, como card proprio.
+ *
  * O que esta tela nao faz, e por que:
- *  - editar os campos e decidir sobre a estrutura sao cards proprios (#101 e
- *    #102), e cada um registra versao nova no artefato (RF08, RNF09);
+ *  - editar os campos continua em card proprio (#101), que registra versao
+ *    nova no artefato (RF08, RNF09) - a decisao de revisao nao cria versao,
+ *    so registra o desfecho sobre a vigente;
  *  - nao ha "resultado parcial": enquanto nao existe artefato anexado, a tela
  *    diz isso em vez de exibir campos que ninguem preencheu.
  */
@@ -44,6 +50,7 @@ import {
   demandArtifactsKey,
   structuringJobKey,
 } from '@/features/demands/DemandStructuringQueryKeys';
+import { DemandStructuringReview } from '@/features/demands/DemandStructuringReview';
 import { DemandStructuringSources } from '@/features/demands/DemandStructuringSources';
 import { DemandStructuringStatus } from '@/features/demands/DemandStructuringStatus';
 import { lerCursoEstruturado } from '@/features/demands/StructuredCourseContent';
@@ -272,6 +279,20 @@ export function DemandStructuringView({ demandId }: DemandStructuringViewProps) 
           </>
         )}
       </section>
+
+      {artefato === undefined || versao === undefined ? null : (
+        <section className="demand-detail__section" aria-labelledby="estrutura-revisao">
+          <h2 className="demand-detail__section-title" id="estrutura-revisao">
+            Decisao da revisao
+          </h2>
+          <DemandStructuringReview
+            demandId={demandId}
+            artifactId={artefato.id}
+            versionNumber={versao.number}
+            latestReview={artefato.latest_review}
+          />
+        </section>
+      )}
 
       <section className="demand-detail__section" aria-labelledby="estrutura-fontes">
         <h2 className="demand-detail__section-title" id="estrutura-fontes">

@@ -598,12 +598,42 @@ export interface ArtifactResultVersionRead {
   readonly created_at: IsoDateTime;
 }
 
+/** Desfecho possivel da revisao humana de uma versao (RF19.2). */
+export const ARTIFACT_REVIEW_DECISIONS = ['APROVADO', 'REJEITADO', 'DEVOLVIDO'] as const;
+
+export type ArtifactReviewDecision = (typeof ARTIFACT_REVIEW_DECISIONS)[number];
+
+/**
+ * Decisao registrada sobre uma versao especifica (RF19.2, cards #58-#60).
+ *
+ * `reason` e nula so em `APROVADO`: `REJEITADO` e `DEVOLVIDO` exigem
+ * justificativa, e o servico recusa a decisao sem ela (422).
+ */
+export interface ArtifactReviewRead {
+  readonly id: Uuid;
+  readonly artifact_id: Uuid;
+  readonly version_number: number;
+  readonly decision: ArtifactReviewDecision;
+  readonly reason: string | null;
+  readonly author_id: Uuid;
+  readonly created_at: IsoDateTime;
+}
+
+/** Corpo de `POST /api/v1/artifacts/{artifact_id}/review` (RF19.2). */
+export interface ArtifactReviewCreate {
+  readonly version_number: number;
+  readonly decision: ArtifactReviewDecision;
+  readonly reason?: string | null;
+}
+
 /**
  * Artefato recuperado pela demanda, com as fontes que o originaram e suas
  * versoes.
  *
  * E o que `GET /api/v1/demands/{demand_id}/artifacts` devolve: uma lista
  * simples, sem envelope de paginacao - o contrato nao pagina esta operacao.
+ * `latest_review` e a ultima decisao registrada (RF19.2); nula enquanto
+ * ninguem revisou a versao vigente.
  */
 export interface ArtifactResultRead {
   readonly id: Uuid;
@@ -613,6 +643,7 @@ export interface ArtifactResultRead {
   readonly created_at: IsoDateTime;
   readonly sources: readonly ArtifactSourceRead[];
   readonly versions: readonly ArtifactResultVersionRead[];
+  readonly latest_review: ArtifactReviewRead | null;
 }
 
 // ---------------------------------------------------------------------------

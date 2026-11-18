@@ -1,6 +1,7 @@
 """Modelos ORM do dominio relacional exigido pelo RNF08."""
 
 from app.models.artifact import Artifact, ArtifactSource, ArtifactVersion
+from app.models.artifact_review import ArtifactReview
 from app.models.audio_input import AudioInput
 from app.models.client import Client
 from app.models.demand import Demand
@@ -11,6 +12,7 @@ from app.models.user import User
 
 __all__ = [
     "Artifact",
+    "ArtifactReview",
     "ArtifactSource",
     "ArtifactVersion",
     "AudioInput",

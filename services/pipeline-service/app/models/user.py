@@ -12,6 +12,7 @@ from app.models._types import UUID_TYPE
 
 if TYPE_CHECKING:
     from app.models.artifact import ArtifactVersion
+    from app.models.artifact_review import ArtifactReview
     from app.models.demand import Demand
     from app.models.raw_input import RawInput
     from app.models.stage_transition import StageTransition
@@ -67,6 +68,10 @@ class User(Base):
         passive_deletes=True,
     )
     artifact_versions: Mapped[list["ArtifactVersion"]] = relationship(
+        back_populates="author",
+        passive_deletes=True,
+    )
+    artifact_reviews: Mapped[list["ArtifactReview"]] = relationship(
         back_populates="author",
         passive_deletes=True,
     )

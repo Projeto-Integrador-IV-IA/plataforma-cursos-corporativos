@@ -4,9 +4,9 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.domain.enums import ArtifactOrigin, ArtifactType, RawInputSource
+from app.domain.enums import ArtifactOrigin, ArtifactReviewDecision, ArtifactType, RawInputSource
 
 
 class ArtifactResultCreate(BaseModel):
@@ -81,6 +81,44 @@ class ArtifactReprocessCreate(BaseModel):
         return value
 
 
+class ArtifactReviewCreate(BaseModel):
+    """Decisao sobre uma versao especifica (RF19.2, cards #58-#60)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    version_number: int = Field(ge=1, description="Versao revisada; deve ser a vigente.")
+    decision: ArtifactReviewDecision
+    reason: str | None = Field(
+        default=None,
+        description="Obrigatoria para REJEITADO e DEVOLVIDO; dispensada para APROVADO.",
+    )
+
+    @field_validator("reason")
+    @classmethod
+    def blank_reason_is_absent(cls, value: str | None) -> str | None:
+        return None if value is not None and not value.strip() else value
+
+    @model_validator(mode="after")
+    def reason_required_unless_approved(self) -> "ArtifactReviewCreate":
+        if self.decision != ArtifactReviewDecision.APROVADO and self.reason is None:
+            raise ValueError("reason e obrigatoria para REJEITADO e DEVOLVIDO")
+        return self
+
+
+class ArtifactReviewRead(BaseModel):
+    """Decisao registrada; append-only, como as demais trilhas do servico."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    artifact_id: UUID
+    version_number: int
+    decision: ArtifactReviewDecision
+    reason: str | None
+    author_id: UUID
+    created_at: datetime
+
+
 class ArtifactSourceRead(BaseModel):
     """Referencia suficiente para recuperar e auditar uma fonte usada."""
 
@@ -119,7 +157,7 @@ class ArtifactVersionRead(BaseModel):
 
 
 class ArtifactRead(BaseModel):
-    """Artefato recuperavel pela demanda, com fontes e versoes."""
+    """Artefato recuperavel pela demanda, com fontes, versoes e a ultima decisao de revisao."""
 
     id: UUID
     demand_id: UUID
@@ -128,6 +166,10 @@ class ArtifactRead(BaseModel):
     created_at: datetime
     sources: list[ArtifactSourceRead]
     versions: list[ArtifactVersionRead]
+    latest_review: ArtifactReviewRead | None = Field(
+        default=None,
+        description="Ultima decisao registrada (RF19.2); nula enquanto ninguem revisou.",
+    )
 
 
 class ArtifactErrorDetails(BaseModel):

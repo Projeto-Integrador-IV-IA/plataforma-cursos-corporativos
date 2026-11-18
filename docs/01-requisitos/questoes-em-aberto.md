@@ -103,7 +103,16 @@ caber no custo zero e não amarrar o projeto a um provedor específico.
 
 - **Responsável:** Gerência + Backend
 - **Prazo:** Fase 3 (até 20/10)
-- **Status:** ⬜ em aberto
+- **Status:** 🟡 decidido para a 4ª parcial, não resolve o requisito por completo
+
+**Decisão (17/11/2026).** Para o Marco M4 e para a banca, o ambiente é a própria stack local via
+`docker compose up`, apresentada por compartilhamento de tela — não há implantação em nuvem até
+esta data. Critério técnico de portabilidade (RNF15) já está atendido: os quatro serviços e o
+frontend são containers Docker sem dependência proprietária, prontos para subir em qualquer host
+que rode Docker. O que falta é só a *escolha de onde hospedar de forma alcançável sem a máquina de
+quem apresenta* (camada gratuita — Railway, Fly.io, Render ou similar, todos compatíveis com
+Docker Compose) — decisão de custo/tempo, não de arquitetura, deliberadamente adiada para depois da
+4ª parcial dado o prazo. Reavaliar antes da validação com o cliente real e da banca final (24/11).
 
 ---
 

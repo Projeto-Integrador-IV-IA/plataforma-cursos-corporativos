@@ -120,7 +120,11 @@ def test_login_failure_uses_the_same_response_for_email_and_password(
         )
 
     assert login.status_code == 401
-    assert login.json()["error"] == {
+    error = login.json()["error"]
+    # `request_id` varia por requisicao desde que o gateway passou a gerar um
+    # quando o cliente nao manda (correlacao de log entre servicos).
+    error.pop("request_id", None)
+    assert error == {
         "code": "INVALID_CREDENTIALS",
         "message": "E-mail ou senha incorretos.",
     }

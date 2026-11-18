@@ -39,6 +39,7 @@ vi.mock('@/services/artifacts', () => ({
   listArtifactVersions: vi.fn(),
   getArtifactVersion: vi.fn(),
   createArtifactVersion: vi.fn(),
+  reviewArtifact: vi.fn(),
 }));
 
 vi.mock('@/services/structuring', () => ({
@@ -48,7 +49,7 @@ vi.mock('@/services/structuring', () => ({
 
 const { getDemand } = await import('@/services/demands');
 const { listDemandSegments } = await import('@/services/demands');
-const { listArtifacts } = await import('@/services/artifacts');
+const { listArtifacts, reviewArtifact } = await import('@/services/artifacts');
 const { getStructuringJob, submitStructuringJob } = await import('@/services/structuring');
 const { renderRoute } = await import('@/test/renderRoute');
 
@@ -162,6 +163,7 @@ function artefatoCom(content: JsonObject): ArtifactResultRead {
         created_at: '2026-10-12T09:30:00-03:00',
       },
     ],
+    latest_review: null,
   };
 }
 
@@ -565,6 +567,129 @@ describe('revisao da estruturacao', () => {
     // `timeout` folgado: o cliente de dados ainda tenta a consulta uma vez.
     expect(
       await screen.findByText('Demanda nao encontrada.', undefined, { timeout: 4000 }),
+    ).toBeDefined();
+  });
+});
+
+describe('decisao da revisao (RF19.2)', () => {
+  it('oferece as tres acoes depois que a estrutura e apresentada', async () => {
+    await abrirRevisao();
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Decisao da revisao' }),
+    ).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Aprovar' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Devolver' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Rejeitar' })).toBeDefined();
+  });
+
+  it('aprova a versao vigente sem exigir justificativa', async () => {
+    const user = userEvent.setup();
+    vi.mocked(reviewArtifact).mockResolvedValue({
+      id: '55555555-5555-4555-8555-555555555555',
+      artifact_id: '33333333-3333-4333-8333-333333333333',
+      version_number: 1,
+      decision: 'APROVADO',
+      reason: null,
+      author_id: 'test-operator',
+      created_at: '2026-10-14T11:00:00-03:00',
+    });
+    await abrirRevisao();
+
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    await waitFor(() => expect(reviewArtifact).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(reviewArtifact).mock.calls[0]?.[1]).toEqual({
+      version_number: 1,
+      decision: 'APROVADO',
+      reason: null,
+    });
+    expect(await screen.findByText(/Decisao registrada: aprovada\./)).toBeDefined();
+  });
+
+  it('recusa rejeitar sem justificativa e nao chama o servico', async () => {
+    const user = userEvent.setup();
+    await abrirRevisao();
+
+    await user.click(screen.getByRole('button', { name: 'Rejeitar' }));
+
+    expect(
+      await screen.findByText('Justificativa obrigatoria para rejeitar ou devolver.'),
+    ).toBeDefined();
+    expect(reviewArtifact).not.toHaveBeenCalled();
+  });
+
+  it('devolve com justificativa e mostra a ultima decisao registrada', async () => {
+    const user = userEvent.setup();
+    vi.mocked(reviewArtifact).mockResolvedValue({
+      id: '55555555-5555-4555-8555-555555555555',
+      artifact_id: '33333333-3333-4333-8333-333333333333',
+      version_number: 1,
+      decision: 'DEVOLVIDO',
+      reason: 'Falta confirmar a carga horaria com o cliente.',
+      author_id: 'test-operator',
+      created_at: '2026-10-14T11:00:00-03:00',
+    });
+    await abrirRevisao();
+
+    await user.type(
+      screen.getByLabelText('Justificativa (obrigatoria para rejeitar ou devolver)'),
+      'Falta confirmar a carga horaria com o cliente.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Devolver' }));
+
+    await waitFor(() => expect(reviewArtifact).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(reviewArtifact).mock.calls[0]?.[1]).toEqual({
+      version_number: 1,
+      decision: 'DEVOLVIDO',
+      reason: 'Falta confirmar a carga horaria com o cliente.',
+    });
+    expect(await screen.findByText(/Decisao registrada: devolvida\./)).toBeDefined();
+  });
+
+  it('mostra que a estrutura mudou quando a versao revisada nao e mais a vigente', async () => {
+    const user = userEvent.setup();
+    vi.mocked(reviewArtifact).mockRejectedValue(
+      new ApiError({
+        kind: 'http',
+        code: 'ARTIFACT_VERSION_STALE',
+        message: 'O artefato foi alterado. Recarregue a versao vigente antes de revisar.',
+        status: 409,
+      }),
+    );
+    await abrirRevisao();
+
+    await user.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(
+      await screen.findByText(
+        'A estrutura foi alterada depois que esta tela carregou. Recarregue a pagina antes de decidir.',
+      ),
+    ).toBeDefined();
+  });
+
+  it('exibe a ultima decisao registrada para a versao vigente', async () => {
+    const artefato = artefatoCom(CURSO);
+    vi.mocked(listArtifacts).mockResolvedValue([
+      {
+        ...artefato,
+        latest_review: {
+          id: '55555555-5555-4555-8555-555555555555',
+          artifact_id: artefato.id,
+          version_number: 1,
+          decision: 'DEVOLVIDO',
+          reason: 'Falta confirmar a carga horaria com o cliente.',
+          author_id: 'test-operator',
+          created_at: '2026-10-14T11:00:00-03:00',
+        },
+      },
+    ]);
+
+    await abrirRevisao();
+
+    expect(await screen.findByText('Devolvida')).toBeDefined();
+    expect(
+      screen.getByText('Falta confirmar a carga horaria com o cliente.', { exact: false }),
     ).toBeDefined();
   });
 });

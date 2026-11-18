@@ -182,6 +182,22 @@ ser recalculadas depois.
 
 ---
 
+## `artifact_reviews` — decisão da revisão humana (RF19.2, cards #58-#60)
+
+**Append-only.** Sem UPDATE, sem DELETE.
+
+| Campo | Tipo | Nulo | Descrição |
+|---|---|---|---|
+| `id` | uuid PK | não | |
+| `artifact_id` | uuid FK → `artifacts.id` | não | |
+| `version_number` | integer | não | Versão revisada; FK composta com `artifact_id` → `artifact_versions`. O serviço recusa (409) se não for mais a vigente. |
+| `decision` | text | não | `APROVADO`, `REJEITADO` ou `DEVOLVIDO`. |
+| `reason` | text | sim | **Obrigatório em `REJEITADO` e `DEVOLVIDO`**; dispensado em `APROVADO`. |
+| `author_id` | uuid FK → `users.id` | não | Vem do cabeçalho `X-User-ID`, nunca do corpo da requisição. |
+| `created_at` | timestamptz | não | |
+
+---
+
 ## Restrições que valem a pena reforçar no banco
 
 | Restrição | Requisito |

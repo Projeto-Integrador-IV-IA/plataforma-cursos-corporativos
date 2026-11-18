@@ -13,6 +13,7 @@ from app.models._append_only import forbid_changes
 from app.models._types import JSON_TYPE, UUID_TYPE
 
 if TYPE_CHECKING:
+    from app.models.artifact_review import ArtifactReview
     from app.models.demand import Demand
     from app.models.raw_input import RawInput
     from app.models.user import User
@@ -77,6 +78,11 @@ class Artifact(Base):
         back_populates="artifact",
         cascade="all, delete-orphan",
         order_by="ArtifactSource.raw_input_id",
+    )
+    reviews: Mapped[list["ArtifactReview"]] = relationship(
+        back_populates="artifact",
+        passive_deletes=True,
+        order_by="ArtifactReview.created_at",
     )
 
 

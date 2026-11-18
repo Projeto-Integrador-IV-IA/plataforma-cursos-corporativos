@@ -51,6 +51,14 @@ class ArtifactOrigin(StrEnum):
     HUMANO = "HUMANO"
 
 
+class ArtifactReviewDecision(StrEnum):
+    """Desfechos possiveis da revisao humana de uma versao (RF19.2)."""
+
+    APROVADO = "APROVADO"
+    REJEITADO = "REJEITADO"
+    DEVOLVIDO = "DEVOLVIDO"
+
+
 def enum_values(enum_type: type[StrEnum]) -> tuple[str, ...]:
     """Retorna os valores persistidos de uma enumeracao de contrato."""
 

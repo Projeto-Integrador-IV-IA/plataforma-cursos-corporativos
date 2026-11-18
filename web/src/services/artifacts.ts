@@ -16,6 +16,8 @@ import { api, type RequestContext } from '@/services/api';
 import type {
   Artifact,
   ArtifactResultRead,
+  ArtifactReviewCreate,
+  ArtifactReviewRead,
   ArtifactVersion,
   ArtifactVersionCreate,
   Page,
@@ -88,6 +90,26 @@ export function createArtifactVersion(
 ): Promise<ArtifactVersion> {
   return api.post<ArtifactVersion, ArtifactVersionCreate>(
     `${ARTIFACTS}/${artifactId}/versions`,
+    payload,
+    context,
+  );
+}
+
+/**
+ * Aprova, rejeita ou devolve a versao vigente de um artefato (RF19.2).
+ *
+ * `version_number` precisa ser a vigente no instante da decisao: uma edicao
+ * feita por outra pessoa entre a tela abrir e o clique faz o servico recusar
+ * com 409 - a tela trata isso como "a estrutura mudou, recarregue antes de
+ * decidir", nao como falha generica.
+ */
+export function reviewArtifact(
+  artifactId: Uuid,
+  payload: ArtifactReviewCreate,
+  context: RequestContext = {},
+): Promise<ArtifactReviewRead> {
+  return api.post<ArtifactReviewRead, ArtifactReviewCreate>(
+    `${ARTIFACTS}/${artifactId}/review`,
     payload,
     context,
   );

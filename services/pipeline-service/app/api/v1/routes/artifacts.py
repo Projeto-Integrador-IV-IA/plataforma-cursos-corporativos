@@ -1,4 +1,5 @@
-"""Persistencia e consulta dos resultados bruto e estruturado da IA, e restauracao de versoes."""
+"""Persistencia e consulta dos resultados bruto e estruturado da IA, restauracao de versoes
+e decisao de revisao humana (RF19.2)."""
 
 from typing import Annotated
 from uuid import UUID
@@ -13,6 +14,8 @@ from app.schemas.artifact import (
     ArtifactRead,
     ArtifactReprocessCreate,
     ArtifactResultCreate,
+    ArtifactReviewCreate,
+    ArtifactReviewRead,
     ArtifactVersionRead,
 )
 from app.services.artifact_service import ArtifactService
@@ -222,3 +225,63 @@ def reprocess_artifact(
     versao = ArtifactService(session).reprocess(artifact_id, data)
     session.commit()
     return versao
+
+
+@router.post(
+    "/artifacts/{artifact_id}/review",
+    response_model=ArtifactReviewRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Registrar a decisao da revisao humana sobre uma versao",
+    description=(
+        "Aprova, rejeita ou devolve a versao vigente do artefato (RF19.2). version_number deve "
+        "ser a versao vigente no instante da decisao; uma decisao sobre versao desatualizada "
+        "recebe 409. reason e obrigatoria para REJEITADO e DEVOLVIDO, dispensada para APROVADO. "
+        "O autor e obtido do cabecalho X-User-ID."
+    ),
+    responses={
+        404: {
+            "model": ArtifactErrorResponse,
+            "description": "Artefato ou operador inexistente.",
+        },
+        409: {
+            "model": ArtifactErrorResponse,
+            "description": "A versao informada nao e mais a vigente.",
+        },
+        422: {
+            "model": ArtifactErrorResponse,
+            "description": "Decisao ou justificativa invalidas.",
+        },
+    },
+)
+def review_artifact(
+    artifact_id: UUID,
+    data: ArtifactReviewCreate,
+    author_id: Annotated[UUID, Header(alias="X-User-ID")],
+    session: Annotated[Session, Depends(get_session)],
+) -> ArtifactReviewRead:
+    decisao = ArtifactService(session).review(artifact_id, data, author_id)
+    session.commit()
+    return decisao
+
+
+@router.get(
+    "/artifacts/{artifact_id}/reviews",
+    response_model=list[ArtifactReviewRead],
+    summary="Consultar o historico de decisoes de revisao de um artefato",
+    description="Todas as decisoes registradas, da mais antiga a mais recente (RF19.2).",
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ArtifactErrorResponse,
+            "description": "Artefato inexistente.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "model": ArtifactErrorResponse,
+            "description": "Identificador invalido.",
+        },
+    },
+)
+def list_artifact_reviews(
+    artifact_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+) -> list[ArtifactReviewRead]:
+    return ArtifactService(session).list_reviews(artifact_id)
