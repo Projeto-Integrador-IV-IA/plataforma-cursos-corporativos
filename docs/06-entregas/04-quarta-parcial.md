@@ -9,6 +9,32 @@
 - [x] Fluxo completo funcionando: login → cliente → demanda → texto bruto → estruturação → revisão →
       pipeline → artefatos versionados — inclusive a decisão de revisão (RF19.2), fechada nesta
       entrega.
+- [x] Evidência visual do fluxo em navegador real — [capturas-18-11-2026](capturas-18-11-2026/)
+      (login, visão geral, clientes, demandas, quadro do pipeline, detalhe da demanda e a tela de
+      decisão de revisão do RF19.2), tiradas em 18/11/2026 num Chromium real via Playwright — não
+      `curl`/script, que não aplicam CORS e por isso não teriam pego o bug de CORS corrigido em
+      17/11/2026. É a confirmação direta de que a correção funciona num navegador de verdade.
+      Capturas 10–13 usam um cliente e uma captação fictícios criados via chamada direta à API
+      (não pela interface) — "Metalúrgica Vale do Aço Ltda", pedido de treinamento NR-12 por
+      e-mail — para mostrar o resultado da estruturação citando a evidência do texto de origem de
+      verdade, em vez dos dados de carga de teste ("Cliente de medicao"). A captura 13 usa o
+      provedor mock (`LLM_PROVIDER=mock`), que devolve sempre a mesma estrutura fixa — o texto foi
+      escrito para coincidir tematicamente com essa saída fixa, não prova que o modelo leu o texto.
+      A captura
+      [14-estruturacao-PROVEDOR-REAL-openrouter.png](capturas-18-11-2026/14-estruturacao-PROVEDOR-REAL-openrouter.png)
+      é a prova disso: mesma demanda, provedor real ligado brevemente em 18/11/2026
+      (`openrouter`/`deepseek-chat-v3.1`, `provider_latency_ms≈19,5s`) — o resultado muda
+      visivelmente (campos ausentes reconhecidos como "Não informado" em vez de preenchidos,
+      ementa derivada do texto real), confirmando que a chamada de fato acontece e lê o texto.
+      Chave revogada e provedor revertido para mock logo em seguida (ver nota no `.env`).
+- [x] Reprocessamento gera nova versão do mesmo artefato em vez de um artefato irmão (RF08, RF13,
+      RF17) — **bug achado e corrigido em 18/11/2026**: `job_service.py` sempre criava um artefato
+      novo a cada execução da IA, nunca chamava o `reprocess()` já existente e testado no
+      pipeline-service; rodar "Fazer o curso com IA" duas vezes na mesma demanda duplicava o
+      artefato em vez de versioná-lo. Corrigido consultando se já existe artefato do tipo antes de
+      decidir entre criar e reprocessar (`PipelineServiceClient.find_artifact_id`); confirmado ao
+      vivo (segunda execução virou versão 2 do mesmo artefato) e coberto em
+      [`test_job_service_persistence.py`](../../services/ai-structuring-service/tests/unit/test_job_service_persistence.py).
 - [x] Contratos de API consistentes entre serviços e frontend (RNF02) — verificado por teste
       automatizado que compara cada contrato byte a byte contra o `/openapi.json` publicado por
       cada serviço (`test_versioned_contract_declares_every_published_operation` e equivalentes).
@@ -37,10 +63,18 @@
 
 ## Desempenho
 
-- [ ] Latência do CRUD medida — confronto com RNF07 — **não medido**. RNF07 segue ⬜ na matriz.
-- [ ] Latência da estruturação medida — confronto com RNF06 — `total_elapsed_ms` já é exposto pela
-      API (RNF06 está 🟡), mas a aferição contra o alvo exige provedor de LLM real, não o mock da CI.
-- [ ] Desvios em relação às metas explicados e justificados — depende dos dois itens acima.
+- [x] Latência do CRUD medida — confronto com RNF07 — **medido ao vivo em 18/11/2026** contra a
+      stack real: seis rotas do `pipeline-service` via gateway, 20 repetições cada, entre
+      p50 = 28 ms e p95 = 440 ms — todas dentro do alvo de 500 ms. RNF07 passou de ⬜ para 🟢 na
+      matriz. Amostra local, sem volume de produção — ver
+      [Q2 em questões em aberto](../01-requisitos/questoes-em-aberto.md#q2--metas-de-desempenho).
+- [x] Latência da estruturação medida — confronto com RNF06 — `total_elapsed_ms` exposto pela API;
+      medição contra provedor real já existe (04/11/2026, OpenRouter, `deepseek-chat-v3.1`): p50 =
+      11,6 s, p95 = 12,8 s, dentro do alvo de 15 s. RNF06 segue 🟡 (não 🟢) porque a amostra é
+      pequena (3 casos sintéticos) e o ambiente de demonstração de hoje roda com provedor mock.
+- [x] Desvios em relação às metas explicados e justificados — **nenhum desvio**: os dois alvos foram
+      cumpridos nas medições disponíveis. A ressalva em ambos os casos é tamanho de amostra, não
+      estouro de meta.
 
 ## Verificação dos requisitos
 

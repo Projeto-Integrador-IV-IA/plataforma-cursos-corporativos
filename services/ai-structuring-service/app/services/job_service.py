@@ -149,27 +149,49 @@ class StructuringJobService:
         if not job.demand.source_ids:
             raise ValueError("A execucao nao informou fontes para vincular ao artefato.")
 
-        payload = {
-            "type": "REQUISITOS_EXTRAIDOS",
-            "title": "Estrutura do curso gerada por IA",
-            "raw_output": outcome.completion.text,
-            "structured_content": outcome.course.model_dump(mode="json"),
-            "raw_input_ids": list(job.demand.source_ids),
-            "ai_metadata": {
-                "job_id": str(job.id),
-                "provider": outcome.completion.provider,
-                "model": outcome.completion.model,
-                "prompt": outcome.prompt_id,
-                "attempts": outcome.attempts,
-                "prompt_tokens": outcome.completion.usage.prompt_tokens,
-                "completion_tokens": outcome.completion.usage.completion_tokens,
-                "total_tokens": outcome.completion.usage.total_tokens,
-                "provider_latency_ms": outcome.completion.latency_ms,
-                "elapsed_ms": outcome.elapsed_ms,
-            },
+        ARTIFACT_TYPE = "REQUISITOS_EXTRAIDOS"
+        ai_metadata = {
+            "job_id": str(job.id),
+            "provider": outcome.completion.provider,
+            "model": outcome.completion.model,
+            "prompt": outcome.prompt_id,
+            "attempts": outcome.attempts,
+            "prompt_tokens": outcome.completion.usage.prompt_tokens,
+            "completion_tokens": outcome.completion.usage.completion_tokens,
+            "total_tokens": outcome.completion.usage.total_tokens,
+            "provider_latency_ms": outcome.completion.latency_ms,
+            "elapsed_ms": outcome.elapsed_ms,
         }
         assert self._pipeline_client is not None
-        await self._pipeline_client.persist_artifact(job.demand.demand_id, payload)
+
+        # Demanda ja estruturada antes acrescenta uma versao ao mesmo artefato
+        # em vez de criar um artefato irmao (RF08/RF13): sem esta consulta,
+        # "Fazer o curso com IA" pela segunda vez duplicava o artefato inteiro.
+        existing_artifact_id = await self._pipeline_client.find_artifact_id(
+            job.demand.demand_id, ARTIFACT_TYPE
+        )
+        if existing_artifact_id is not None:
+            await self._pipeline_client.reprocess_artifact(
+                existing_artifact_id,
+                {
+                    "raw_output": outcome.completion.text,
+                    "structured_content": outcome.course.model_dump(mode="json"),
+                    "raw_input_ids": list(job.demand.source_ids),
+                    "ai_metadata": ai_metadata,
+                },
+            )
+        else:
+            await self._pipeline_client.persist_artifact(
+                job.demand.demand_id,
+                {
+                    "type": ARTIFACT_TYPE,
+                    "title": "Estrutura do curso gerada por IA",
+                    "raw_output": outcome.completion.text,
+                    "structured_content": outcome.course.model_dump(mode="json"),
+                    "raw_input_ids": list(job.demand.source_ids),
+                    "ai_metadata": ai_metadata,
+                },
+            )
 
     async def _gerar_embeddings_best_effort(self, job: StructuringJob) -> None:
         """Embedda os trechos da demanda apos o artefato ser persistido (card #160, RF29).

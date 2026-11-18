@@ -52,9 +52,19 @@ Os dois números são **estimativas sem medição**.
 
 **Por que importa.** Meta irreal vira dívida na banca; meta frouxa não pressiona a implementação.
 
+**Decisão (18/11/2026).** Os dois alvos resistiram à primeira medição real. RNF06: p50 = 11,6 s,
+p95 = 12,8 s contra `deepseek/deepseek-chat-v3.1` via OpenRouter (04/11/2026, 3 casos sintéticos,
+ver [relatorio-comparativo-modelos.md](../04-ia/avaliacoes/relatorio-comparativo-modelos.md)) —
+dentro do alvo de 15 s. RNF07: as seis rotas de CRUD mais usadas do `pipeline-service` medidas ao
+vivo (20 repetições cada, stack local via gateway) ficaram entre p50 = 28 ms e p95 = 440 ms — todas
+dentro do alvo de 500 ms. Nenhuma meta precisou ser revisada para baixo nem para cima. Questão não
+fecha totalmente porque as duas amostras são pequenas e locais (sem volume de produção nem ambiente
+de homologação dedicado — ver [Q5](#q5--ambiente-de-homologação)), mas deixa de ser "estimativa sem
+medição": agora há número real sustentando os dois alvos.
+
 - **Responsável:** IA (RNF06) + Backend (RNF07)
 - **Prazo:** revisão após a PoC da 2ª parcial (15/09)
-- **Status:** ⬜ em aberto
+- **Status:** 🟡 primeira medição real feita em 18/11/2026, ambos os alvos confirmados; amostra pequena e local, não fecha por completo
 
 ---
 

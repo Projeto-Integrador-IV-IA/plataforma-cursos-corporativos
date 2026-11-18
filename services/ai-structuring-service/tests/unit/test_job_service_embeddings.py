@@ -18,6 +18,9 @@ from tests.conftest import MakeSettings
 class _PipelineClientFalso:
     """Confirma a persistencia do artefato sem rede, como RF13 exige para concluir."""
 
+    async def find_artifact_id(self, demand_id: str, artifact_type: str) -> str | None:
+        return None
+
     async def persist_artifact(self, demand_id: str, payload: dict) -> None:
         pass
 

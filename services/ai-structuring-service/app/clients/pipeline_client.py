@@ -32,6 +32,41 @@ class PipelineServiceClient:
             response = await client.post(url, json=payload)
             response.raise_for_status()
 
+    async def find_artifact_id(self, demand_id: str, artifact_type: str) -> str | None:
+        """Procura um artefato do tipo informado ja existente para a demanda.
+
+        Decide entre criar (primeira execucao) e reprocessar (RF17 consolidado,
+        card #15): sem essa consulta, toda execucao de IA repetida para a mesma
+        demanda criaria um artefato irmao em vez de uma versao nova do mesmo
+        artefato, quebrando o historico unico que RF08/RF13 prometem.
+        """
+
+        url = f"{self._base_url}/api/v1/demands/{demand_id}/artifacts"
+        async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+            response = await client.get(url)
+            if response.status_code == httpx.codes.NOT_FOUND:
+                return None
+            response.raise_for_status()
+            body = response.json()
+        artifacts = body if isinstance(body, list) else []
+        for artifact in artifacts:
+            if isinstance(artifact, dict) and artifact.get("type") == artifact_type:
+                artifact_id = artifact.get("id")
+                return str(artifact_id) if artifact_id is not None else None
+        return None
+
+    async def reprocess_artifact(self, artifact_id: str, payload: dict[str, Any]) -> None:
+        """Acrescenta ao artefato existente uma nova versao de origem IA (RF17 consolidado).
+
+        Mesmo ``payload`` de ``persist_artifact``, sem ``type``/``title`` - o
+        artefato ja existe, so a versao e nova.
+        """
+
+        url = f"{self._base_url}/api/v1/artifacts/{artifact_id}/reprocess"
+        async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+
     async def list_demand_segments(self, demand_id: str) -> list[dict[str, Any]]:
         """Lista os trechos citaveis de todas as fontes da demanda (card #160/#161).
 
